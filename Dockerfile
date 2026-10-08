@@ -12,7 +12,9 @@ COPY db db
 COPY config config
 COPY schema.sql ./
 
-RUN uv sync --frozen --no-dev
+# Empty keeps the API image slim. "fit" adds CPU torch for the worker.
+ARG FIT_EXTRA=
+RUN if [ -n "$FIT_EXTRA" ]; then uv sync --frozen --no-dev --extra "$FIT_EXTRA"; else uv sync --frozen --no-dev; fi
 
 ENV PATH="/app/.venv/bin:$PATH"
 

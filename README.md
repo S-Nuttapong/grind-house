@@ -70,6 +70,35 @@ Build that file by appending the gateway certificate (from the macOS system keyc
 
 `companies.seed.yaml` is a starter set of public Greenhouse and Lever boards. Replace it with the companies you want.
 
+## Job fit
+
+Scores are written to Postgres by a worker. Opening the board does not score anything.
+
+Import the brag bank. The vault is read-only, and contact details in the profile frontmatter are not stored.
+
+```bash
+VAULT_BANK_PATH="/path/to/Brag Banks" uv run jobhunt profile import
+```
+
+Download the embedding model on the host. A container on this network cannot reach the download, so the worker reads a cache you build here:
+
+```bash
+uv sync --extra fit
+uv run jobhunt fit download-model
+```
+
+That fills `./.models`, which is gitignored.
+
+```bash
+docker compose up -d --build fit-worker
+```
+
+The worker uses the same Dockerfile as the API with the `fit` extra, which installs CPU torch. The API image leaves that extra off. `HF_HOME=/models` and `./.models` is mounted read-only. On stop, Docker waits 60 seconds so the worker can finish its current batch; the next start scores only the jobs still missing.
+
+Schedules are rows in the database. Change them on the Schedules page at `http://127.0.0.1:3000/schedules`. The worker re-reads that table every minute, so a change does not need a restart.
+
+To add a strategy, implement `JobFitModel` (`score` and `score_many` return a number from 0 to 100) and register the factory in `jobhunt/fit/registry.py`. Set `FIT_MODEL` to that name. A model with `sends_data_offsite = True` receives only the bank entries that are not marked confidential.
+
 ## Scheduling
 
 The hourly tick is a launchd job (`jobhunt ops install-launchd`). If 1Password is locked, `op run` fails and that hour is skipped. The next hour tries again.

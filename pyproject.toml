@@ -29,6 +29,12 @@ dependencies = [
     "uvicorn==0.37.0",
 ]
 
+[project.optional-dependencies]
+fit = [
+    "sentence-transformers==3.3.1",
+    "torch>=2.2.2,<2.3",
+]
+
 [project.scripts]
 jobhunt = "jobhunt.cli:main"
 
@@ -46,6 +52,21 @@ packages = ["jobhunt"]
 
 [tool.uv]
 package = true
+environments = [
+    "sys_platform == 'darwin' and platform_machine == 'x86_64'",
+    "sys_platform == 'linux' and platform_machine == 'x86_64'",
+    "sys_platform == 'linux' and platform_machine == 'aarch64'",
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", marker = "sys_platform == 'linux'" },
+]
 
 [tool.ruff]
 target-version = "py312"

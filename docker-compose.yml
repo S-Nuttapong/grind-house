@@ -28,6 +28,26 @@ services:
     ports:
       - "127.0.0.1:8765:8765"
 
+  fit-worker:
+    build:
+      context: .
+      args:
+        FIT_EXTRA: fit
+    depends_on:
+      postgres:
+        condition: service_healthy
+      web:
+        condition: service_started
+    environment:
+      DATABASE_URL: postgresql://jobhunt:jobhunt@postgres:5432/jobhunt?sslmode=disable
+      HF_HOME: /models
+      FIT_MODEL: bge
+    volumes:
+      - ./.models:/models:ro
+    command: ["jobhunt", "fit", "worker"]
+    stop_grace_period: 60s
+    restart: unless-stopped
+
   ui:
     build:
       context: ./web
