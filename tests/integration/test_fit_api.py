@@ -1,0 +1,220 @@
+"""Profile, resume, and schedule routes, plus the board reading stored fit scores."""
+
+from collections.abc import Iterator
+
+import psycopg
+import pytest
+from fastapi.testclient import TestClient
+from jobhunt.db import close_pool, fit_repo, repo
+from jobhunt.fit.fake import FakeFitModel
+from jobhunt.fit.import_bank import import_bank
+from jobhunt.fit.runner import run_fit
+from jobhunt.web.app import create_app
+from tests.integration.test_fit_import import _BANK
+
+
+@pytest.fixture
+def client(database_url: str) -> Iterator[TestClient]:
+    close_pool()
+    with TestClient(create_app()) as test_client:
+        yield test_client
+    close_pool()
+    with psycopg.connect(database_url) as conn:
+        tables = (
+            "fit_run_events",
+            "fit_runs",
+            "job_fits",
+            "fit_sources",
+            "resumes",
+            "bank_entries",
+        )
+        for table in tables:
+            conn.execute(f"DELETE FROM {table}")
+        conn.execute("DELETE FROM fit_schedules WHERE name NOT LIKE '%daily%'")
+        conn.execute("UPDATE bank_profile SET body_md = ''")
+        conn.commit()
+
+
+def test_entry_and_summary_round_trip(client: TestClient) -> None:
+    created = client.post(
+        "/api/profile/entries",
+        json={
+            "id": "BB-700",
+            "title": "Shipped it",
+            "tags": ["skill/go"],
+            "body_md": "Did the thing.",
+        },
+    )
+    assert created.status_code == 201
+    assert created.json()["origin"] == "ui"
+
+    updated = client.put(
+        "/api/profile/entries/BB-700", json={"id": "ignored", "title": "Shipped more"}
+    )
+    assert updated.json()["title"] == "Shipped more"
+
+    saved = client.put("/api/profile/summary", json={"body_md": "Timeline."})
+    assert saved.json()["body_md"] == "Timeline."
+    assert client.get("/api/profile/summary").json()["body_md"] == "Timeline."
+
+    assert client.delete("/api/profile/entries/BB-700").status_code == 204
+    assert client.get("/api/profile/entries").json() == []
+
+
+def test_resume_upload_select_and_reject(client: TestClient) -> None:
+    rejected = client.post(
+        "/api/resumes", files={"file": ("notes.exe", b"nope", "application/octet-stream")}
+    )
+    assert rejected.status_code == 422
+
+    uploaded = client.post(
+        "/api/resumes", files={"file": ("resume.md", b"# Me\nGo, Kafka", "text/markdown")}
+    )
+    assert uploaded.status_code == 201
+    resume_id = uploaded.json()["id"]
+    assert "Kafka" in uploaded.json()["text"]
+
+    assert client.post(f"/api/resumes/{resume_id}/select").json()["is_selected"] is True
+    assert client.delete(f"/api/resumes/{resume_id}").status_code == 204
+    assert client.delete(f"/api/resumes/{resume_id}").status_code == 404
+
+
+def test_schedule_validation_and_queue(client: TestClient) -> None:
+    bad = client.post(
+        "/api/fit/schedules",
+        json={"name": "Too fast", "mode": "bank", "cron": "*/5 * * * *"},
+    )
+    assert bad.status_code == 422
+    assert "15" in bad.json()["detail"]
+
+    created = client.post(
+        "/api/fit/schedules",
+        json={"name": "Nightly", "mode": "bank", "cron": "0 2 * * *", "timezone": "Asia/Bangkok"},
+    )
+    assert created.status_code == 201
+    body = created.json()
+    assert "02:00" in body["description"]
+    assert len(body["upcoming"]) == 3
+
+    schedule_id = body["id"]
+    first = client.post(f"/api/fit/schedules/{schedule_id}/run")
+    second = client.post(f"/api/fit/schedules/{schedule_id}/run")
+    assert first.status_code == 202
+    assert second.json()["created"] is False
+    assert second.json()["run_id"] == first.json()["run_id"]
+
+    assert client.delete(f"/api/fit/schedules/{schedule_id}").status_code == 204
+
+
+def test_board_sorts_by_stored_score(client: TestClient, database_url: str) -> None:
+    with psycopg.connect(database_url) as conn:
+        import_bank(conn, _BANK)
+        company_id = repo.insert_company(conn, name="Board Fit Co", name_norm="board fit co")
+        weak = repo.insert_job(
+            conn,
+            company_id=company_id,
+            title="ZzFit Designer",
+            title_norm="zzfit designer",
+            apply_url="https://example.com/fit-weak",
+            dedupe_key=f"{company_id}|zzfit designer|SG",
+            description_md="Brand design only.",
+        )
+        strong = repo.insert_job(
+            conn,
+            company_id=company_id,
+            title="ZzFit Go Engineer",
+            title_norm="zzfit go engineer",
+            apply_url="https://example.com/fit-strong",
+            dedupe_key=f"{company_id}|zzfit go|SG",
+            description_md="Go and Kafka for payments.",
+        )
+        run_fit(conn, FakeFitModel(), "bank")
+        conn.commit()
+
+    try:
+        body = client.get("/api/jobs", params={"q": "ZzFit"}).json()
+        assert [job["title"] for job in body["jobs"]] == ["ZzFit Go Engineer", "ZzFit Designer"]
+        assert body["jobs"][0]["fit_tier"] == "strong"
+        assert body["jobs"][0]["score"] > body["jobs"][1]["score"]
+
+        high = client.get("/api/jobs", params={"q": "ZzFit", "min_score": "80"}).json()
+        assert [job["id"] for job in high["jobs"]] == [strong]
+
+        detail = client.get(f"/api/jobs/{strong}").json()
+        assert "fintech" in detail["matched_terms"]
+        assert client.get(f"/api/jobs/{weak}").json()["fit_tier"] == "low"
+    finally:
+        with psycopg.connect(database_url) as conn:
+            conn.execute("DELETE FROM jobs WHERE id = ANY(%s)", ([weak, strong],))
+            conn.execute("DELETE FROM companies WHERE id = %s", (company_id,))
+            conn.commit()
+
+
+def test_stream_replays_then_follows(client: TestClient, database_url: str) -> None:
+    import threading
+    import time
+
+    with psycopg.connect(database_url) as conn:
+        run_id, _created = fit_repo.enqueue_run(
+            conn,
+            {
+                "schedule_id": None,
+                "mode": "bank",
+                "trigger": "manual",
+                "model_id": "fake/v1",
+                "idempotency_key": "stream-test",
+            },
+        )
+        first = fit_repo.add_run_event(conn, run_id, "progress", {"done": 1, "total": 2, "pct": 50})
+        conn.commit()
+
+    def emit_final() -> None:
+        time.sleep(0.5)
+        with psycopg.connect(database_url) as conn:
+            event_id = fit_repo.add_run_event(conn, run_id, "status", {"status": "ok"})
+            fit_repo.notify_run(conn, run_id, event_id)
+            conn.commit()
+
+    threading.Thread(target=emit_final, daemon=True).start()
+    with client.stream("GET", f"/api/fit/runs/{run_id}/stream") as response:
+        assert response.status_code == 200
+        assert response.headers["x-accel-buffering"] == "no"
+        body = "".join(response.iter_text())
+    assert f"id: {first}" in body
+    assert '"status": "ok"' in body
+
+    # A reconnect resumes after the last event it saw, without repeating it.
+    with client.stream(
+        "GET", f"/api/fit/runs/{run_id}/stream", headers={"Last-Event-ID": str(first)}
+    ) as response:
+        resumed = "".join(response.iter_text())
+    assert f"id: {first}" not in resumed
+    assert '"status": "ok"' in resumed
+
+
+def test_status_reports_stale_after_an_edit(client: TestClient, database_url: str) -> None:
+    with psycopg.connect(database_url) as conn:
+        import_bank(conn, _BANK)
+        run_fit(conn, FakeFitModel(), "bank")
+        fit_repo.upsert_bank_entry(
+            conn,
+            {
+                "id": "BB-777",
+                "title": "New work",
+                "company": None,
+                "role": None,
+                "period": None,
+                "my_role": None,
+                "scope": None,
+                "metrics": [],
+                "strength": None,
+                "confidential": False,
+                "status": "draft",
+                "tags": [],
+                "body_md": "Added after scoring.",
+                "origin": "ui",
+            },
+        )
+        conn.commit()
+    status = client.get("/api/fit/status").json()
+    assert status["modes"]["bank"]["stale"] is True

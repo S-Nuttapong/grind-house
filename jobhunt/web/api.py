@@ -36,8 +36,11 @@ class JobSummary(BaseModel):
     is_new: bool
     apply_url: str
     status: str | None
-    score: int | None
+    score: float | None
     band: str | None
+    fit_tier: str | None
+    matched_terms: list[str]
+    missing_terms: list[str]
     stage: str
     snippet: str
     sources: list[str]
@@ -120,9 +123,9 @@ def list_jobs(request: Request) -> JobPage:
 
 
 @router.get("/jobs/{job_id}", response_model=JobDetail)
-def get_job(job_id: int) -> JobDetail:
+def get_job(job_id: int, fit: str = "bank") -> JobDetail:
     with tx() as conn:
-        job = board.get_job(conn, job_id)
+        job = board.get_job(conn, job_id, fit if fit in {"bank", "resume"} else "bank")
     if job is None:
         raise HTTPException(status_code=404, detail="job not found")
     return _detail(job)
