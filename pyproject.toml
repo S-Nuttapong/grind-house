@@ -60,6 +60,10 @@ strict = true
 packages = ["jobhunt"]
 plugins = ["pydantic.mypy"]
 
+[[tool.mypy.overrides]]
+module = ["yaml", "markdownify"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
