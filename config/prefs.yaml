@@ -1,0 +1,13 @@
+levels: [senior, staff, principal, lead, unknown]
+locations:
+  countries: [SG, TH]
+  remote:
+    allowed: true
+    tz_band: [5, 10]
+  # us_remote: true
+posted_within_days: 21
+salary_floor_usd_year: 60000
+employment_types: [fulltime, null]
+exclude_companies: []
+exclude_title_terms: [intern, "new grad", "data entry"]
+shortlist_per_day: 40

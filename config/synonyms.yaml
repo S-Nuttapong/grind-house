@@ -1,0 +1,5 @@
+react: {kind: stack, syn: [react.js, reactjs]}
+typescript: {kind: stack, syn: [ts]}
+nextjs: {kind: stack, syn: [next.js, next]}
+web performance: {kind: concept, syn: [core web vitals, lighthouse, page speed]}
+fintech: {kind: domain, syn: [payments, banking, lending, earned wage access]}

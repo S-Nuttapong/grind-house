@@ -1,0 +1,53 @@
+- name: Greenhouse tiers A and B
+  source_id: greenhouse
+  params: {tiers: [A, B]}
+  cron: "0 7 * * *"
+  timezone: Asia/Bangkok
+- name: Lever tiers A and B
+  source_id: lever
+  params: {tiers: [A, B]}
+  cron: "0 7 * * *"
+  timezone: Asia/Bangkok
+- name: Ashby tiers A and B
+  source_id: ashby
+  params: {tiers: [A, B]}
+  cron: "0 7 * * *"
+  timezone: Asia/Bangkok
+- name: Indeed SG software engineer
+  source_id: indeed
+  params:
+    search_term: software engineer
+    location: Singapore
+    country_indeed: Singapore
+    hours_old: 48
+  cron: "30 7 * * *"
+  timezone: Asia/Bangkok
+- name: Indeed TH software engineer
+  source_id: indeed
+  params:
+    search_term: software engineer
+    location: Thailand
+    country_indeed: Thailand
+    hours_old: 48
+  cron: "30 7 * * *"
+  timezone: Asia/Bangkok
+- name: LinkedIn guest SG frontend morning
+  source_id: linkedin_guest
+  params:
+    search_term: frontend engineer
+    location: Singapore
+    country_indeed: Singapore
+    hours_old: 48
+    results_wanted: 50
+  cron: "0 8 * * *"
+  timezone: Asia/Bangkok
+- name: LinkedIn guest SG frontend evening
+  source_id: linkedin_guest
+  params:
+    search_term: frontend engineer
+    location: Singapore
+    country_indeed: Singapore
+    hours_old: 48
+    results_wanted: 50
+  cron: "0 20 * * *"
+  timezone: Asia/Bangkok

@@ -1,0 +1,5 @@
+as_of: 2026-10-01
+to_usd:
+  USD: 1.0
+  # SGD, THB, EUR, GBP, AUD, INR: add the rate when it is known.
+  # A currency missing from this table leaves usd_year_min null.
