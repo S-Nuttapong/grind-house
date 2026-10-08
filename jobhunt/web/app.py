@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from jobhunt.db import tx
-from jobhunt.web import board
+from jobhunt.web import api, board
 from jobhunt.web.render import render_markdown
 
 _ROOT = Path(__file__).resolve().parent
@@ -20,6 +20,7 @@ _templates.env.filters["markdown"] = render_markdown
 
 def create_app() -> FastAPI:
     app = FastAPI(title="Job Hunt OS")
+    app.include_router(api.router)
     app.mount("/static", StaticFiles(directory=_ROOT / "static"), name="static")
 
     @app.get("/", response_class=HTMLResponse)

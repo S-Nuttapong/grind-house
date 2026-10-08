@@ -22,6 +22,16 @@ _REMOTE_LABELS = {
     "unknown": "Workplace unknown",
 }
 _MISSING = object()
+PIPELINE_STATUSES = ("saved", "applied", "skipped")
+_SCORE_COLUMNS = (
+    "m.score, m.band, pf.passed_hard, pf.filter_reason, pf.shortlisted, pf.job_id AS prefiltered"
+)
+_SCORE_JOINS = """
+            LEFT JOIN LATERAL (
+              SELECT mm.score, mm.band FROM matches mm
+              WHERE mm.job_id = j.id ORDER BY mm.created_at DESC LIMIT 1
+            ) m ON TRUE
+            LEFT JOIN prefilter pf ON pf.job_id = j.id"""
 
 
 def parse_filters(params: dict[str, str]) -> dict[str, Any]:
@@ -68,7 +78,7 @@ def list_jobs(conn: Connection[Any], filters: dict[str, Any]) -> tuple[list[dict
             SELECT j.id, j.title, c.name AS company, j.city, j.country, j.remote,
                    j.employment_type, j.salary_min, j.salary_max, j.salary_currency,
                    j.posted_at, j.first_seen_at, j.closed_at, j.apply_url,
-                   s.status,
+                   s.status, {_SCORE_COLUMNS},
                    left(
                      regexp_replace(coalesce(j.description_md, ''), '[[:punct:]]+', ' ', 'g'),
                      220
@@ -80,6 +90,7 @@ def list_jobs(conn: Connection[Any], filters: dict[str, Any]) -> tuple[list[dict
             FROM jobs j
             JOIN companies c ON c.id = j.company_id
             LEFT JOIN job_status s ON s.job_id = j.id
+            {_SCORE_JOINS}
             {where}
             ORDER BY {order}
             LIMIT %s OFFSET %s
@@ -93,11 +104,11 @@ def list_jobs(conn: Connection[Any], filters: dict[str, Any]) -> tuple[list[dict
 def get_job(conn: Connection[Any], job_id: int) -> dict[str, Any] | None:
     with conn.cursor(row_factory=dict_row) as cursor:
         cursor.execute(
-            """
+            f"""
             SELECT j.id, j.title, c.name AS company, j.city, j.country, j.remote,
                    j.employment_type, j.salary_min, j.salary_max, j.salary_currency,
                    j.posted_at, j.first_seen_at, j.closed_at, j.apply_url, j.description_md,
-                   s.status,
+                   s.status, {_SCORE_COLUMNS},
                    (
                      SELECT string_agg(DISTINCT p.source_id, ', ' ORDER BY p.source_id)
                      FROM postings p WHERE p.job_id = j.id
@@ -105,6 +116,7 @@ def get_job(conn: Connection[Any], job_id: int) -> dict[str, Any] | None:
             FROM jobs j
             JOIN companies c ON c.id = j.company_id
             LEFT JOIN job_status s ON s.job_id = j.id
+            {_SCORE_JOINS}
             WHERE j.id = %s
             """,
             (job_id,),
@@ -128,7 +140,47 @@ def get_job(conn: Connection[Any], job_id: int) -> dict[str, Any] | None:
             (job_id,),
         )
         job["events"] = [dict(item) for item in cursor.fetchall()]
+    job["tailor_prompt"] = (
+        f"Tailor my resume for jobhunt job #{job['id']} — {job['company']} · {job['title']}"
+    )
     return job
+
+
+def list_pipeline(conn: Connection[Any]) -> dict[str, list[dict[str, Any]]]:
+    with conn.cursor(row_factory=dict_row) as cursor:
+        cursor.execute(
+            f"""
+            SELECT j.id, j.title, c.name AS company, j.city, j.country, j.remote,
+                   j.employment_type, j.salary_min, j.salary_max, j.salary_currency,
+                   j.posted_at, j.first_seen_at, j.closed_at, j.apply_url,
+                   s.status, s.at AS status_at, {_SCORE_COLUMNS},
+                   '' AS snippet,
+                   (
+                     SELECT string_agg(DISTINCT p.source_id, ', ' ORDER BY p.source_id)
+                     FROM postings p WHERE p.job_id = j.id
+                   ) AS sources
+            FROM job_status s
+            JOIN jobs j ON j.id = s.job_id
+            JOIN companies c ON c.id = j.company_id
+            {_SCORE_JOINS}
+            WHERE s.status = ANY(%s)
+            ORDER BY s.at DESC
+            LIMIT 300
+            """,
+            (list(PIPELINE_STATUSES),),
+        )
+        rows = [_present(dict(row)) for row in cursor.fetchall()]
+    columns: dict[str, list[dict[str, Any]]] = {status: [] for status in PIPELINE_STATUSES}
+    for row in rows:
+        columns[str(row["status"])].append(row)
+    return columns
+
+
+def list_facets(conn: Connection[Any]) -> dict[str, list[str]]:
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT DISTINCT source_id FROM postings ORDER BY source_id")
+        sources = [str(row[0]) for row in cursor.fetchall()]
+    return {"sources": sources, "remote": list(_REMOTE_LABELS)}
 
 
 def record_event(conn: Connection[Any], job_id: int, status: str, reason: str | None) -> None:
@@ -258,8 +310,18 @@ def _present(row: dict[str, Any]) -> dict[str, Any]:
     row["source_list"] = [part.strip() for part in sources.split(",") if part.strip()]
     snippet = str(row.get("snippet") or "")
     row["snippet"] = " ".join(snippet.split())
-    row["stage"] = row.get("status") or "not scored"
+    row["stage"] = _stage(row)
     return row
+
+
+def _stage(row: dict[str, Any]) -> str:
+    if row.get("score") is not None:
+        return "scored"
+    if row.get("prefiltered") is None:
+        return "not scored"
+    if row.get("passed_hard") is False:
+        return f"filtered out: {row.get('filter_reason')}"
+    return "shortlisted" if row.get("shortlisted") else "not shortlisted"
 
 
 def _salary(row: dict[str, Any]) -> str | None:
