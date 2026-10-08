@@ -36,7 +36,10 @@ def db_migrate(direction: str = typer.Argument("up")) -> None:
 @app.command("seed")
 def seed() -> None:
     """Load companies and fetch scopes."""
-    _not_yet("seed")
+    from jobhunt.seed import seed as load_seed
+
+    companies, scopes = load_seed()
+    typer.echo(f"seeded {companies} companies and {scopes} scopes")
 
 
 @app.command("scrape")
@@ -45,14 +48,38 @@ def scrape(
     source: str | None = typer.Option(None, "--source"),
 ) -> None:
     """Run one fetch scope or every scope for a source."""
-    _ = (scope, source)
-    _not_yet("scrape")
+    from jobhunt.scrape import scrape as run_scrape
+
+    if scope is None and source is None:
+        typer.echo("pass --scope or --source", err=True)
+        raise typer.Exit(code=1)
+    try:
+        results = run_scrape(scope_id=scope, source_id=source)
+    except (RuntimeError, ValueError) as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+    if not results:
+        typer.echo("no scopes matched", err=True)
+        raise typer.Exit(code=1)
+    for result in results:
+        typer.echo(
+            f"run {result.run_id} {result.status}: "
+            f"fetched {result.fetched}, new {result.new_jobs}, "
+            f"updated {result.updated}, closed {result.closed}"
+        )
 
 
 @app.command("doctor")
 def doctor() -> None:
     """Check the database, migrations, and vault path."""
-    _not_yet("doctor")
+    from jobhunt.doctor import doctor as run_doctor
+
+    problems, summary = run_doctor()
+    typer.echo(summary)
+    for problem in problems:
+        typer.echo(problem, err=True)
+    if problems:
+        raise typer.Exit(code=1)
 
 
 @app.command("tick")

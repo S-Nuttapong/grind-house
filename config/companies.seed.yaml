@@ -1,1 +1,32 @@
-[]
+# Starter public boards so `jobhunt scrape` has something to fetch.
+# ats / ats_slug are filled here because these boards were checked by hand.
+# Replace this list with the companies you actually want.
+- {name: GitLab, careers_url: https://boards.greenhouse.io/gitlab, tier: B, ats: greenhouse, ats_slug: gitlab}
+- {name: Stripe, careers_url: https://boards.greenhouse.io/stripe, tier: B, ats: greenhouse, ats_slug: stripe}
+- {name: Cloudflare, careers_url: https://boards.greenhouse.io/cloudflare, tier: B, ats: greenhouse, ats_slug: cloudflare}
+- {name: Airbnb, careers_url: https://boards.greenhouse.io/airbnb, tier: B, ats: greenhouse, ats_slug: airbnb}
+- {name: Reddit, careers_url: https://boards.greenhouse.io/reddit, tier: B, ats: greenhouse, ats_slug: reddit}
+- {name: Datadog, careers_url: https://boards.greenhouse.io/datadog, tier: B, ats: greenhouse, ats_slug: datadog}
+- {name: MongoDB, careers_url: https://boards.greenhouse.io/mongodb, tier: B, ats: greenhouse, ats_slug: mongodb}
+- {name: Elastic, careers_url: https://boards.greenhouse.io/elastic, tier: B, ats: greenhouse, ats_slug: elastic}
+- {name: Coinbase, careers_url: https://boards.greenhouse.io/coinbase, tier: B, ats: greenhouse, ats_slug: coinbase}
+- {name: Robinhood, careers_url: https://boards.greenhouse.io/robinhood, tier: B, ats: greenhouse, ats_slug: robinhood}
+- {name: Figma, careers_url: https://boards.greenhouse.io/figma, tier: B, ats: greenhouse, ats_slug: figma}
+- {name: Discord, careers_url: https://boards.greenhouse.io/discord, tier: B, ats: greenhouse, ats_slug: discord}
+- {name: Dropbox, careers_url: https://boards.greenhouse.io/dropbox, tier: B, ats: greenhouse, ats_slug: dropbox}
+- {name: Pinterest, careers_url: https://boards.greenhouse.io/pinterest, tier: B, ats: greenhouse, ats_slug: pinterest}
+- {name: Lyft, careers_url: https://boards.greenhouse.io/lyft, tier: B, ats: greenhouse, ats_slug: lyft}
+- {name: Databricks, careers_url: https://boards.greenhouse.io/databricks, tier: B, ats: greenhouse, ats_slug: databricks}
+- {name: Block, careers_url: https://boards.greenhouse.io/block, tier: B, ats: greenhouse, ats_slug: block}
+- {name: Affirm, careers_url: https://boards.greenhouse.io/affirm, tier: B, ats: greenhouse, ats_slug: affirm}
+- {name: Brex, careers_url: https://boards.greenhouse.io/brex, tier: B, ats: greenhouse, ats_slug: brex}
+- {name: Asana, careers_url: https://boards.greenhouse.io/asana, tier: B, ats: greenhouse, ats_slug: asana}
+- {name: Intercom, careers_url: https://boards.greenhouse.io/intercom, tier: B, ats: greenhouse, ats_slug: intercom}
+- {name: Duolingo, careers_url: https://boards.greenhouse.io/duolingo, tier: B, ats: greenhouse, ats_slug: duolingo}
+- {name: Okta, careers_url: https://boards.greenhouse.io/okta, tier: B, ats: greenhouse, ats_slug: okta}
+- {name: Twilio, careers_url: https://boards.greenhouse.io/twilio, tier: B, ats: greenhouse, ats_slug: twilio}
+- {name: Fastly, careers_url: https://boards.greenhouse.io/fastly, tier: B, ats: greenhouse, ats_slug: fastly}
+- {name: Netlify, careers_url: https://boards.greenhouse.io/netlify, tier: B, ats: greenhouse, ats_slug: netlify}
+- {name: Vercel, careers_url: https://boards.greenhouse.io/vercel, tier: B, ats: greenhouse, ats_slug: vercel}
+- {name: Spotify, careers_url: https://jobs.lever.co/spotify, tier: B, ats: lever, ats_slug: spotify}
+- {name: Palantir, careers_url: https://jobs.lever.co/palantir, tier: B, ats: lever, ats_slug: palantir}
