@@ -1,0 +1,10 @@
+{
+  "name": "Test Person",
+  "contact": {"email": "test@example.com", "phone": "555-0100"},
+  "headline": "Backend engineer",
+  "summary": "Builds payment systems with Go and Kafka.",
+  "skills": ["Go", "Kafka"],
+  "experience": [
+    {"company": "Example Co", "bullets": ["Shipped the payments retry scheduler"]}
+  ]
+}
