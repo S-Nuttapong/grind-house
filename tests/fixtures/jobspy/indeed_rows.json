@@ -1,0 +1,38 @@
+[
+  {
+    "id": "indeed-sg-1",
+    "job_url": "https://sg.indeed.com/viewjob?jk=abc123",
+    "job_url_direct": "https://example.com/apply/1",
+    "title": "Software Engineer",
+    "company": "Example Pte Ltd",
+    "company_url": "https://example.com",
+    "location": "Singapore",
+    "date_posted": "2026-10-01",
+    "job_type": "fulltime",
+    "interval": "yearly",
+    "min_amount": 80000,
+    "max_amount": 120000,
+    "currency": "SGD",
+    "is_remote": false,
+    "job_level": null,
+    "description": "Build web services."
+  },
+  {
+    "id": null,
+    "job_url": "https://sg.indeed.com/viewjob?jk=def456",
+    "job_url_direct": null,
+    "title": "Frontend Engineer",
+    "company": "Northwind",
+    "company_url": null,
+    "location": "Bangkok, Thailand",
+    "date_posted": "2026-10-02",
+    "job_type": null,
+    "interval": null,
+    "min_amount": null,
+    "max_amount": null,
+    "currency": null,
+    "is_remote": true,
+    "job_level": "Mid-Senior level",
+    "description": "Remote frontend work."
+  }
+]

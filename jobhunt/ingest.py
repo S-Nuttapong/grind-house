@@ -25,6 +25,7 @@ from jobhunt.sources.base import (
     ScopeView,
     SourceAdapter,
 )
+from jobhunt.sources.jobspy_src import RunPartial
 
 log = get_logger(__name__)
 
@@ -98,7 +99,7 @@ def run_scope(scope_id: int, adapter: SourceAdapter, http: HttpClient | None = N
             result.closed += counts[3]
             if batch.failed:
                 result.status = "partial"
-    except SourceBlocked as exc:
+    except (SourceBlocked, RunPartial) as exc:
         result.status = "partial"
         result.error = str(exc)
         log.warning("%s", exc)

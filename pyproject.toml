@@ -61,12 +61,12 @@ packages = ["jobhunt"]
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = ["yaml", "markdownify", "dateutil", "dateutil.*"]
+module = ["yaml", "markdownify", "dateutil", "dateutil.*", "jobspy"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q"
+addopts = "-q -m 'not live'"
 markers = [
     "live: hits the network; skipped unless -m live",
     "integration: needs the Docker Postgres from docker-compose.test.yml",
