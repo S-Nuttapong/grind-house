@@ -27,3 +27,15 @@ services:
       VAULT_BANK_PATH: /tmp/jobhunt-bank
     ports:
       - "127.0.0.1:8765:8765"
+
+  ui:
+    build:
+      context: ./web
+      args:
+        JOBHUNT_API_URL: http://web:8765
+    depends_on:
+      - web
+    environment:
+      JOBHUNT_API_URL: http://web:8765
+    ports:
+      - "127.0.0.1:3000:3000"

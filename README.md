@@ -32,13 +32,24 @@ Live network tests are off unless you pass `-m live` and override the default ma
 
 ## Local dashboard
 
-Postgres and the web UI:
+The board is a Next.js app in `web/` (Tailwind, shadcn/ui). It reads a FastAPI JSON API; the API contract is `http://127.0.0.1:8765/openapi.json`.
+
+Everything in Docker (Postgres, API, board):
 
 ```bash
 docker compose up -d --build
 ```
 
-The site is published on `http://127.0.0.1:8765`. Inside the container the process listens on `0.0.0.0` so Docker can publish it; the host port is bound to `127.0.0.1` only.
+The board is on `http://127.0.0.1:3000` and the API on `http://127.0.0.1:8765`. Inside the containers the processes listen on `0.0.0.0` so Docker can publish them; the host ports are bound to `127.0.0.1` only.
+
+For local development, start Postgres with `docker compose up -d postgres`, then run these in two terminals:
+
+```bash
+make api   # FastAPI JSON API on 127.0.0.1:8765
+make web   # Next.js dev server on 127.0.0.1:3000, proxies /api to the API
+```
+
+`web/` needs `npm ci` once. Behind the TLS gateway, set `NODE_EXTRA_CA_CERTS="$PWD/.certs/ca-bundle.pem"` for npm and Node. `make check-web` runs typecheck, lint, and a production build.
 
 To fill the board from the public company list, run the scrape on the host against that database:
 
