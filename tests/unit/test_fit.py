@@ -31,8 +31,7 @@ class _AxisEncoder:
     def encode(self, texts: list[str], *, normalize_embeddings: bool) -> np.ndarray:
         for text in texts:
             self.axes.setdefault(text, len(self.axes))
-        width = len(self.axes) + 8  # headroom so the next encode() call lines up
-        vectors = np.zeros((len(texts), width))
+        vectors = np.zeros((len(texts), len(self.axes)))
         for row, text in enumerate(texts):
             vectors[row, self.axes[text]] = 1.0
         return vectors
@@ -41,13 +40,9 @@ class _AxisEncoder:
 def test_bge_scores_from_best_chunk_matches() -> None:
     model = BgeFitModel(_AxisEncoder())
     profile = "built payments in go\n\nkafka pipelines"
-    matching = "Represent this sentence for searching relevant passages: built payments in go"
-    unrelated = "Represent this sentence for searching relevant passages: something else entirely"
-    # The encoder assigns axes in call order: profile chunks first, then queries.
     scores = model.score_many(profile, ["built payments in go", "something else entirely"])
     assert scores[0] == round(calibrate(1.0), 1)
     assert scores[1] == round(calibrate(0.0), 1)
-    assert matching != unrelated
 
 
 def test_chunking_keeps_paragraphs_and_splits_long_ones() -> None:

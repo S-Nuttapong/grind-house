@@ -42,8 +42,10 @@ class BgeFitModel(JobFitModel):
         per_job = [chunk_text(description) or [description] for description in job_descriptions]
         query_chunks = [_QUERY_PREFIX + chunk for chunks in per_job for chunk in chunks]
 
-        profile_vectors = self._encoder.encode(profile_chunks, normalize_embeddings=True)
-        query_vectors = self._encoder.encode(query_chunks, normalize_embeddings=True)
+        # One call keeps every vector the same width, which a shared encoder needs.
+        vectors = self._encoder.encode([*profile_chunks, *query_chunks], normalize_embeddings=True)
+        profile_vectors = vectors[: len(profile_chunks)]
+        query_vectors = vectors[len(profile_chunks) :]
         # Vectors are L2-normalised, so the dot product is the cosine similarity.
         similarities = query_vectors @ profile_vectors.T
 

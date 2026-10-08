@@ -10,7 +10,7 @@ _RAW_SPAN = 0.45
 
 def calibrate(raw_cosine: float) -> float:
     scaled = (raw_cosine - _RAW_FLOOR) / _RAW_SPAN * 100
-    return max(0.0, min(100.0, scaled))
+    return max(0.0, min(100.0, round(scaled, 6)))
 
 
 def tier(score: float) -> str:
