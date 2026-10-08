@@ -7,6 +7,8 @@ services:
       POSTGRES_DB: jobhunt_test
     ports:
       - "127.0.0.1:54329:5432"
+    volumes:
+      - ./.pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U jobhunt -d jobhunt_test"]
       interval: 2s

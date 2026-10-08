@@ -22,9 +22,15 @@ def _not_yet(command: str) -> None:
 
 
 @db_app.command("migrate")
-def db_migrate() -> None:
-    """Apply migrations with dbmate."""
-    _not_yet("db migrate")
+def db_migrate(direction: str = typer.Argument("up")) -> None:
+    """Apply migrations with dbmate (``up``, ``down``, or ``drop``)."""
+    from jobhunt.db.migrate import migrate
+
+    try:
+        migrate(direction)
+    except (RuntimeError, ValueError) as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
 
 
 @app.command("seed")

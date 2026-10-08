@@ -22,7 +22,7 @@ Postgres for tests:
 docker compose -f docker-compose.test.yml up -d
 ```
 
-`TEST_DATABASE_URL` defaults to `postgresql://jobhunt:jobhunt@127.0.0.1:54329/jobhunt_test`. That password is only for the local Docker database.
+`TEST_DATABASE_URL` defaults to `postgresql://jobhunt:jobhunt@127.0.0.1:54329/jobhunt_test?sslmode=disable`. That password is only for the local Docker database.
 
 ```bash
 make check
