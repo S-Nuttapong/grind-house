@@ -1,34 +1,40 @@
-<article class="card" id="job-{{ job.id }}">
-  <h2><a href="/jobs/{{ job.id }}" hx-get="/jobs/{{ job.id }}" hx-target="#detail">{{ job.title }}</a></h2>
-  <p class="meta">
-    <span>{{ job.company }}</span>
-    {% if job.place %}<span>{{ job.place }}</span>{% endif %}
-    <span class="pill">{{ job.remote }}</span>
-    {% if job.salary_label %}<span>{{ job.salary_label }}</span>{% endif %}
-    {% if job.age %}<span>{{ job.age }}</span>{% endif %}
-  </p>
-  <p class="meta">
-    {% if job.sources %}<span>{{ job.sources }}</span>{% endif %}
-    <span class="pill">{{ job.stage }}</span>
-    {% if job.closed_at %}<span class="pill">closed</span>{% endif %}
-  </p>
-  <div class="actions">
-    <form method="post" action="/jobs/{{ job.id }}/events" hx-post="/jobs/{{ job.id }}/events" hx-target="closest article" hx-swap="outerHTML">
-      <input type="hidden" name="status" value="saved" />
-      <button type="submit">Save</button>
-    </form>
-    <form method="post" action="/jobs/{{ job.id }}/events" hx-post="/jobs/{{ job.id }}/events" hx-target="closest article" hx-swap="outerHTML">
-      <label for="reason-{{ job.id }}">Skip reason</label>
-      <input id="reason-{{ job.id }}" name="reason" type="text" />
-      <input type="hidden" name="status" value="skipped" />
-      <button type="submit">Skip</button>
-    </form>
-    <form method="post" action="/jobs/{{ job.id }}/events" hx-post="/jobs/{{ job.id }}/events" hx-target="closest article" hx-swap="outerHTML">
-      <input type="hidden" name="status" value="applied" />
-      <button type="submit">Applied</button>
-    </form>
-    {% if job.apply_url %}
-    <a href="{{ job.apply_url }}">Apply</a>
+<li class="card{% if job.selected %} is-selected{% endif %}" id="job-{{ job.id }}" {% if job.selected %}aria-current="true"{% endif %}>
+  <div class="card-main">
+    <h2>
+      <a class="title-link show-wide" href="/jobs/{{ job.id }}"
+         hx-get="/jobs/{{ job.id }}" hx-target="#detail" hx-swap="innerHTML"
+         hx-push-url="/?{{ job.select_query }}">{{ job.title }}</a>
+      <a class="title-link show-narrow" href="/jobs/{{ job.id }}">{{ job.title }}</a>
+    </h2>
+    <p class="company">{{ job.company }}</p>
+    <p class="place">{{ job.place or "Location not listed" }}</p>
+    <p class="pills">
+      {% if job.salary_label %}<span class="pill">{{ job.salary_label }}</span>{% endif %}
+      <span class="pill">{{ job.remote_label }}</span>
+      {% if job.age %}<span class="pill{% if job.is_new %} pill-new{% endif %}">{{ job.age }}</span>{% endif %}
+    </p>
+    {% if job.snippet %}<p class="snippet">{{ job.snippet }}</p>{% endif %}
+    {% if job.source_list %}
+    <p class="sources">
+      {% for source in job.source_list %}<span class="badge">{{ source }}</span>{% endfor %}
+    </p>
     {% endif %}
   </div>
-</article>
+  <div class="card-actions">
+    <form method="post" action="/jobs/{{ job.id }}/events" hx-post="/jobs/{{ job.id }}/events" hx-target="closest li" hx-swap="outerHTML">
+      <input type="hidden" name="status" value="saved" />
+      <button class="icon-btn" type="submit" aria-label="Save {{ job.title }}">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"/></svg>
+      </button>
+    </form>
+    <details class="skip">
+      <summary>Not interested</summary>
+      <form method="post" action="/jobs/{{ job.id }}/events" hx-post="/jobs/{{ job.id }}/events" hx-target="closest li" hx-swap="outerHTML">
+        <label for="reason-{{ job.id }}">Reason</label>
+        <input id="reason-{{ job.id }}" name="reason" type="text" />
+        <input type="hidden" name="status" value="skipped" />
+        <button type="submit">Skip</button>
+      </form>
+    </details>
+  </div>
+</li>

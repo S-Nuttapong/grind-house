@@ -1,53 +1,39 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Runs · Job Hunt OS</title>
-    <link rel="stylesheet" href="/static/app.css" />
-  </head>
-  <body>
-    <header class="top">
-      <a href="/">Job Hunt OS</a>
-      <nav>
-        <a href="/">Board</a>
-        <a href="/runs">Runs</a>
-      </nav>
-    </header>
-    <main>
-      <h1>Runs</h1>
-      {% if runs %}
-      <table>
-        <thead>
-          <tr>
-            <th>Scope</th>
-            <th>Source</th>
-            <th>Status</th>
-            <th>Fetched</th>
-            <th>New</th>
-            <th>Updated</th>
-            <th>Closed</th>
-            <th>Started</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for run in runs %}
-          <tr>
-            <td>{{ run.scope_name or run.id }}</td>
-            <td>{{ run.source_id }}</td>
-            <td>{{ run.status }}{% if run.error %} — {{ run.error }}{% endif %}</td>
-            <td>{{ run.fetched }}</td>
-            <td>{{ run.new_jobs }}</td>
-            <td>{{ run.updated }}</td>
-            <td>{{ run.closed }}</td>
-            <td>{{ run.started_at }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      {% else %}
-      <p>No runs yet.</p>
-      {% endif %}
-    </main>
-  </body>
-</html>
+{% extends "base.html" %}
+{% block title %}Runs · Job Hunt OS{% endblock %}
+{% block content %}
+<main class="shell">
+  <h1>Runs</h1>
+  {% if runs %}
+  <table>
+    <thead>
+      <tr>
+        <th>Scope</th>
+        <th>Source</th>
+        <th>Status</th>
+        <th>Fetched</th>
+        <th>New</th>
+        <th>Updated</th>
+        <th>Closed</th>
+        <th>Started</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for run in runs %}
+      <tr>
+        <td>{{ run.scope_name or run.id }}</td>
+        <td>{{ run.source_id }}</td>
+        <td>{{ run.status }}{% if run.error %} — {{ run.error }}{% endif %}</td>
+        <td>{{ run.fetched }}</td>
+        <td>{{ run.new_jobs }}</td>
+        <td>{{ run.updated }}</td>
+        <td>{{ run.closed }}</td>
+        <td>{{ run.started_at }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>No runs yet.</p>
+  {% endif %}
+</main>
+{% endblock %}

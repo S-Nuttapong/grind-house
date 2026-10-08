@@ -1,16 +1,30 @@
-<p class="count">{{ total }} jobs · page {{ filters.page }} of {{ pages }}</p>
+<p class="count">{{ "{:,}".format(total) }} jobs</p>
 {% if jobs %}
-  {% for job in jobs %}
-    {% include "card.html" %}
-  {% endfor %}
+  <ol class="cards">
+    {% for job in jobs %}
+      {% include "card.html" %}
+    {% endfor %}
+  </ol>
+  <nav class="pager" aria-label="Pages">
+    {% if filters.page > 1 %}
+    <a href="/jobs?{{ prev_query }}" hx-get="/jobs?{{ prev_query }}" hx-target="#results" hx-swap="innerHTML" hx-push-url="true">Previous</a>
+    {% endif %}
+    {% for link in page_links %}
+      {% if link.ellipsis %}
+      <span aria-hidden="true">…</span>
+      {% elif link.current %}
+      <span class="page-current" aria-current="page">{{ link.n }}</span>
+      {% else %}
+      <a href="/jobs?{{ link.query }}" hx-get="/jobs?{{ link.query }}" hx-target="#results" hx-swap="innerHTML" hx-push-url="true">{{ link.n }}</a>
+      {% endif %}
+    {% endfor %}
+    {% if filters.page < pages %}
+    <a href="/jobs?{{ next_query }}" hx-get="/jobs?{{ next_query }}" hx-target="#results" hx-swap="innerHTML" hx-push-url="true">Next</a>
+    {% endif %}
+  </nav>
 {% else %}
-  <p>No jobs match these filters.</p>
+  <div class="empty">
+    <p>No jobs match these filters.</p>
+    <a href="/">Clear filters</a>
+  </div>
 {% endif %}
-<nav class="pager">
-  {% if filters.page > 1 %}
-  <a href="/jobs?{{ prev_query }}">Previous</a>
-  {% endif %}
-  {% if filters.page < pages %}
-  <a href="/jobs?{{ next_query }}">Next</a>
-  {% endif %}
-</nav>

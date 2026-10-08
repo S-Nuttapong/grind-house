@@ -26,6 +26,7 @@ dependencies = [
     "tenacity==9.1.2",
     "typer==0.19.2",
     "uvicorn==0.37.0",
+    "markdown-it-py==4.0.0",
 ]
 
 [project.scripts]
