@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { BankEntry, BankEntryInput, Facets, JobDetail, JobPage, Pipeline, ResumeFile, Run } from "@/lib/types";
+import type { BankEntry, BankEntryInput, Facets, JobDetail, JobPage, Pipeline, ResumeFile, Run, ScheduleInput } from "@/lib/types";
 
 const API_URL = process.env.JOBHUNT_API_URL ?? "http://127.0.0.1:8765";
 
@@ -107,6 +107,30 @@ export function selectResumeFile(id: number): Promise<ResumeFile> {
 
 export function removeResume(id: number): Promise<void> {
   return request<void>(`/api/resumes/${id}`, { method: "DELETE" });
+}
+
+export function createSchedule(input: ScheduleInput): Promise<Record<string, unknown>> {
+  return request<Record<string, unknown>>("/api/fit/schedules", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateSchedule(id: number, input: ScheduleInput): Promise<Record<string, unknown>> {
+  return request<Record<string, unknown>>(`/api/fit/schedules/${id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export function removeSchedule(id: number): Promise<void> {
+  return request<void>(`/api/fit/schedules/${id}`, { method: "DELETE" });
+}
+
+export function runSchedule(id: number): Promise<{ run_id: number; created: boolean }> {
+  return request<{ run_id: number; created: boolean }>(`/api/fit/schedules/${id}/run`, { method: "POST" });
 }
 
 export function postJobEvent(id: number, status: string, reason?: string): Promise<JobDetail> {

@@ -1,10 +1,16 @@
 "use client";
 
 import { BriefcaseBusinessIcon } from "lucide-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { CommandMenu } from "@/components/command-menu";
+
+const ScoringPill = dynamic(
+  () => import("@/components/scoring-pill").then((mod) => mod.ScoringPill),
+  { ssr: false },
+);
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 
@@ -12,6 +18,7 @@ const NAV = [
   { href: "/", label: "Board" },
   { href: "/pipeline", label: "Pipeline" },
   { href: "/profile", label: "Profile" },
+  { href: "/schedules", label: "Schedules" },
   { href: "/runs", label: "Runs" },
 ];
 
@@ -26,7 +33,7 @@ export function SiteHeader() {
           </span>
           <span className="hidden sm:inline">Job Hunt</span>
         </Link>
-        <nav aria-label="Main" className="flex items-center gap-1 text-sm">
+        <nav aria-label="Main" className="flex items-center gap-1 overflow-x-auto text-sm">
           {NAV.map((item) => {
             const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
             return (
@@ -45,6 +52,7 @@ export function SiteHeader() {
           })}
         </nav>
         <div className="ml-auto flex items-center gap-2">
+          <ScoringPill />
           <CommandMenu />
           <ThemeToggle />
         </div>

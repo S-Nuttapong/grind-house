@@ -3,6 +3,7 @@
 import {
   BookmarkIcon,
   BriefcaseBusinessIcon,
+  CalendarClockIcon,
   IdCardIcon,
   KanbanSquareIcon,
   ListIcon,
@@ -121,6 +122,10 @@ export function CommandMenu() {
               <CommandItem value="nav-profile" onSelect={() => go("/profile")}>
                 <IdCardIcon />
                 Profile
+              </CommandItem>
+              <CommandItem value="nav-schedules" onSelect={() => go("/schedules")}>
+                <CalendarClockIcon />
+                Schedules
               </CommandItem>
               <CommandItem value="nav-saved" onSelect={() => go("/pipeline#saved")}>
                 <BookmarkIcon />
