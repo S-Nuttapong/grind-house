@@ -7,48 +7,6 @@ from psycopg import Connection
 from psycopg.types.json import Jsonb
 
 
-def upsert_bank_entry(conn: Connection[Any], entry: dict[str, Any]) -> None:
-    conn.execute(
-        """
-        INSERT INTO bank_entries (
-            id, title, company, role, period, my_role, scope, metrics, strength,
-            confidential, status, tags, body_md, origin, updated_at
-        )
-        VALUES (
-            %(id)s, %(title)s, %(company)s, %(role)s, %(period)s, %(my_role)s, %(scope)s,
-            %(metrics)s, %(strength)s, %(confidential)s, %(status)s, %(tags)s, %(body_md)s,
-            %(origin)s, now()
-        )
-        ON CONFLICT (id) DO UPDATE SET
-            title = EXCLUDED.title, company = EXCLUDED.company, role = EXCLUDED.role,
-            period = EXCLUDED.period, my_role = EXCLUDED.my_role, scope = EXCLUDED.scope,
-            metrics = EXCLUDED.metrics, strength = EXCLUDED.strength,
-            confidential = EXCLUDED.confidential, status = EXCLUDED.status,
-            tags = EXCLUDED.tags, body_md = EXCLUDED.body_md, origin = EXCLUDED.origin,
-            updated_at = now()
-        """,
-        {**entry, "metrics": Jsonb(entry["metrics"])},
-    )
-
-
-def list_bank_entries(conn: Connection[Any]) -> list[dict[str, Any]]:
-    with conn.cursor(row_factory=_dict_row) as cursor:
-        cursor.execute("SELECT * FROM bank_entries ORDER BY id")
-        return list(cursor.fetchall())
-
-
-def get_bank_entry(conn: Connection[Any], entry_id: str) -> dict[str, Any] | None:
-    with conn.cursor(row_factory=_dict_row) as cursor:
-        cursor.execute("SELECT * FROM bank_entries WHERE id = %s", (entry_id,))
-        row = cursor.fetchone()
-    return dict(row) if row else None
-
-
-def delete_bank_entry(conn: Connection[Any], entry_id: str) -> bool:
-    deleted = conn.execute("DELETE FROM bank_entries WHERE id = %s", (entry_id,)).rowcount
-    return deleted > 0
-
-
 def get_bank_profile(conn: Connection[Any]) -> str:
     row = conn.execute("SELECT body_md FROM bank_profile").fetchone()
     return "" if row is None else str(row[0])
@@ -166,6 +124,70 @@ def list_schedules(conn: Connection[Any]) -> list[dict[str, Any]]:
     with conn.cursor(row_factory=_dict_row) as cursor:
         cursor.execute("SELECT * FROM fit_schedules ORDER BY id")
         return list(cursor.fetchall())
+
+
+def schedule_id_for_mode(conn: Connection[Any], mode: str) -> int | None:
+    """The schedule a manual run of this mode belongs to. Enabled wins, then oldest."""
+    row = conn.execute(
+        """
+        SELECT id FROM fit_schedules
+        WHERE mode = %s
+        ORDER BY enabled DESC, id
+        LIMIT 1
+        """,
+        (mode,),
+    ).fetchone()
+    return None if row is None else int(row[0])
+
+
+def latest_run_by_schedule(conn: Connection[Any]) -> dict[int, dict[str, Any]]:
+    """Newest run for each schedule: its own runs, or a manual run of the same mode."""
+    with conn.cursor(row_factory=_dict_row) as cursor:
+        cursor.execute(
+            """
+            SELECT DISTINCT ON (s.id)
+                   s.id AS schedule_key,
+                   r.*
+            FROM fit_schedules s
+            JOIN fit_runs r
+              ON r.schedule_id = s.id
+              OR (r.schedule_id IS NULL AND r.mode = s.mode)
+            ORDER BY s.id, coalesce(r.finished_at, r.started_at, r.queued_at) DESC, r.id DESC
+            """
+        )
+        found: dict[int, dict[str, Any]] = {}
+        for row in cursor.fetchall():
+            schedule_id = int(row.pop("schedule_key"))
+            found[schedule_id] = row
+        return found
+
+
+def record_finished_run(conn: Connection[Any], run: dict[str, Any]) -> int:
+    """Store a run that already finished, such as one started from the command line."""
+    row = conn.execute(
+        """
+        INSERT INTO fit_runs (
+            schedule_id, mode, trigger, model_id, status, scored, skipped, error,
+            idempotency_key, queued_at, started_at, finished_at
+        )
+        VALUES (
+            %(schedule_id)s, %(mode)s, %(trigger)s, %(model_id)s, %(status)s,
+            %(scored)s, %(skipped)s, %(error)s, %(idempotency_key)s,
+            %(started_at)s, %(started_at)s, %(finished_at)s
+        )
+        ON CONFLICT (idempotency_key) DO NOTHING
+        RETURNING id
+        """,
+        run,
+    ).fetchone()
+    if row is not None:
+        return int(row[0])
+    existing = conn.execute(
+        "SELECT id FROM fit_runs WHERE idempotency_key = %s", (run["idempotency_key"],)
+    ).fetchone()
+    if existing is None:
+        raise RuntimeError("record_finished_run lost the idempotency row")
+    return int(existing[0])
 
 
 def get_schedule(conn: Connection[Any], schedule_id: int) -> dict[str, Any] | None:

@@ -20,22 +20,6 @@ _UPLOAD_SUFFIXES = {".pdf", ".md", ".txt", ".json"}
 Mode = Literal["bank", "resume"]
 
 
-class EntryIn(BaseModel):
-    id: str
-    title: str
-    company: str | None = None
-    role: str | None = None
-    period: str | None = None
-    my_role: str | None = None
-    scope: str | None = None
-    metrics: list[dict[str, Any]] = []
-    strength: int | None = None
-    confidential: bool = False
-    status: str = "draft"
-    tags: list[str] = []
-    body_md: str = ""
-
-
 class ProfileIn(BaseModel):
     body_md: str
 
@@ -52,35 +36,6 @@ def _checked(schedule: ScheduleIn) -> None:
     problems = validate(schedule.cron, schedule.timezone)
     if problems:
         raise HTTPException(status_code=422, detail="; ".join(problems))
-
-
-@router.get("/profile/entries")
-def list_entries() -> list[dict[str, Any]]:
-    with tx() as conn:
-        return fit_repo.list_bank_entries(conn)
-
-
-@router.post("/profile/entries", status_code=201)
-def create_entry(entry: EntryIn) -> dict[str, Any]:
-    with tx() as conn:
-        fit_repo.upsert_bank_entry(conn, {**entry.model_dump(), "origin": "ui"})
-        stored = fit_repo.get_bank_entry(conn, entry.id)
-    if stored is None:
-        raise HTTPException(status_code=500, detail="entry was not stored")
-    return stored
-
-
-@router.put("/profile/entries/{entry_id}")
-def update_entry(entry_id: str, entry: EntryIn) -> dict[str, Any]:
-    entry.id = entry_id
-    return create_entry(entry)
-
-
-@router.delete("/profile/entries/{entry_id}", status_code=204)
-def delete_entry(entry_id: str) -> None:
-    with tx() as conn:
-        if not fit_repo.delete_bank_entry(conn, entry_id):
-            raise HTTPException(status_code=404, detail="no such entry")
 
 
 @router.get("/profile/summary")
@@ -138,16 +93,19 @@ def delete_resume(resume_id: int) -> None:
             raise HTTPException(status_code=404, detail="no such resume")
 
 
-def _schedule_view(row: dict[str, Any]) -> dict[str, Any]:
+def _schedule_view(row: dict[str, Any], last_run: dict[str, Any] | None = None) -> dict[str, Any]:
     row["description"] = describe(row["cron"])
     row["upcoming"] = [moment.isoformat() for moment in next_runs(row["cron"], row["timezone"])]
+    row["last_run"] = last_run
     return row
 
 
 @router.get("/fit/schedules")
 def list_schedules() -> list[dict[str, Any]]:
     with tx() as conn:
-        return [_schedule_view(row) for row in fit_repo.list_schedules(conn)]
+        latest = fit_repo.latest_run_by_schedule(conn)
+        schedules = fit_repo.list_schedules(conn)
+        return [_schedule_view(row, latest.get(int(row["id"]))) for row in schedules]
 
 
 @router.post("/fit/schedules", status_code=201)
@@ -300,7 +258,7 @@ def _is_stale(conn: Any, mode: str, scored_hash: str | None) -> bool:
 
     try:
         if mode == "bank":
-            text = bank_text(conn, include_confidential=True)
+            text = bank_text(conn)
         else:
             text = resume_text(conn)[0]
     except SourceError:

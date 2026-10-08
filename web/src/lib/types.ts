@@ -52,43 +52,56 @@ export type Facets = { sources: string[]; remote: string[] };
 
 export type Pipeline = Record<JobStatus, JobSummary[]>;
 
-export type BankMetric = { text: string; confidence?: string };
-
-export type BankRole = "led" | "built" | "co-built" | "contributed";
-export type BankStatus = "draft" | "needs-metric" | "verified";
-
-export type BankEntry = {
-  id: string;
-  title: string;
-  company: string | null;
-  role: string | null;
-  period: string | null;
-  my_role: BankRole | null;
-  scope: string | null;
-  metrics: BankMetric[];
-  strength: number | null;
-  confidential: boolean;
-  status: BankStatus;
-  tags: string[];
-  body_md: string;
-  origin: "vault" | "ui";
-  updated_at: string;
+export type Tag = {
+  id: number;
+  name: string;
+  color_hex: string;
 };
 
-export type BankEntryInput = {
+export type MetricKey = {
+  id: number;
+  name: string;
+};
+
+export type BragMetric = {
+  id: number;
+  metric_key_id: number;
+  name: string;
+  value: string;
+  position: number;
+};
+
+export type BragAttachment = {
+  id: number;
+  type: "url";
+  link: string;
+  position: number;
+};
+
+export type BragDoc = {
   id: string;
   title: string;
+  date: string;
+  quarter: string;
   company: string | null;
   role: string | null;
-  period: string | null;
-  my_role: BankRole | null;
-  scope: string | null;
-  metrics: BankMetric[];
-  strength: number | null;
-  confidential: boolean;
-  status: BankStatus;
-  tags: string[];
-  body_md: string;
+  description_md: string;
+  origin: "vault" | "ui";
+  updated_at: string;
+  tags: Tag[];
+  metrics: BragMetric[];
+  attachments: BragAttachment[];
+};
+
+export type BragDocInput = {
+  title: string;
+  date: string;
+  company: string | null;
+  role: string | null;
+  description_md: string;
+  tag_ids: number[];
+  metrics: { metric_key_id: number; value: string }[];
+  attachments: { type: "url"; link: string }[];
 };
 
 export type ResumeFile = {
@@ -118,6 +131,7 @@ export type FitSchedule = ScheduleInput & {
   next_run_at: string | null;
   description: string;
   upcoming: string[];
+  last_run: FitRun | null;
 };
 
 export type FitRunStatus = "queued" | "running" | "ok" | "failed";

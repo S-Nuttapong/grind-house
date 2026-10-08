@@ -1,11 +1,12 @@
 """Profile, resume, and schedule routes, plus the board reading stored fit scores."""
 
 from collections.abc import Iterator
+from datetime import date
 
 import psycopg
 import pytest
 from fastapi.testclient import TestClient
-from jobhunt.db import close_pool, fit_repo, repo
+from jobhunt.db import brag_repo, close_pool, fit_repo, repo
 from jobhunt.fit.fake import FakeFitModel
 from jobhunt.fit.import_bank import import_bank
 from jobhunt.fit.runner import run_fit
@@ -26,7 +27,9 @@ def client(database_url: str) -> Iterator[TestClient]:
             "job_fits",
             "fit_sources",
             "resumes",
-            "bank_entries",
+            "brag_docs",
+            "tags",
+            "metric_keys",
         )
         for table in tables:
             conn.execute(f"DELETE FROM {table}")
@@ -35,30 +38,10 @@ def client(database_url: str) -> Iterator[TestClient]:
         conn.commit()
 
 
-def test_entry_and_summary_round_trip(client: TestClient) -> None:
-    created = client.post(
-        "/api/profile/entries",
-        json={
-            "id": "BB-700",
-            "title": "Shipped it",
-            "tags": ["skill/go"],
-            "body_md": "Did the thing.",
-        },
-    )
-    assert created.status_code == 201
-    assert created.json()["origin"] == "ui"
-
-    updated = client.put(
-        "/api/profile/entries/BB-700", json={"id": "ignored", "title": "Shipped more"}
-    )
-    assert updated.json()["title"] == "Shipped more"
-
+def test_summary_round_trip(client: TestClient) -> None:
     saved = client.put("/api/profile/summary", json={"body_md": "Timeline."})
     assert saved.json()["body_md"] == "Timeline."
     assert client.get("/api/profile/summary").json()["body_md"] == "Timeline."
-
-    assert client.delete("/api/profile/entries/BB-700").status_code == 204
-    assert client.get("/api/profile/entries").json() == []
 
 
 def test_resume_upload_select_and_reject(client: TestClient) -> None:
@@ -103,6 +86,70 @@ def test_schedule_validation_and_queue(client: TestClient) -> None:
     assert second.json()["created"] is False
     assert second.json()["run_id"] == first.json()["run_id"]
 
+    assert client.delete(f"/api/fit/schedules/{schedule_id}").status_code == 204
+
+
+def test_schedule_shows_last_run(client: TestClient, database_url: str) -> None:
+    from datetime import UTC, datetime, timedelta
+
+    created = client.post(
+        "/api/fit/schedules",
+        json={
+            "name": "Nightly last",
+            "mode": "bank",
+            "cron": "0 2 * * *",
+            "timezone": "Asia/Bangkok",
+        },
+    )
+    schedule_id = created.json()["id"]
+    started = datetime(2026, 10, 8, 7, 37, 20, tzinfo=UTC)
+    with psycopg.connect(database_url) as conn:
+        fit_repo.record_finished_run(
+            conn,
+            {
+                "schedule_id": schedule_id,
+                "mode": "bank",
+                "trigger": "manual",
+                "model_id": "fake/v1",
+                "status": "ok",
+                "scored": 5736,
+                "skipped": 0,
+                "error": None,
+                "idempotency_key": "test-last-run",
+                "started_at": started,
+                "finished_at": started + timedelta(minutes=15, seconds=41),
+            },
+        )
+        conn.commit()
+
+    listed = client.get("/api/fit/schedules")
+    row = next(item for item in listed.json() if item["id"] == schedule_id)
+    assert row["last_run"]["scored"] == 5736
+    assert row["last_run"]["status"] == "ok"
+    assert row["last_run"]["started_at"].startswith("2026-10-08T07:37:20")
+
+    later = started + timedelta(minutes=20)
+    with psycopg.connect(database_url) as conn:
+        fit_repo.record_finished_run(
+            conn,
+            {
+                "schedule_id": None,
+                "mode": "bank",
+                "trigger": "manual",
+                "model_id": "fake/v1",
+                "status": "ok",
+                "scored": 0,
+                "skipped": 5736,
+                "error": None,
+                "idempotency_key": "test-last-run-skip",
+                "started_at": later,
+                "finished_at": later + timedelta(seconds=16),
+            },
+        )
+        conn.commit()
+    rows = client.get("/api/fit/schedules").json()
+    again = next(item for item in rows if item["id"] == schedule_id)
+    assert again["last_run"]["skipped"] == 5736
     assert client.delete(f"/api/fit/schedules/{schedule_id}").status_code == 204
 
 
@@ -196,23 +243,19 @@ def test_status_reports_stale_after_an_edit(client: TestClient, database_url: st
     with psycopg.connect(database_url) as conn:
         import_bank(conn, _BANK)
         run_fit(conn, FakeFitModel(), "bank")
-        fit_repo.upsert_bank_entry(
+        brag_repo.save_brag_doc(
             conn,
             {
                 "id": "BB-777",
                 "title": "New work",
+                "date": date(2026, 10, 8),
                 "company": None,
                 "role": None,
-                "period": None,
-                "my_role": None,
-                "scope": None,
-                "metrics": [],
-                "strength": None,
-                "confidential": False,
-                "status": "draft",
-                "tags": [],
-                "body_md": "Added after scoring.",
+                "description_md": "Added after scoring.",
                 "origin": "ui",
+                "tag_ids": [],
+                "metrics": [],
+                "attachments": [],
             },
         )
         conn.commit()

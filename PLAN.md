@@ -56,10 +56,9 @@ Note: LLM extraction and the rubric run **only on the shortlist**, in one step p
 - Never print or log `DATABASE_URL`. Redact connection strings in error messages.
 - Use a personal GitHub repo and personal accounts, separate from work tools.
 
-**Brag bank (Obsidian vault)**
-- The vault is **read-only** for this app. Never write, move, or delete anything in it.
-- The local Postgres may store bank entry text and resume text, so fit scoring can run without reading the vault every time. This is a deliberate exception, recorded because the database is local and single-user ([ADR-0001](docs/adr/0001-single-tenant-postgres-task-pipeline.md)).
-- Entries marked `confidential: true` keep that flag. A fit model with `sends_data_offsite = true` never receives those entries or their text.
+**Brag docs (Obsidian vault)**
+- The vault is **read-only** for this app, with one exception: `jobhunt brag-docs migrate-vault --write` rewrites `Entries/*.md` frontmatter to the BragDoc shape once. It copies `Entries/` to `~/.jobhunt/vault-backups/<timestamp>/` first, leaves each file's body byte-for-byte, and skips files already in the new shape. After that, `jobhunt profile import` only reads ([ADR-0002](docs/adr/0002-brag-docs.md)).
+- The local Postgres may store brag doc text and resume text, so fit scoring can run without reading the vault every time. This is a deliberate exception, recorded because the database is local and single-user ([ADR-0001](docs/adr/0001-single-tenant-postgres-task-pipeline.md)).
 - Contact details from `_Profile.md` (email, phone) are never imported.
 - Tests use a synthetic bank in `tests/fixtures/bank/`, never the real vault.
 
@@ -244,11 +243,16 @@ fintech: {kind: domain, syn: [payments, banking, lending, earned wage access]}
 | remoteok | feed | 12 hours | 21 days |
 | remotive | feed | 12 hours | 21 days |
 
-- `20261008000003_job_fit.sql` adds the job fit tables (§13.8), mirrored in `schema.sql`:
+- `20261008000003_job_fit.sql` adds the job fit tables (§13.8). `20261009000004_brag_docs.sql` replaces `bank_entries` with the brag doc tables below, copying existing rows. Both are mirrored in `schema.sql`:
 
 | table | holds |
 |---|---|
-| bank_entries | one row per brag-bank entry (BB-###), body text included |
+| tags | user-defined tag names with a hex color; unique on lower(name) |
+| metric_keys | reusable metric categories; unique on lower(name) |
+| brag_docs | one row per brag doc (BB-###); `quarter` is generated from `date` |
+| brag_doc_tags | brag doc to tag |
+| brag_doc_metrics | a metric value on a brag doc, pointing at a metric key |
+| brag_doc_attachments | http(s) links attached to a brag doc |
 | bank_profile | single row: the profile body without contact details |
 | resumes | uploaded or imported resume text; exactly one `is_selected` |
 | fit_sources | sha256 of the profile text a scoring run used |
@@ -426,15 +430,18 @@ Hourly is deliberate: each tick wakes the Neon compute (scale-to-zero after 5 mi
 
 ---
 
-## 11. Profile from the brag bank (`profile.py`)
+## 11. Profile from the brag docs (`profile.py`)
 
-- Reads `VAULT_BANK_PATH`: `_Profile.md` (frontmatter + body) and `Entries/*.md` (frontmatter: `id, title, company, role, period, my_role, scope, metrics, strength, confidential, status, tags, sources`).
+- Reads `VAULT_BANK_PATH`: `_Profile.md` (frontmatter + body) and `Entries/*.md`. Brag doc frontmatter is `id, title, date, company, role, tags, metrics: [{key, value}], attachments: [{type, link}]`. The body is the description.
+- `date` is `YYYY-MM-DD`. The database derives `quarter` (`2026-10-08` is `Q4 2026`), so the user never types it.
+- Tags and metric keys are shared collections. Importing a name that already exists (case-insensitive) reuses the existing row.
 - Builds two objects:
-  - **`BankView` (in memory only, never stored):** `{id: {title, terms, period, my_role, strength, confidential}}`. `terms` = canonical terms from `synonyms.yaml` found in the entry's tags, title, and body.
-  - **`ProfileSanitized` (stored in `profiles`):** `{level, years, titles: [...], skills: {term: [bank ids]}, domains: {term: [ids]}, prefs: <prefs.yaml>}`. No titles of entries, no metrics, no body text. Confidential entries contribute ids and terms only.
+  - **`BankView` (in memory only, never stored):** `{id: {title, terms, date, role}}`. `terms` = canonical terms from `synonyms.yaml` found in the doc's tags, title, and description.
+  - **`ProfileSanitized` (stored in `profiles`):** `{level, years, titles: [...], skills: {term: [brag doc ids]}, domains: {term: [ids]}, prefs: <prefs.yaml>}`. No titles of docs, no metrics, no description text.
 - `hash = sha256(canonical JSON of ProfileSanitized)`. Insert if new.
-- `jobhunt profile build` prints the hash, number of entries, and top 30 terms with counts.
+- `jobhunt profile build` prints the hash, number of brag docs, and top 30 terms with counts.
 - If the brag-bank kit's `bankutil.py` is available at `<bank>/_kit/bankutil.py`, it may be imported read-only for frontmatter parsing; otherwise implement a small YAML frontmatter parser.
+- `jobhunt brag-docs migrate-vault` converts the old frontmatter (`period, my_role, scope, strength, confidential, status`, and metrics shaped `{kind, text}`) once. See [ADR-0002](docs/adr/0002-brag-docs.md).
 
 ---
 
@@ -607,7 +614,7 @@ class JobFitModel(ABC):
 
 **Tiers:** strong ≥ 80, good ≥ 60, fair ≥ 40, low below 40.
 
-**Sources** (`fit/sources.py`). Bank text = profile body plus, per entry, title, scope, metrics, body, and tags. A model with `sends_data_offsite = true` gets the non-confidential entries only. The sha256 of the text is upserted into `fit_sources`. Editing the bank or selecting a resume creates a new hash; it does not score anything. The board keeps showing the last source whose `scored_at` is set.
+**Sources** (`fit/sources.py`). Bank text = profile body plus, per brag doc, title, role at company, "Key: value" metric lines, tag names, and the description. The sha256 of the text is upserted into `fit_sources`. Editing a brag doc or selecting a resume creates a new hash; it does not score anything. The board keeps showing the last source whose `scored_at` is set. The fit mode stays `bank`.
 
 **Keywords** (`fit/keywords.py`). Canonical terms from `synonyms.yaml` present in both texts are `matched_terms`; terms in the job description but not the profile are `missing_terms`. Both are stored on `job_fits` during the run.
 
@@ -617,7 +624,7 @@ class JobFitModel(ABC):
 
 **Worker** (`jobhunt fit worker`, its own process and container). Loads the model once. Every 60 seconds, in order: due `fit_schedules`, queued manual runs, then new or changed jobs from the latest scrape (both modes). It claims a run with `FOR UPDATE SKIP LOCKED`, holds `advisory_lock("jobhunt.fit")`, and writes a `fit_run_events` progress row plus `pg_notify('fit_run_<id>', event_id)` after each batch, in the same transaction as that batch's scores. On SIGTERM it finishes the current batch, marks the run `queued`, and exits, so a restart resumes with only the unscored jobs left. It heartbeats `fit_worker` each poll. An idempotency key (sha256 of schedule, mode, source hash, and the cron slot or the current minute) makes a repeated trigger return the existing run.
 
-**CLI.** `jobhunt profile import` reads the vault read-only into `bank_entries`, `bank_profile`, and `resumes`. `jobhunt fit run --mode bank|resume`, `jobhunt fit download-model` (caches into `./.models`, because the TLS gateway blocks the download inside containers), and `jobhunt fit score --job ID` (prints match %, tier, matched and missing terms for one job).
+**CLI.** `jobhunt profile import` reads the vault read-only into `brag_docs`, `bank_profile`, and `resumes`. `jobhunt brag-docs migrate-vault` (add `--write` to rewrite) converts old vault entries once. `jobhunt fit run --mode bank|resume`, `jobhunt fit download-model` (caches into `./.models`, because the TLS gateway blocks the download inside containers), and `jobhunt fit score --job ID` (prints match %, tier, matched and missing terms for one job).
 
 ---
 
@@ -634,7 +641,9 @@ The UI is a Next.js app in `web/` (`npm --prefix web run dev`, bound to `127.0.0
 | `GET /api/facets` | Source ids and remote types for filter controls | Board filters |
 | `GET /api/pipeline` | Jobs with a status, grouped saved / applied / skipped | Pipeline kanban |
 | `GET /api/runs` | Recent runs with counts and errors | Runs |
-| `GET/POST/PUT/DELETE /api/profile/entries`, `GET/PUT /api/profile/summary` | Brag bank entries and the profile body | Profile |
+| `GET/POST /api/brag-docs`, `GET/PUT/DELETE /api/brag-docs/{id}`, `GET /api/brag-docs/companies` | Brag docs, with tags, metrics, and attachments | Brag Docs |
+| `GET/POST /api/tags`, `GET/POST /api/metric-keys` | Create is idempotent on a case-insensitive name | Brag Docs form |
+| `GET/PUT /api/profile/summary` | Profile body | Profile |
 | `GET/POST /api/resumes`, `POST /api/resumes/{id}/select`, `DELETE /api/resumes/{id}` | Resume text; upload is multipart, 5 MB, pdf/md/txt/json | Profile |
 | `GET/POST/PUT/DELETE /api/fit/schedules` | Cron schedules; invalid cron, timezone, or a gap under 15 min returns 422 | Schedules |
 | `POST /api/fit/schedules/{id}/run` | Queues a run and returns 202; the worker picks it up | Schedules |
@@ -645,13 +654,15 @@ The UI is a Next.js app in `web/` (`npm --prefix web run dev`, bound to `127.0.0
 
 Every job carries `score` (0–100) and `fit_tier` (strong / good / fair / low) from `job_fits` for the active model and the latest source of the requested mode whose `scored_at` is set, so the board keeps showing the previous scores while a new run is in progress. Both are `null` until the first fit run, and the card then shows "Not scored yet". `matched_terms` and `missing_terms` come from the same row. Money in API responses is a string so it stays exact. Job description Markdown is rendered in the browser with raw HTML skipped.
 
-**Board card:** title, company, location + remote pill, salary (original currency), age ("3d"), source pills, score badge ("86% Strong", colored by tier). Unscored jobs show "Not scored yet". The detail pane shows the score, its source (brag bank or resume), and the matched and missing terms.
+**Board card:** title, company, location + remote pill, salary (original currency), age ("3d"), source pills, score badge ("86% Strong", colored by tier). Unscored jobs show "Not scored yet". The detail pane shows the score, its source (brag docs or resume), and the matched and missing terms.
 
 **Detail:** full JD (Markdown rendered, must-have `jd_quote`s highlighted), criteria table (label, JD quote, bank ids, evidence_ok), all source URLs, apply link, status history, "Copy tailor prompt".
 
-**Filters panel:** Match group (score against: brag bank or selected resume; minimum score: any, 40+, 60+, 80+), source, remote type, posted within, salary listed, include closed, text search, location, sort (best match by default, date posted, recently found).
+**Filters panel:** Match group (score against: brag docs or selected resume; minimum score: any, 40+, 60+, 80+), source, remote type, posted within, salary listed, include closed, text search, location, sort (best match by default, date posted, recently found).
 
-**Profile page** (`/profile`): brag bank entries (search, create, edit, delete, every schema field) and the profile summary; resumes (upload, select exactly one, preview the extracted text, delete).
+**Brag Docs page** (`/brag-docs`): the feed groups brag docs by `quarter`, newest first. A sticky filter bar searches title, description, and metric values, filters by every selected tag, one company, and one metric key. "Log a brag doc" is a dialog: title, date (defaults to today, shows the derived quarter), company (creatable), role, tags (creatable multi-select), metric rows (creatable key plus a value), a growing markdown description, and URL attachments. Typing a new tag or metric key creates it and applies it immediately. Saving on Cmd+Enter.
+
+**Profile page** (`/profile`): the profile summary, and resumes (upload, select exactly one, preview the extracted text, delete). A link points to `/brag-docs`.
 
 **Schedules page** (`/schedules`): the `fit_schedules` table with plain-English cron, the next three runs, an enabled switch, and Run now; a create/edit dialog with presets (hourly, daily 07:00, weekdays) and inline validation; recent fit runs with a live progress bar driven by `useFitRun` (EventSource to the SSE route, TanStack Query polling every 2s as fallback, state persisted to localStorage so a reopened tab shows the last progress immediately). The board header shows a "Scoring N%" pill while a run is active.
 
@@ -708,7 +719,7 @@ Claude Desktop / Cowork config snippet for README (no secrets inline):
 **Morning digest prompt** (README, for a Cowork scheduled task, weekdays 08:00):
 > Use the jobhunt tools. Call `next_to_score` and assess each job per the returned prompt, then `save_assessment`, until nothing is left or 40 jobs are done. Then call `digest` and give me the top 10 new matches: score, band, company, role, location, one line on the strongest match and the biggest gap, and the job id.
 
-**Tailor handoff:** in Cowork, "Tailor my resume for jobhunt job #123" → Claude calls `get_job` and passes the JD to the `tailor-resume` skill. The app never writes into the vault.
+**Tailor handoff:** in Cowork, "Tailor my resume for jobhunt job #123" → Claude calls `get_job` and passes the JD to the `tailor-resume` skill. The app writes to the vault only through `jobhunt brag-docs migrate-vault --write` ([ADR-0002](docs/adr/0002-brag-docs.md)).
 
 ---
 
@@ -753,7 +764,7 @@ Claude Desktop / Cowork config snippet for README (no secrets inline):
 ### P2 — Matching (week 3)
 
 - **T2.1 Profile builder** (§11) with synthetic bank fixture.
-  *Accept:* sanitized profile contains no entry titles/metrics/body (test asserts); confidential entries give ids+terms only; hash stable across runs.
+  *Accept:* sanitized profile contains no brag doc titles/metrics/description (test asserts); hash stable across runs.
 - **T2.2 Filter DSL** (§12) incl. whitelist and injection tests.
   *Accept:* all §12.1 ops tested; malicious field/value rejected or safely parameterized.
 - **T2.3 Hard filters + prefilter** (§13.1, §13.2).
@@ -772,6 +783,8 @@ Claude Desktop / Cowork config snippet for README (no secrets inline):
   *Accept:* integration tests cover each route; the board's `sort=match` and `min_score` read stored scores only.
 - **T2.10 Profile + schedules UI.** `/profile`, `/schedules` with live progress, the match filter group, the score badge, and the scoring pill.
   *Accept:* Playwright covers the board sorted by score, a schedule edit, and a run whose progress survives a reload.
+- **T2.11 Brag docs** ([ADR-0002](docs/adr/0002-brag-docs.md)). Replace `bank_entries` with tags, metric keys, brag docs, and their metrics and attachments. `/brag-docs` with the creatable form, quarter grouping, and the filter bar. `jobhunt brag-docs migrate-vault` rewrites old vault frontmatter once.
+  *Accept:* `2026-10-08` stores `Q4 2026`; creating a tag or metric key twice returns the same row; a metric filter shows only docs that use that key; the vault rewrite leaves the body unchanged and is a no-op the second time.
 
 ### P3 — UI and orchestration (week 4)
 

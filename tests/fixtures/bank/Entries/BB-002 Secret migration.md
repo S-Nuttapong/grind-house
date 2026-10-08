@@ -1,17 +1,13 @@
 ---
 id: BB-002
 title: Moved the secret ledger
+date: 2024-02-29
 company: Example Co
 role: Engineer
-period: 2024-01 – 2024-02
-my_role: led
-scope: "one service"
-metrics: []
-strength: 2
-confidential: true
-status: verified
 tags:
-  - skill/rust
+- skill/rust
+metrics: []
+attachments: []
 ---
 
 ## What I did

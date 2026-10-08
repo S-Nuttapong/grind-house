@@ -16,53 +16,6 @@ def _job(conn, company_id: int, title: str) -> int:
     )
 
 
-def test_bank_entries_round_trip(conn) -> None:
-    fit_repo.upsert_bank_entry(
-        conn,
-        {
-            "id": "BB-900",
-            "title": "Cut retries 38%",
-            "company": "Acme",
-            "role": "Engineer",
-            "period": "2024-03 – 2024-06",
-            "my_role": "led",
-            "scope": "team of 4",
-            "metrics": [{"text": "-38%", "confidence": "exact"}],
-            "strength": 4,
-            "confidential": False,
-            "status": "verified",
-            "tags": ["skill/go"],
-            "body_md": "Redesigned the scheduler.",
-            "origin": "ui",
-        },
-    )
-    fit_repo.upsert_bank_entry(
-        conn,
-        {
-            "id": "BB-900",
-            "title": "Cut retries 40%",
-            "company": "Acme",
-            "role": "Engineer",
-            "period": "2024-03 – 2024-06",
-            "my_role": "led",
-            "scope": "team of 4",
-            "metrics": [],
-            "strength": 5,
-            "confidential": True,
-            "status": "verified",
-            "tags": ["skill/go", "skill/kafka"],
-            "body_md": "Updated.",
-            "origin": "vault",
-        },
-    )
-    entries = fit_repo.list_bank_entries(conn)
-    assert [entry["id"] for entry in entries] == ["BB-900"]
-    assert entries[0]["title"] == "Cut retries 40%"
-    assert entries[0]["confidential"] is True
-    assert fit_repo.delete_bank_entry(conn, "BB-900") is True
-    assert fit_repo.list_bank_entries(conn) == []
-
-
 def test_profile_and_resume_selection(conn) -> None:
     assert fit_repo.get_bank_profile(conn) == ""
     fit_repo.set_bank_profile(conn, "Timeline goes here.")

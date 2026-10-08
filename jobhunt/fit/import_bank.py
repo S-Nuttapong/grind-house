@@ -1,28 +1,28 @@
-"""Read the brag-bank vault into the database. The vault is only ever read."""
+"""Read the brag-doc vault into the database. The vault is only ever read."""
 
 import json
 import sys
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
 from psycopg import Connection
 
-from jobhunt.db import fit_repo
+from jobhunt.db import brag_repo, fit_repo
 
-_ROLES = {"led", "built", "co-built", "contributed"}
-_STATUSES = {"draft", "needs-metric", "verified"}
 _CONTACT_KEYS = {"name", "email", "phone", "links", "location", "work_authorization"}
 
 
 def import_bank(conn: Connection[Any], bank_dir: Path) -> dict[str, int]:
-    """Upsert entries, the profile body, and resume.json files. Returns counts."""
+    """Upsert brag docs, the profile body, and resume.json files. Returns counts."""
     split = _frontmatter_parser(bank_dir)
     entries = 0
     for path in sorted((bank_dir / "Entries").glob("BB-*.md")):
         frontmatter, body = split(path.read_text())
-        if not frontmatter.get("id"):
+        doc = _doc(frontmatter, body)
+        if doc is None:
             continue
-        fit_repo.upsert_bank_entry(conn, _entry(frontmatter, body))
+        _save(conn, doc)
         entries += 1
 
     profile_path = bank_dir / "_Profile.md"
@@ -46,27 +46,93 @@ def import_bank(conn: Connection[Any], bank_dir: Path) -> dict[str, int]:
     return {"entries": entries, "resumes": resumes}
 
 
-def _entry(frontmatter: dict[str, Any], body: str) -> dict[str, Any]:
-    my_role = str(frontmatter.get("my_role") or "")
-    status = str(frontmatter.get("status") or "draft")
-    metrics = frontmatter.get("metrics") or []
+def _save(conn: Connection[Any], doc: dict[str, Any]) -> None:
+    tag_ids = [brag_repo.get_or_create_tag(conn, name)[0]["id"] for name in doc["tags"]]
+    metrics = []
+    for item in doc["metrics"]:
+        key = brag_repo.get_or_create_metric_key(conn, item["key"])[0]
+        metrics.append({"metric_key_id": key["id"], "value": item["value"]})
+    brag_repo.save_brag_doc(
+        conn,
+        {
+            "id": doc["id"],
+            "title": doc["title"],
+            "date": doc["date"],
+            "company": doc["company"],
+            "role": doc["role"],
+            "description_md": doc["description_md"],
+            "origin": "vault",
+            "tag_ids": tag_ids,
+            "metrics": metrics,
+            "attachments": doc["attachments"],
+        },
+    )
+
+
+def _doc(frontmatter: dict[str, Any], body: str) -> dict[str, Any] | None:
+    if not frontmatter.get("id") or frontmatter.get("date") is None:
+        return None
+    parsed = _as_date(frontmatter["date"])
+    if parsed is None:
+        return None
     tags = frontmatter.get("tags") or []
     return {
         "id": str(frontmatter["id"]),
         "title": str(frontmatter.get("title") or ""),
-        "company": frontmatter.get("company"),
-        "role": frontmatter.get("role"),
-        "period": str(frontmatter.get("period") or "") or None,
-        "my_role": my_role if my_role in _ROLES else None,
-        "scope": frontmatter.get("scope"),
-        "metrics": metrics if isinstance(metrics, list) else [],
-        "strength": frontmatter.get("strength"),
-        "confidential": bool(frontmatter.get("confidential")),
-        "status": status if status in _STATUSES else "draft",
+        "date": parsed,
+        "company": _text_or_none(frontmatter.get("company")),
+        "role": _text_or_none(frontmatter.get("role")),
         "tags": [str(tag) for tag in tags] if isinstance(tags, list) else [],
-        "body_md": body.strip(),
-        "origin": "vault",
+        "metrics": _metrics(frontmatter.get("metrics")),
+        "attachments": _attachments(frontmatter.get("attachments")),
+        "description_md": body.strip(),
     }
+
+
+def _metrics(raw: Any) -> list[dict[str, str]]:
+    if not isinstance(raw, list):
+        return []
+    metrics: list[dict[str, str]] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        key = str(item.get("key") or "").strip()
+        value = str(item.get("value") or "").strip()
+        if key and value:
+            metrics.append({"key": key, "value": value})
+    return metrics
+
+
+def _attachments(raw: Any) -> list[dict[str, str]]:
+    if not isinstance(raw, list):
+        return []
+    attachments: list[dict[str, str]] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        link = str(item.get("link") or "").strip()
+        if link.startswith(("http://", "https://")):
+            attachments.append({"type": "url", "link": link})
+    return attachments
+
+
+def _as_date(value: Any) -> date | None:
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    text = str(value).strip()
+    try:
+        return date.fromisoformat(text[:10])
+    except ValueError:
+        return None
+
+
+def _text_or_none(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
 
 
 def _resume_text(resume: dict[str, Any]) -> str:

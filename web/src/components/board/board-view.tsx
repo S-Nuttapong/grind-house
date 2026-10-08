@@ -110,7 +110,7 @@ export function BoardView({ data, facets, selected }: { data: JobPage; facets: F
   const { filters, navigate, isPending } = useBoard();
   const isDesktop = useIsDesktop();
   const sort = filters.sort ?? "match";
-  const fitSource = filters.fit === "resume" ? "selected resume" : "brag bank";
+  const fitSource = filters.fit === "resume" ? "selected resume" : "brag docs";
   const showing = data.total === 0 ? 0 : (data.page - 1) * data.page_size + 1;
   const upTo = Math.min(data.total, data.page * data.page_size);
 

@@ -1,6 +1,7 @@
+from datetime import date
 from pathlib import Path
 
-from jobhunt.db import fit_repo, repo
+from jobhunt.db import brag_repo, fit_repo, repo
 from jobhunt.fit.fake import FakeFitModel
 from jobhunt.fit.import_bank import import_bank
 from jobhunt.fit.runner import run_fit
@@ -12,11 +13,15 @@ def test_import_stores_entries_without_contact_details(conn) -> None:
     counts = import_bank(conn, _BANK)
     assert counts == {"entries": 2, "resumes": 1}
 
-    entries = {entry["id"]: entry for entry in fit_repo.list_bank_entries(conn)}
-    assert entries["BB-001"]["tags"] == ["skill/go", "skill/kafka"]
-    assert entries["BB-001"]["metrics"][0]["text"] == "retries -38%"
-    assert "payments retry scheduler" in entries["BB-001"]["body_md"]
-    assert entries["BB-002"]["confidential"] is True
+    entries = {entry["id"]: entry for entry in brag_repo.list_brag_docs(conn)}
+    assert [tag["name"] for tag in entries["BB-001"]["tags"]] == ["skill/go", "skill/kafka"]
+    assert entries["BB-001"]["metrics"][0]["name"] == "General"
+    assert entries["BB-001"]["metrics"][0]["value"] == "retries -38%"
+    assert entries["BB-001"]["date"] == date(2023, 6, 30)
+    assert entries["BB-001"]["quarter"] == "Q2 2023"
+    assert entries["BB-001"]["attachments"][0]["link"] == "https://example.com/payments"
+    assert "payments retry scheduler" in entries["BB-001"]["description_md"]
+    assert entries["BB-002"]["date"] == date(2024, 2, 29)
 
     profile = fit_repo.get_bank_profile(conn)
     assert "Timeline" in profile
@@ -62,23 +67,20 @@ def test_run_fit_is_incremental_and_rescored_after_an_edit(conn) -> None:
 
     assert run_fit(conn, model, "bank") == {"scored": 0, "skipped": 2}
 
-    fit_repo.upsert_bank_entry(
+    tag, _created = brag_repo.get_or_create_tag(conn, "skill/figma")
+    brag_repo.save_brag_doc(
         conn,
         {
             "id": "BB-003",
             "title": "Design system",
+            "date": date(2025, 6, 30),
             "company": "Example Co",
             "role": "Engineer",
-            "period": "2025",
-            "my_role": "built",
-            "scope": None,
-            "metrics": [],
-            "strength": 3,
-            "confidential": False,
-            "status": "verified",
-            "tags": ["skill/figma"],
-            "body_md": "Built the design system.",
+            "description_md": "Built the design system.",
             "origin": "ui",
+            "tag_ids": [tag["id"]],
+            "metrics": [],
+            "attachments": [],
         },
     )
     rescored = run_fit(conn, model, "bank")

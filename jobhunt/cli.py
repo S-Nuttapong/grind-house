@@ -1,16 +1,22 @@
 """Command line for Job Hunt OS."""
 
+from datetime import UTC, datetime
+from typing import Any
+
 import typer
+from psycopg import Connection
 
 app = typer.Typer(no_args_is_help=True, help="Collect, rank, and review software-engineering jobs.")
 db_app = typer.Typer(no_args_is_help=True, help="Database migrations.")
-profile_app = typer.Typer(no_args_is_help=True, help="Brag-bank profile.")
+profile_app = typer.Typer(no_args_is_help=True, help="Profile summary and vault import.")
+brag_app = typer.Typer(no_args_is_help=True, help="Brag docs.")
 calibrate_app = typer.Typer(no_args_is_help=True, help="Score calibration.")
 ops_app = typer.Typer(no_args_is_help=True, help="Local scheduling.")
 companies_app = typer.Typer(no_args_is_help=True, help="Company review.")
 
 app.add_typer(db_app, name="db")
 app.add_typer(profile_app, name="profile")
+app.add_typer(brag_app, name="brag-docs")
 app.add_typer(calibrate_app, name="calibrate")
 app.add_typer(ops_app, name="ops")
 app.add_typer(companies_app, name="companies")
@@ -117,7 +123,7 @@ def calibrate_report() -> None:
 
 @profile_app.command("import")
 def profile_import() -> None:
-    """Read the brag-bank vault into the database. The vault is not modified."""
+    """Read the brag-doc vault into the database. The vault is not modified."""
     from jobhunt.db import tx
     from jobhunt.fit.import_bank import import_bank
     from jobhunt.settings import Settings
@@ -125,7 +131,26 @@ def profile_import() -> None:
     bank = Settings().vault_bank_path
     with tx() as conn:
         counts = import_bank(conn, bank)
-    typer.echo(f"imported {counts['entries']} entries and {counts['resumes']} resumes")
+    typer.echo(f"imported {counts['entries']} brag docs and {counts['resumes']} resumes")
+
+
+@brag_app.command("migrate-vault")
+def brag_docs_migrate_vault(
+    write: bool = typer.Option(False, "--write", help="Rewrite the vault. Copies Entries/ first."),
+) -> None:
+    """Rewrite old brag-bank frontmatter once. Dry-run unless --write is set."""
+    from jobhunt.fit.migrate_vault import migrate_vault
+    from jobhunt.settings import Settings
+
+    changes = migrate_vault(Settings().vault_bank_path, write=write)
+    if not changes:
+        typer.echo("no Entries directory")
+        return
+    for change in changes:
+        typer.echo(f"{change.path.name}: {change.action} ({change.detail})")
+    rewritten = sum(1 for change in changes if change.action == "rewrite")
+    verb = "rewrote" if write else "would rewrite"
+    typer.echo(f"{verb} {rewritten} of {len(changes)} files")
 
 
 @fit_app.command("run")
@@ -133,20 +158,58 @@ def fit_run(
     mode: str = typer.Option("bank", "--mode"),
     limit: int | None = typer.Option(None, "--limit"),
 ) -> None:
-    """Score open jobs against the brag bank or the selected resume."""
+    """Score open jobs against the brag docs or the selected resume."""
     from jobhunt.db import tx
     from jobhunt.fit.registry import create
     from jobhunt.fit.runner import run_fit
     from jobhunt.fit.sources import SourceError
 
+    started = datetime.now(UTC)
     model = create()
     try:
         with tx() as conn:
             result = run_fit(conn, model, mode, limit=limit)
+            _remember_cli_run(conn, model.model_id, mode, result, started, error=None)
     except (SourceError, ValueError) as exc:
+        _remember_cli_failure(model.model_id, mode, started, str(exc))
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=1) from exc
     typer.echo(f"scored {result['scored']}, skipped {result['skipped']} ({model.model_id})")
+
+
+def _remember_cli_run(
+    conn: Connection[Any],
+    model_id: str,
+    mode: str,
+    result: dict[str, int],
+    started: datetime,
+    error: str | None,
+) -> None:
+    from jobhunt.db import fit_repo
+
+    fit_repo.record_finished_run(
+        conn,
+        {
+            "schedule_id": fit_repo.schedule_id_for_mode(conn, mode),
+            "mode": mode,
+            "trigger": "manual",
+            "model_id": model_id,
+            "status": "failed" if error else "ok",
+            "scored": result["scored"],
+            "skipped": result["skipped"],
+            "error": error,
+            "idempotency_key": f"cli|{mode}|{started.isoformat()}",
+            "started_at": started,
+            "finished_at": datetime.now(UTC),
+        },
+    )
+
+
+def _remember_cli_failure(model_id: str, mode: str, started: datetime, error: str) -> None:
+    from jobhunt.db import tx
+
+    with tx() as conn:
+        _remember_cli_run(conn, model_id, mode, {"scored": 0, "skipped": 0}, started, error)
 
 
 @fit_app.command("worker")

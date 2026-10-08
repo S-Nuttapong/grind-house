@@ -74,7 +74,7 @@ Build that file by appending the gateway certificate (from the macOS system keyc
 
 Scores are written to Postgres by a worker. Opening the board does not score anything.
 
-Import the brag bank. The vault is read-only, and contact details in the profile frontmatter are not stored.
+Import the brag docs. Contact details in the profile frontmatter are not stored. `jobhunt brag-docs migrate-vault` (add `--write` to rewrite) converts old vault entries once, after copying `Entries/` out of the vault.
 
 ```bash
 VAULT_BANK_PATH="/path/to/Brag Banks" uv run jobhunt profile import
@@ -97,7 +97,7 @@ The worker uses the same Dockerfile as the API with the `fit` extra, which insta
 
 Schedules are rows in the database. Change them on the Schedules page at `http://127.0.0.1:3000/schedules`. The worker re-reads that table every minute, so a change does not need a restart.
 
-To add a strategy, implement `JobFitModel` (`score` and `score_many` return a number from 0 to 100) and register the factory in `jobhunt/fit/registry.py`. Set `FIT_MODEL` to that name. A model with `sends_data_offsite = True` receives only the bank entries that are not marked confidential.
+To add a strategy, implement `JobFitModel` (`score` and `score_many` return a number from 0 to 100) and register the factory in `jobhunt/fit/registry.py`. Set `FIT_MODEL` to that name. A model with `sends_data_offsite = True` still receives every brag doc. Do not log something you would not put on a resume.
 
 ## Scheduling
 

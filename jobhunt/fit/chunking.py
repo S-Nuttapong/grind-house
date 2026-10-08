@@ -1,6 +1,6 @@
 """Split long texts into pieces the embedding model can read whole.
 
-BGE truncates at 512 tokens, and the brag bank is far longer than that, so the
+BGE truncates at 512 tokens, and the brag docs are far longer than that, so the
 profile goes in as one chunk per entry and each job description is cut into
 chunks of roughly 400 tokens.
 """

@@ -31,7 +31,7 @@ export const SORTS = [
 ];
 
 export const FIT_SOURCES = [
-  { value: "", label: "Brag bank" },
+  { value: "", label: "Brag docs" },
   { value: "resume", label: "Selected resume" },
 ];
 

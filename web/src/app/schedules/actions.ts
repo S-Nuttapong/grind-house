@@ -46,7 +46,7 @@ function normalize(input: ScheduleInput): ScheduleInput {
 
 function validate(input: ScheduleInput): string | null {
   if (!input.name || input.name.length > 80) return "Add a name";
-  if (!MODES.has(input.mode)) return "Choose brag bank or selected resume";
+  if (!MODES.has(input.mode)) return "Choose brag docs or selected resume";
   if (!input.cron) return "Add a cron expression";
   return null;
 }

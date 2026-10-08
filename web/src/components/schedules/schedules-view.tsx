@@ -38,7 +38,7 @@ const WHEN = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Asia/Bangkok",
 });
 
-const MODE_LABEL: Record<FitMode, string> = { bank: "Brag bank", resume: "Selected resume" };
+const MODE_LABEL: Record<FitMode, string> = { bank: "Brag docs", resume: "Selected resume" };
 
 export function SchedulesView() {
   const hydrated = useHydrated();
@@ -82,13 +82,14 @@ export function SchedulesView() {
           <p className="text-sm text-muted-foreground">Loading schedules…</p>
         ) : (
           <div className="overflow-x-auto rounded-xl border">
-            <table className="w-full min-w-[44rem] text-sm">
+            <table className="w-full min-w-[52rem] text-sm">
               <thead className="bg-muted/50 text-left text-muted-foreground">
                 <tr>
                   <th className="px-3 py-2 font-medium">Name</th>
                   <th className="px-3 py-2 font-medium">Mode</th>
                   <th className="px-3 py-2 font-medium">When</th>
                   <th className="px-3 py-2 font-medium">Next runs</th>
+                  <th className="px-3 py-2 font-medium">Last run</th>
                   <th className="px-3 py-2 font-medium">On</th>
                   <th className="px-3 py-2 font-medium">
                     <span className="sr-only">Actions</span>
@@ -108,6 +109,9 @@ export function SchedulesView() {
                       {schedule.upcoming.slice(0, 3).map((moment) => (
                         <div key={moment}>{WHEN.format(new Date(moment))}</div>
                       ))}
+                    </td>
+                    <td className="px-3 py-3">
+                      <LastRun run={schedule.last_run} />
                     </td>
                     <td className="px-3 py-3">
                       <Switch
@@ -179,6 +183,7 @@ export function SchedulesView() {
                 <span>
                   <span className="font-medium">{MODE_LABEL[run.mode]}</span>
                   <span className="text-muted-foreground"> · {run.trigger}</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">{runSummary(run)}</span>
                 </span>
                 <span className="flex items-center gap-2 text-xs text-muted-foreground">
                   {WHEN.format(new Date(run.queued_at))}
@@ -237,6 +242,37 @@ export function SchedulesView() {
 
 function isActive(run: FitRun): boolean {
   return run.status === "queued" || run.status === "running";
+}
+
+function took(run: FitRun): string | null {
+  if (!run.started_at || !run.finished_at) return null;
+  const seconds = Math.max(0, Math.round((Date.parse(run.finished_at) - Date.parse(run.started_at)) / 1000));
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ${seconds % 60}s`;
+  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+}
+
+function runSummary(run: FitRun): string {
+  const counts = `${run.scored.toLocaleString()} scored, ${run.skipped.toLocaleString()} skipped`;
+  const duration = took(run);
+  return duration ? `${counts} · ${duration}` : counts;
+}
+
+function LastRun({ run }: { run: FitRun | null }) {
+  if (!run) return <span className="text-muted-foreground">Never</span>;
+  const when = run.started_at ?? run.queued_at;
+  return (
+    <div>
+      <div className="flex items-center gap-2">
+        <span>{WHEN.format(new Date(when))}</span>
+        <Badge variant="outline" className="capitalize">
+          {run.status}
+        </Badge>
+      </div>
+      <div className="text-xs text-muted-foreground">{runSummary(run)}</div>
+    </div>
+  );
 }
 
 function RunDetail({

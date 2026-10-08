@@ -1,4 +1,4 @@
--- Job Hunt OS schema · Postgres 16+ · v0.4
+-- Job Hunt OS schema · Postgres 16+ · v0.5
 -- Relational core, JSONB only where the shape varies (source params, raw payloads, LLM output, filters).
 
 CREATE EXTENSION IF NOT EXISTS pg_trgm;   -- fuzzy title match for dedupe and search
@@ -227,24 +227,56 @@ CREATE TABLE labels (                                   -- calibration ground tr
 
 -- ───────────── Job fit (§13.8) ─────────────
 
--- ───────────── Profile (brag bank + resumes) ─────────────
+-- ───────────── Profile (brag docs + resumes) ─────────────
 
-CREATE TABLE bank_entries (                            -- one row per brag-bank entry
-  id            text PRIMARY KEY,                      -- 'BB-001'
-  title         text NOT NULL,
-  company       text,
-  role          text,
-  period        text,
-  my_role       text CHECK (my_role IN ('led','built','co-built','contributed')),
-  scope         text,
-  metrics       jsonb NOT NULL DEFAULT '[]',
-  strength      smallint CHECK (strength BETWEEN 1 AND 5),
-  confidential  boolean NOT NULL DEFAULT false,
-  status        text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','needs-metric','verified')),
-  tags          text[] NOT NULL DEFAULT '{}',
-  body_md       text NOT NULL DEFAULT '',
-  origin        text NOT NULL DEFAULT 'ui' CHECK (origin IN ('vault','ui')),
-  updated_at    timestamptz NOT NULL DEFAULT now()
+CREATE TABLE tags (
+  id         bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  name       text NOT NULL,
+  color_hex  text NOT NULL CHECK (color_hex ~ '^#[0-9A-Fa-f]{6}$')
+);
+CREATE UNIQUE INDEX tags_name_lower ON tags (lower(name));
+
+CREATE TABLE metric_keys (
+  id    bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  name  text NOT NULL
+);
+CREATE UNIQUE INDEX metric_keys_name_lower ON metric_keys (lower(name));
+
+CREATE TABLE brag_docs (
+  id              text PRIMARY KEY,                    -- 'BB-001'
+  title           text NOT NULL,
+  date            date NOT NULL,
+  quarter         text GENERATED ALWAYS AS (
+                    'Q' || extract(quarter FROM date)::int::text
+                    || ' ' || extract(year FROM date)::int::text
+                  ) STORED,
+  company         text,
+  role            text,
+  description_md  text NOT NULL DEFAULT '',
+  origin          text NOT NULL DEFAULT 'ui' CHECK (origin IN ('vault','ui')),
+  updated_at      timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE brag_doc_tags (
+  brag_doc_id  text NOT NULL REFERENCES brag_docs(id) ON DELETE CASCADE,
+  tag_id       bigint NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+  PRIMARY KEY (brag_doc_id, tag_id)
+);
+
+CREATE TABLE brag_doc_metrics (
+  id              bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  brag_doc_id     text NOT NULL REFERENCES brag_docs(id) ON DELETE CASCADE,
+  metric_key_id   bigint NOT NULL REFERENCES metric_keys(id) ON DELETE RESTRICT,
+  value           text NOT NULL,
+  position        integer NOT NULL
+);
+
+CREATE TABLE brag_doc_attachments (
+  id           bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  brag_doc_id  text NOT NULL REFERENCES brag_docs(id) ON DELETE CASCADE,
+  type         text NOT NULL CHECK (type IN ('url')),
+  link         text NOT NULL CHECK (link ~ '^https?://'),
+  position     integer NOT NULL
 );
 
 CREATE TABLE bank_profile (                           -- single row; no contact details
