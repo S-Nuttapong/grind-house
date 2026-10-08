@@ -83,7 +83,8 @@ Note: LLM extraction and the rubric run **only on the shortlist**, in one step p
 | Models / config | `pydantic` v2, `pydantic-settings`, `PyYAML` |
 | Scheduling | `croniter`, `cron-descriptor`, `zoneinfo` |
 | CLI | `typer` |
-| Web | `fastapi`, `uvicorn`, `jinja2`, HTMX 2 (vendored file in `static/`) |
+| Web API | `fastapi`, `uvicorn` (JSON only, pydantic response models, OpenAPI at `/openapi.json`) |
+| Web UI | Next.js 16 (App Router, TypeScript) in `web/`, Tailwind CSS 4, shadcn/ui, `react-markdown`; npm with exact versions |
 | MCP | official `mcp` Python SDK (`from mcp.server.fastmcp import FastMCP`), stdio transport |
 | Tests | `pytest`, `respx` (httpx mocks), `pytest-cov` |
 | Lint / types | `ruff`, `mypy` (strict on `jobhunt/`) |
@@ -149,11 +150,13 @@ jobhunt/
     calibrate.py
     mcp_server.py
     web/
-      app.py                   # FastAPI app factory
-      routes_board.py  routes_jobs.py  routes_scopes.py  routes_rules.py
-      routes_runs.py  routes_companies.py  routes_calibrate.py
-      templates/  (base.html, board.html, _job_card.html, _job_detail.html, ...)
-      static/  (htmx.min.js, app.css)
+      app.py                   # FastAPI app factory (JSON API only)
+      api.py                   # /api/* routes and pydantic response models
+      board.py                 # board queries (filters, list, detail, events, runs)
+  web/                         # Next.js UI (talks only to /api, proxied to FastAPI)
+    src/app/                   # pages: board, pipeline, runs
+    src/components/            # shadcn/ui primitives + job card, detail, filters
+    src/lib/api.ts             # typed client matching /openapi.json
   tests/
     conftest.py                # db fixture: migrate once, transaction-per-test rollback
     fixtures/
@@ -569,28 +572,22 @@ Validate (pydantic) → evidence check → score → upsert `requirements (job_i
 
 ---
 
-## 14. Web UI (FastAPI + HTMX)
+## 14. Web UI (Next.js + FastAPI JSON API)
 
-`jobhunt serve` → `uvicorn jobhunt.web.app:create_app --factory --host 127.0.0.1 --port 8765`.
+`jobhunt serve` → `uvicorn jobhunt.web.app:create_app --factory --host 127.0.0.1 --port 8765` serves JSON only.
+The UI is a Next.js app in `web/` (`npm --prefix web run dev`, bound to `127.0.0.1:3000`). Next.js rewrites `/api/*` to `JOBHUNT_API_URL` (default `http://127.0.0.1:8765`), so the browser talks to one origin and FastAPI needs no CORS. FastAPI's OpenAPI document is the contract for `web/src/lib/api.ts`.
 
-| Route | Purpose | HTMX |
+| API route | Purpose | UI page |
 |---|---|---|
-| `GET /` | Board: filter panel + results | form `hx-get="/jobs" hx-trigger="change, keyup changed delay:300ms from:#q" hx-target="#results" hx-push-url="true"` |
-| `GET /jobs` | Results partial (cards, pagination) | |
-| `GET /jobs/{id}` | Detail drawer partial | card `hx-get` → `#detail` |
-| `POST /jobs/{id}/events` | Save / skip (with reason) / applied / … | returns updated card (`hx-swap="outerHTML"`) |
-| `GET /jobs/{id}/tailor-prompt` | Returns text "Tailor my resume for jobhunt job #123 — Company · Role" + copy button | |
-| `GET /rules`, `GET /rules/new?from=<query>` | List / builder prefilled from the board | |
-| `GET /rules/row?i=n` | New condition row | `hx-swap="beforeend"` |
-| `POST /rules/preview` | "Matches N open jobs" | `hx-trigger="change delay:300ms"` |
-| `POST /rules`, `POST /rules/{id}` | Create / update / enable / pause | |
-| `GET /scopes`, `GET /scopes/new` | List / builder | |
-| `GET /scopes/params?source=` | Param fieldset for the source | swaps `#params` |
-| `POST /scopes/schedule-preview` | Plain words, next 3 runs, guardrail errors | |
-| `POST /scopes/{id}/run` | Run now (background thread, honours lock and guardrail) | |
-| `GET /runs` | Health: last run per source, counts, errors, DB size vs 1 GB | |
-| `GET /companies?review=1` | Discovered companies (tier NULL): set tier, detect ATS, exclude | |
-| `GET /calibrate` | Label queue + report | |
+| `GET /api/jobs?q&where&remote&source&posted_within&has_salary&include_closed&sort&page` | `{jobs, total, page, pages, page_size}` | Board list |
+| `GET /api/jobs/{id}` | Job with `description_md`, `postings`, `events`, `tailor_prompt` | Board detail pane, mobile sheet |
+| `POST /api/jobs/{id}/events` | JSON `{status, reason?}`; status ∈ saved, skipped, applied; returns the job | Save / skip (with reason) / applied |
+| `GET /api/facets` | Source ids and remote types for filter controls | Board filters |
+| `GET /api/pipeline` | Jobs with a status, grouped saved / applied / skipped | Pipeline kanban |
+| `GET /api/runs` | Recent runs with counts and errors | Runs |
+| Later: `/api/rules*`, `/api/scopes*`, `/api/companies`, `/api/calibrate` | Same purposes as before (builders, previews, run now, review, labels) | Rules, Scopes, Companies, Calibrate |
+
+Every job carries `score` and `band` from the latest `matches` row; both are `null` until P2 and the card then shows the stage. Money in API responses is a string so it stays exact. Job description Markdown is rendered in the browser with raw HTML skipped.
 
 **Board card:** title, company, location + remote pill, salary (original currency), age ("3d"), source pills, score + band pill, five small bars (one per criterion), top two gaps. Unscored jobs show their stage from `prefilter` (filtered out + reason / shortlisted / not shortlisted) instead of a score.
 
@@ -598,7 +595,7 @@ Validate (pydantic) → evidence check → score → upsert `requirements (job_i
 
 **Filters panel:** score band, min score, source, country, city, remote type, tz band, posted within, salary floor, company tier, status, include closed (off), text search, sort (score, posted, first seen).
 
-Styling: one small `app.css`, system font stack, light/dark via `prefers-color-scheme`. No JS framework. Every form control has an `id` and `<label>`. Keyboard focus visible.
+Styling: Tailwind + shadcn/ui, Inter, light and dark themes (system default plus a toggle). Board layout: left filter sidebar, job list with a match score ring per card, sticky detail pane; one column with a detail sheet on mobile. ⌘K opens a command palette for job search and navigation. Every form control has a `<label>`. Keyboard focus visible.
 
 ---
 
