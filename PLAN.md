@@ -58,7 +58,9 @@ Note: LLM extraction and the rubric run **only on the shortlist**, in one step p
 
 **Brag bank (Obsidian vault)**
 - The vault is **read-only** for this app. Never write, move, or delete anything in it.
-- The database stores only skill terms, bank entry ids, and preferences from the profile. Never store entry text, titles, metrics, or anything from entries marked `confidential: true`.
+- The local Postgres may store bank entry text and resume text, so fit scoring can run without reading the vault every time. This is a deliberate exception, recorded because the database is local and single-user ([ADR-0001](docs/adr/0001-single-tenant-postgres-task-pipeline.md)).
+- Entries marked `confidential: true` keep that flag. A fit model with `sends_data_offsite = true` never receives those entries or their text.
+- Contact details from `_Profile.md` (email, phone) are never imported.
 - Tests use a synthetic bank in `tests/fixtures/bank/`, never the real vault.
 
 **Code**
@@ -241,6 +243,20 @@ fintech: {kind: domain, syn: [payments, banking, lending, earned wage access]}
 | hn | feed | 24 hours | 45 days |
 | remoteok | feed | 12 hours | 21 days |
 | remotive | feed | 12 hours | 21 days |
+
+- `20261008000003_job_fit.sql` adds the job fit tables (§13.8), mirrored in `schema.sql`:
+
+| table | holds |
+|---|---|
+| bank_entries | one row per brag-bank entry (BB-###), body text included |
+| bank_profile | single row: the profile body without contact details |
+| resumes | uploaded or imported resume text; exactly one `is_selected` |
+| fit_sources | sha256 of the profile text a scoring run used |
+| job_fits | score per (job, model, source), with matched and missing terms |
+| fit_schedules | cron and timezone per mode; the only place cron is stored |
+| fit_runs | queued / running / ok / failed, with an idempotency key |
+| fit_run_events | append-only progress log, replayed by the SSE stream |
+| fit_worker | single row: model id and heartbeat |
 
 - `jobhunt seed` loads `companies.seed.yaml` and `scopes.seed.yaml` idempotently (upsert by `name_norm` / scope `name`).
 - `jobhunt/db/__init__.py` provides: `pool()`, `tx()` context manager, `advisory_lock(name) -> bool` using `pg_try_advisory_lock(hashtext(name))` on a dedicated connection held for the lock's lifetime.
@@ -570,6 +586,39 @@ Validate (pydantic) → evidence check → score → upsert `requirements (job_i
 - `jobhunt calibrate report`: band agreement %, precision@10 (of the top 10 scored, share labeled apply), confusion matrix, per `prompt_version`. Shown on `/calibrate`.
 - Changing `prompt_version` or weights: re-score the calibration set; the report compares versions.
 
+### 13.8 Job fit (`fit/`)
+
+Pre-computed fit scores for every open job, against two sources: the whole brag bank, and the selected resume. Scores are stored in `job_fits` and only ever computed by the fit worker or the CLI, never inside a request ([ADR-0001](docs/adr/0001-single-tenant-postgres-task-pipeline.md)).
+
+**Model interface** (`fit/base.py`). Every strategy (BGE now, Claude or Cursor later) implements:
+
+```python
+class JobFitModel(ABC):
+    model_id: str                 # stored with every score, e.g. "bge-base-en-v1.5/v1"
+    sends_data_offsite: bool = False
+
+    def score(self, job_description: str, profile_text: str) -> float: ...   # 0..100
+    def score_many(self, profile_text: str, job_descriptions: Sequence[str]) -> list[float]: ...
+```
+
+`fit/registry.py` maps `FIT_MODEL` (default `bge`) to a factory. Adding a strategy is one class plus one registry line.
+
+**BGE strategy** (`fit/bge.py`). `BgeFitModel` loads `BAAI/bge-base-en-v1.5` once per worker process. Job descriptions are prefixed with `Represent this sentence for searching relevant passages: `. Raw cosine similarity is calibrated with `max(0, min(100, (raw - 0.40) / 0.45 * 100))`. Because the model truncates at 512 tokens and the bank is far longer, the profile is split into one chunk per bank entry (or resume section) and each job description into ~400-token chunks; the raw score is the mean, over the job's chunks, of each chunk's best match among the profile chunks. That is one matrix `cos_sim` per batch, not a Python loop over pairs.
+
+**Tiers:** strong ≥ 80, good ≥ 60, fair ≥ 40, low below 40.
+
+**Sources** (`fit/sources.py`). Bank text = profile body plus, per entry, title, scope, metrics, body, and tags. A model with `sends_data_offsite = true` gets the non-confidential entries only. The sha256 of the text is upserted into `fit_sources`. Editing the bank or selecting a resume creates a new hash; it does not score anything. The board keeps showing the last source whose `scored_at` is set.
+
+**Keywords** (`fit/keywords.py`). Canonical terms from `synonyms.yaml` present in both texts are `matched_terms`; terms in the job description but not the profile are `missing_terms`. Both are stored on `job_fits` during the run.
+
+**Runner** (`fit/runner.py`). `run_fit(conn, model, mode, limit=None)` selects open jobs whose `job_hash` (sha256 of title + description) is missing or different in `job_fits` for this model and source, scores them in batches of 64, and upserts. Unchanged jobs are skipped, so a rerun is cheap and a bank edit (new hash) rescores everything.
+
+**Schedule** (`fit/schedule.py`). `validate(cron, tz)` rejects bad cron, unknown timezones, and a gap under 15 minutes between runs. `describe(cron)` and `next_runs(cron, tz, n)` back the schedules page. This is the shared helper §10.1 describes.
+
+**Worker** (`jobhunt fit worker`, its own process and container). Loads the model once. Every 60 seconds, in order: due `fit_schedules`, queued manual runs, then new or changed jobs from the latest scrape (both modes). It claims a run with `FOR UPDATE SKIP LOCKED`, holds `advisory_lock("jobhunt.fit")`, and writes a `fit_run_events` progress row plus `pg_notify('fit_run_<id>', event_id)` after each batch, in the same transaction as that batch's scores. On SIGTERM it finishes the current batch, marks the run `queued`, and exits, so a restart resumes with only the unscored jobs left. It heartbeats `fit_worker` each poll. An idempotency key (sha256 of schedule, mode, source hash, and the cron slot or the current minute) makes a repeated trigger return the existing run.
+
+**CLI.** `jobhunt profile import` reads the vault read-only into `bank_entries`, `bank_profile`, and `resumes`. `jobhunt fit run --mode bank|resume`, `jobhunt fit download-model` (caches into `./.models`, because the TLS gateway blocks the download inside containers), and `jobhunt fit score --job ID` (prints match %, tier, matched and missing terms for one job).
+
 ---
 
 ## 14. Web UI (Next.js + FastAPI JSON API)
@@ -579,21 +628,32 @@ The UI is a Next.js app in `web/` (`npm --prefix web run dev`, bound to `127.0.0
 
 | API route | Purpose | UI page |
 |---|---|---|
-| `GET /api/jobs?q&where&remote&source&posted_within&has_salary&include_closed&sort&page` | `{jobs, total, page, pages, page_size}` | Board list |
+| `GET /api/jobs?q&where&remote&source&posted_within&has_salary&include_closed&fit&min_score&sort&page` | `{jobs, total, page, pages, page_size}`; `fit` is `bank` (default) or `resume`; `sort=match` is the default | Board list |
 | `GET /api/jobs/{id}` | Job with `description_md`, `postings`, `events`, `tailor_prompt` | Board detail pane, mobile sheet |
 | `POST /api/jobs/{id}/events` | JSON `{status, reason?}`; status ∈ saved, skipped, applied; returns the job | Save / skip (with reason) / applied |
 | `GET /api/facets` | Source ids and remote types for filter controls | Board filters |
 | `GET /api/pipeline` | Jobs with a status, grouped saved / applied / skipped | Pipeline kanban |
 | `GET /api/runs` | Recent runs with counts and errors | Runs |
+| `GET/POST/PUT/DELETE /api/profile/entries`, `GET/PUT /api/profile/summary` | Brag bank entries and the profile body | Profile |
+| `GET/POST /api/resumes`, `POST /api/resumes/{id}/select`, `DELETE /api/resumes/{id}` | Resume text; upload is multipart, 5 MB, pdf/md/txt/json | Profile |
+| `GET/POST/PUT/DELETE /api/fit/schedules` | Cron schedules; invalid cron, timezone, or a gap under 15 min returns 422 | Schedules |
+| `POST /api/fit/schedules/{id}/run` | Queues a run and returns 202; the worker picks it up | Schedules |
+| `GET /api/fit/runs`, `GET /api/fit/runs/{id}` | Run list, and one run with its latest progress | Schedules |
+| `GET /api/fit/runs/{id}/stream` | SSE: replay `fit_run_events`, then tail `LISTEN/NOTIFY`; `Last-Event-ID` resumes | Schedules |
+| `GET /api/fit/status` | Model id, scored counts per mode, stale flag, worker heartbeat | Board, Schedules |
 | Later: `/api/rules*`, `/api/scopes*`, `/api/companies`, `/api/calibrate` | Same purposes as before (builders, previews, run now, review, labels) | Rules, Scopes, Companies, Calibrate |
 
-Every job carries `score` and `band` from the latest `matches` row; both are `null` until P2 and the card then shows the stage. Money in API responses is a string so it stays exact. Job description Markdown is rendered in the browser with raw HTML skipped.
+Every job carries `score` (0–100) and `fit_tier` (strong / good / fair / low) from `job_fits` for the active model and the latest source of the requested mode whose `scored_at` is set, so the board keeps showing the previous scores while a new run is in progress. Both are `null` until the first fit run, and the card then shows "Not scored yet". `matched_terms` and `missing_terms` come from the same row. Money in API responses is a string so it stays exact. Job description Markdown is rendered in the browser with raw HTML skipped.
 
-**Board card:** title, company, location + remote pill, salary (original currency), age ("3d"), source pills, score + band pill, five small bars (one per criterion), top two gaps. Unscored jobs show their stage from `prefilter` (filtered out + reason / shortlisted / not shortlisted) instead of a score.
+**Board card:** title, company, location + remote pill, salary (original currency), age ("3d"), source pills, score badge ("86% Strong", colored by tier). Unscored jobs show "Not scored yet". The detail pane shows the score, its source (brag bank or resume), and the matched and missing terms.
 
 **Detail:** full JD (Markdown rendered, must-have `jd_quote`s highlighted), criteria table (label, JD quote, bank ids, evidence_ok), all source URLs, apply link, status history, "Copy tailor prompt".
 
-**Filters panel:** score band, min score, source, country, city, remote type, tz band, posted within, salary floor, company tier, status, include closed (off), text search, sort (score, posted, first seen).
+**Filters panel:** Match group (score against: brag bank or selected resume; minimum score: any, 40+, 60+, 80+), source, remote type, posted within, salary listed, include closed, text search, location, sort (best match by default, date posted, recently found).
+
+**Profile page** (`/profile`): brag bank entries (search, create, edit, delete, every schema field) and the profile summary; resumes (upload, select exactly one, preview the extracted text, delete).
+
+**Schedules page** (`/schedules`): the `fit_schedules` table with plain-English cron, the next three runs, an enabled switch, and Run now; a create/edit dialog with presets (hourly, daily 07:00, weekdays) and inline validation; recent fit runs with a live progress bar driven by `useFitRun` (EventSource to the SSE route, TanStack Query polling every 2s as fallback, state persisted to localStorage so a reopened tab shows the last progress immediately). The board header shows a "Scoring N%" pill while a run is active.
 
 Styling: Tailwind + shadcn/ui, Inter, light and dark themes (system default plus a toggle). Board layout: left filter sidebar, job list with a match score ring per card, sticky detail pane; one column with a detail sheet on mobile. ⌘K opens a command palette for job search and navigation. Every form control has a `<label>`. Keyboard focus visible.
 
@@ -704,6 +764,14 @@ Claude Desktop / Cowork config snippet for README (no secrets inline):
   *Accept:* in-process MCP tests call each tool; manual: Claude assesses 5 jobs end to end.
 - **T2.6 Calibration** CLI (§13.7).
   *Accept:* report prints agreement and precision@10. Target before P3 sign-off: precision@10 ≥ 0.7 on San's 40 labels.
+- **T2.7 Job fit schema + model** (§13.8). Tables, `JobFitModel`, BGE strategy, fake strategy, registry, keyword matching.
+  *Accept:* calibration clamps to 0–100; a second `run_fit` scores nothing; editing the bank changes the source hash and the next run rescores.
+- **T2.8 Fit worker** (§13.8). Claim with `SKIP LOCKED`, idempotency key, per-batch progress plus `pg_notify`, resume after a crash, SIGTERM, heartbeat.
+  *Accept:* two workers claiming at once take different runs; a killed run resumes and scores only the remaining jobs; the SSE stream replays history, resumes from `Last-Event-ID` with no duplicates, and ends on the final status event.
+- **T2.9 Profile + schedules API** (§14). Entry and resume CRUD, schedule validation (422 on bad cron, timezone, or a gap under 15 min), queue run returns 202, fit status with the stale flag.
+  *Accept:* integration tests cover each route; the board's `sort=match` and `min_score` read stored scores only.
+- **T2.10 Profile + schedules UI.** `/profile`, `/schedules` with live progress, the match filter group, the score badge, and the scoring pill.
+  *Accept:* Playwright covers the board sorted by score, a schedule edit, and a run whose progress survives a reload.
 
 ### P3 — UI and orchestration (week 4)
 
