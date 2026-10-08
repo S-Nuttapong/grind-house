@@ -1,10 +1,11 @@
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-const BAND_COLORS: Record<string, string> = {
-  apply: "text-emerald-500",
-  maybe: "text-amber-500",
-  skip: "text-slate-400",
+const TIER_COLORS: Record<string, string> = {
+  strong: "text-emerald-500",
+  good: "text-sky-500",
+  fair: "text-amber-500",
+  low: "text-slate-400",
 };
 
 const RADIUS = 18;
@@ -22,7 +23,8 @@ export function ScoreRing({
   size?: "md" | "lg";
 }) {
   const scored = score !== null;
-  const label = scored ? `Match score ${score} of 100${band ? `, ${band}` : ""}` : `Not scored yet (${stage})`;
+  const shown = scored ? Math.round(score) : null;
+  const label = scored ? `Match score ${shown} of 100${band ? `, ${band}` : ""}` : `Not scored yet${stage && stage !== "not scored" ? `, ${stage}` : ""}`;
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -51,14 +53,14 @@ export function ScoreRing({
                 strokeWidth="4"
                 strokeLinecap="round"
                 stroke="currentColor"
-                className={BAND_COLORS[band ?? ""] ?? "text-primary"}
+                className={TIER_COLORS[band ?? ""] ?? "text-primary"}
                 strokeDasharray={CIRCUMFERENCE}
-                strokeDashoffset={CIRCUMFERENCE * (1 - score / 100)}
+                strokeDashoffset={CIRCUMFERENCE * (1 - (shown ?? 0) / 100)}
               />
             )}
           </svg>
           <span className={cn("font-semibold tabular-nums", size === "lg" ? "text-base" : "text-xs", !scored && "text-muted-foreground")}>
-            {scored ? score : "–"}
+            {scored ? shown : "–"}
           </span>
         </div>
       </TooltipTrigger>

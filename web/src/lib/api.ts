@@ -28,9 +28,9 @@ export function fetchJobs(query: string): Promise<JobPage> {
   return request<JobPage>(`/api/jobs${query ? `?${query}` : ""}`);
 }
 
-export async function fetchJob(id: number): Promise<JobDetail | null> {
+export async function fetchJob(id: number, fit = ""): Promise<JobDetail | null> {
   try {
-    return await request<JobDetail>(`/api/jobs/${id}`);
+    return await request<JobDetail>(`/api/jobs/${id}${fit === "resume" ? "?fit=resume" : ""}`);
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) return null;
     throw error;

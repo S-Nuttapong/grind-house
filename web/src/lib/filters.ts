@@ -6,6 +6,8 @@ export const FILTER_KEYS = [
   "posted_within",
   "has_salary",
   "include_closed",
+  "fit",
+  "min_score",
   "sort",
   "page",
   "jk",
@@ -23,9 +25,29 @@ export const POSTED_WITHIN = [
 ];
 
 export const SORTS = [
+  { value: "match", label: "Best match" },
   { value: "posted", label: "Date posted" },
   { value: "first_seen", label: "Recently found" },
 ];
+
+export const FIT_SOURCES = [
+  { value: "", label: "Brag bank" },
+  { value: "resume", label: "Selected resume" },
+];
+
+export const MIN_SCORES = [
+  { value: "", label: "Any" },
+  { value: "40", label: "40+" },
+  { value: "60", label: "60+" },
+  { value: "80", label: "80+" },
+];
+
+export const TIER_LABELS: Record<string, string> = {
+  strong: "Strong",
+  good: "Good",
+  fair: "Fair",
+  low: "Low",
+};
 
 export const REMOTE_LABELS: Record<string, string> = {
   remote: "Remote",

@@ -25,6 +25,9 @@ export type JobSummary = {
   status: string | null;
   score: number | null;
   band: "apply" | "maybe" | "skip" | null;
+  fit_tier: "strong" | "good" | "fair" | "low" | null;
+  matched_terms: string[];
+  missing_terms: string[];
   stage: string;
   snippet: string;
   sources: string[];

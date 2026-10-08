@@ -33,6 +33,15 @@ const DATE_TIME = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Asia/Bangkok",
 });
 
+function TermList({ label, terms }: { label: string; terms: string[] }) {
+  return (
+    <p>
+      <span className="text-muted-foreground">{label}: </span>
+      {terms.length > 0 ? terms.join(", ") : "none"}
+    </p>
+  );
+}
+
 function Fact({ icon, label, children }: { icon: ReactNode; label: string; children: ReactNode }) {
   return (
     <div className="flex gap-3 rounded-lg border bg-background/60 p-3">
@@ -45,7 +54,7 @@ function Fact({ icon, label, children }: { icon: ReactNode; label: string; child
   );
 }
 
-export function JobDetail({ job }: { job: Job }) {
+export function JobDetail({ job, source }: { job: Job; source: string }) {
   const posted = job.posted_at ? DATE.format(new Date(job.posted_at)) : `Found ${DATE.format(new Date(job.first_seen_at))}`;
 
   async function copyPrompt() {
@@ -74,7 +83,7 @@ export function JobDetail({ job }: { job: Job }) {
               </Badge>
             )}
           </div>
-          <ScoreRing score={job.score} band={job.band} stage={job.stage} size="lg" />
+          <ScoreRing score={job.score} band={job.fit_tier} stage={job.stage} size="lg" />
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild size="lg" className="px-5">
@@ -96,9 +105,15 @@ export function JobDetail({ job }: { job: Job }) {
         </h3>
         <p className="mt-1 text-sm text-muted-foreground">
           {job.score === null
-            ? `Not scored yet${job.stage === "not scored" ? "" : `, ${job.stage}`}. Scores, criteria, and gaps appear here once profile matching runs.`
-            : `Scored ${job.score}/100 (${job.band}).`}
+            ? "Not scored yet. The next scheduled fit run scores this job."
+            : `${Math.round(job.score)}% match against your ${source}${job.fit_tier ? `, ${job.fit_tier}` : ""}.`}
         </p>
+        {job.score !== null && (
+          <div className="mt-3 space-y-2 text-sm">
+            <TermList label="Matched" terms={job.matched_terms} />
+            <TermList label="Missing" terms={job.missing_terms} />
+          </div>
+        )}
       </section>
 
       <section aria-labelledby="details-heading" className="space-y-3">

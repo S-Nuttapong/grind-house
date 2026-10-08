@@ -6,7 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
-import { hasActiveFilters, POSTED_WITHIN, REMOTE_LABELS, sourceLabel } from "@/lib/filters";
+import { FIT_SOURCES, hasActiveFilters, MIN_SCORES, POSTED_WITHIN, REMOTE_LABELS, sourceLabel } from "@/lib/filters";
 import type { Facets } from "@/lib/types";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -23,14 +23,16 @@ function Choices({
   value,
   options,
   onChange,
+  legend,
 }: {
   name: string;
   value: string;
   options: { value: string; label: string }[];
   onChange: (value: string) => void;
+  legend?: string;
 }) {
   return (
-    <RadioGroup value={value} onValueChange={onChange} className="gap-2.5">
+    <RadioGroup value={value} onValueChange={onChange} aria-label={legend} className="gap-2.5">
       {options.map((option) => {
         const id = `${name}-${option.value || "any"}`;
         return (
@@ -62,11 +64,28 @@ export function FilterSidebar({ facets }: { facets: Facets }) {
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold">Filters</h2>
         {hasActiveFilters(filters) && (
-          <Button variant="link" size="sm" className="h-auto p-0" onClick={() => navigate({ q: "", where: "", remote: "", source: "", posted_within: "", has_salary: "", include_closed: "", jk: "" })}>
+          <Button variant="link" size="sm" className="h-auto p-0" onClick={() => navigate({ q: "", where: "", remote: "", source: "", posted_within: "", has_salary: "", include_closed: "", fit: "", min_score: "", jk: "" })}>
             Clear all
           </Button>
         )}
       </div>
+      <Section title="Match">
+        <Choices
+          name="fit"
+          legend="Score against"
+          value={filters.fit ?? ""}
+          options={FIT_SOURCES}
+          onChange={(fit) => navigate({ fit })}
+        />
+        <Choices
+          name="min_score"
+          legend="Minimum score"
+          value={filters.min_score ?? ""}
+          options={MIN_SCORES}
+          onChange={(min_score) => navigate({ min_score })}
+        />
+      </Section>
+      <Separator />
       <Section title="Workplace">
         <Choices name="remote" value={filters.remote ?? ""} options={remoteOptions} onChange={(remote) => navigate({ remote })} />
       </Section>

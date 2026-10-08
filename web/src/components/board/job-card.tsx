@@ -8,9 +8,16 @@ import { NotInterestedButton, SaveButton } from "@/components/board/job-actions"
 import { CompanyLogo } from "@/components/company-logo";
 import { ScoreRing } from "@/components/score-ring";
 import { Badge } from "@/components/ui/badge";
-import { sourceLabel } from "@/lib/filters";
+import { sourceLabel, TIER_LABELS } from "@/lib/filters";
 import type { JobSummary } from "@/lib/types";
 import { cn } from "@/lib/utils";
+
+const TIER_BADGE: Record<string, string> = {
+  strong: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
+  good: "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300",
+  fair: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
+  low: "bg-slate-100 text-slate-600 dark:bg-slate-900 dark:text-slate-300",
+};
 
 export function JobCard({ job, selected }: { job: JobSummary; selected: boolean }) {
   const { hrefFor, navigate } = useBoard();
@@ -24,7 +31,7 @@ export function JobCard({ job, selected }: { job: JobSummary; selected: boolean 
       )}
     >
       <div className="flex gap-4">
-        <ScoreRing score={job.score} band={job.band} stage={job.stage} />
+        <ScoreRing score={job.score} band={job.fit_tier} stage={job.stage} />
         <div className="min-w-0 flex-1 space-y-2">
           <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1">
@@ -67,6 +74,11 @@ export function JobCard({ job, selected }: { job: JobSummary; selected: boolean 
             )}
             {job.remote && job.remote !== "unknown" && <Badge variant="secondary">{job.remote_label}</Badge>}
             {job.employment_type && <Badge variant="outline">{job.employment_type}</Badge>}
+            {job.fit_tier && job.score !== null && (
+              <Badge className={TIER_BADGE[job.fit_tier]}>
+                {Math.round(job.score)}% {TIER_LABELS[job.fit_tier]}
+              </Badge>
+            )}
             {job.is_new ? (
               <Badge className="bg-primary/10 text-primary">New</Badge>
             ) : (

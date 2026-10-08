@@ -87,7 +87,7 @@ function PipelineCard({ job }: { job: JobSummary }) {
       <div className="flex flex-col items-end gap-1">
         <MoveMenu jobId={job.id} current={job.status ?? ""} />
         <div className="relative z-10">
-          <ScoreRing score={job.score} band={job.band} stage={job.stage} />
+          <ScoreRing score={job.score} band={job.fit_tier} stage={job.stage} />
         </div>
       </div>
     </li>

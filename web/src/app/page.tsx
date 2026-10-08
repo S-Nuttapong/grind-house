@@ -21,7 +21,7 @@ async function Board({ searchParams }: Pick<PageProps<"/">, "searchParams">) {
   const [data, facets, selected] = await Promise.all([
     fetchJobs(apiQuery(filters)),
     fetchFacets(),
-    Number.isInteger(selectedId) && selectedId > 0 ? fetchJob(selectedId) : Promise.resolve(null),
+    Number.isInteger(selectedId) && selectedId > 0 ? fetchJob(selectedId, filters.fit ?? "") : Promise.resolve(null),
   ]);
 
   return (

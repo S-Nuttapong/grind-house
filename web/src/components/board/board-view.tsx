@@ -109,7 +109,8 @@ function DetailPlaceholder() {
 export function BoardView({ data, facets, selected }: { data: JobPage; facets: Facets; selected: Job | null }) {
   const { filters, navigate, isPending } = useBoard();
   const isDesktop = useIsDesktop();
-  const sort = filters.sort ?? "posted";
+  const sort = filters.sort ?? "match";
+  const fitSource = filters.fit === "resume" ? "selected resume" : "brag bank";
   const showing = data.total === 0 ? 0 : (data.page - 1) * data.page_size + 1;
   const upTo = Math.min(data.total, data.page * data.page_size);
 
@@ -149,7 +150,7 @@ export function BoardView({ data, facets, selected }: { data: JobPage; facets: F
                 <FilterSidebar facets={facets} />
               </SheetContent>
             </Sheet>
-            <Select value={sort} onValueChange={(value) => navigate({ sort: value === "posted" ? "" : value })}>
+            <Select value={sort} onValueChange={(value) => navigate({ sort: value === "match" ? "" : value })}>
               <SelectTrigger size="sm" aria-label="Sort by" className="w-40">
                 <SelectValue />
               </SelectTrigger>
@@ -177,7 +178,7 @@ export function BoardView({ data, facets, selected }: { data: JobPage; facets: F
 
       <aside aria-label="Job details" className="hidden min-w-0 lg:block">
         <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-2xl border bg-card p-6 shadow-sm">
-          {selected ? <JobDetail job={selected} /> : <DetailPlaceholder />}
+          {selected ? <JobDetail job={selected} source={fitSource} /> : <DetailPlaceholder />}
         </div>
       </aside>
 
@@ -188,7 +189,7 @@ export function BoardView({ data, facets, selected }: { data: JobPage; facets: F
               <SheetTitle>{selected?.title ?? "Job"}</SheetTitle>
               <SheetDescription>Job details</SheetDescription>
             </SheetHeader>
-            {selected && <JobDetail job={selected} />}
+            {selected && <JobDetail job={selected} source={fitSource} />}
           </SheetContent>
         </Sheet>
       )}
