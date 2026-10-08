@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Job Hunt OS</title>
+    <link rel="stylesheet" href="/static/app.css" />
+    <script src="/static/htmx.min.js" defer></script>
+  </head>
+  <body>
+    <header class="top">
+      <a href="/">Job Hunt OS</a>
+      <nav>
+        <a href="/">Board</a>
+        <a href="/runs">Runs</a>
+      </nav>
+    </header>
+    <main class="layout">
+      <form
+        id="filters"
+        class="filters"
+        method="get"
+        action="/jobs"
+        hx-get="/jobs"
+        hx-trigger="change, keyup changed delay:300ms from:#q"
+        hx-target="#results"
+        hx-push-url="true"
+      >
+        <div>
+          <label for="q">Search</label>
+          <input id="q" name="q" type="search" value="{{ filters.q or '' }}" />
+        </div>
+        <div>
+          <label for="country">Country</label>
+          <input id="country" name="country" value="{{ filters.country or '' }}" maxlength="2" />
+        </div>
+        <div>
+          <label for="remote">Remote</label>
+          <select id="remote" name="remote">
+            <option value="">Any</option>
+            {% for option in ['remote', 'hybrid', 'onsite', 'unknown'] %}
+            <option value="{{ option }}" {% if filters.remote == option %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="source">Source</label>
+          <select id="source" name="source">
+            <option value="">Any</option>
+            {% for option in ['greenhouse', 'lever', 'ashby', 'indeed', 'linkedin_guest'] %}
+            <option value="{{ option }}" {% if filters.source == option %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="sort">Sort</label>
+          <select id="sort" name="sort">
+            <option value="posted" {% if filters.sort == 'posted' %}selected{% endif %}>Posted</option>
+            <option value="first_seen" {% if filters.sort == 'first_seen' %}selected{% endif %}>First seen</option>
+          </select>
+        </div>
+        <div class="check">
+          <input id="include_closed" name="include_closed" type="checkbox" value="1" {% if filters.include_closed %}checked{% endif %} />
+          <label for="include_closed">Include closed</label>
+        </div>
+      </form>
+      <section id="results">
+        {% include "jobs.html" %}
+      </section>
+      <aside id="detail" aria-live="polite"></aside>
+    </main>
+  </body>
+</html>

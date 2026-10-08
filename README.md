@@ -28,7 +28,29 @@ docker compose -f docker-compose.test.yml up -d
 make check
 ```
 
-Live network tests are off unless you pass `-m live`.
+Live network tests are off unless you pass `-m live` and override the default marker filter: `uv run pytest -m live`.
+
+## Local dashboard
+
+Postgres and the web UI:
+
+```bash
+docker compose up -d --build
+```
+
+The site is published on `http://127.0.0.1:8765`. Inside the container the process listens on `0.0.0.0` so Docker can publish it; the host port is bound to `127.0.0.1` only.
+
+To fill the board from the public company list, run the scrape on the host against that database:
+
+```bash
+DATABASE_URL='postgresql://jobhunt:jobhunt@127.0.0.1:54330/jobhunt?sslmode=disable' \
+VAULT_BANK_PATH=/tmp/jobhunt-bank \
+uv run jobhunt scrape --source greenhouse
+```
+
+The same local password is only for this Docker database. Ashby’s public API is blocked by the network gateway on this machine, so that source stays empty until the gateway allows it.
+
+`companies.seed.yaml` is a starter set of public Greenhouse and Lever boards. Replace it with the companies you want.
 
 ## Scheduling
 

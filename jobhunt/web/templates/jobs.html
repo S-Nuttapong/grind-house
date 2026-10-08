@@ -1,0 +1,16 @@
+<p class="count">{{ total }} jobs · page {{ filters.page }} of {{ pages }}</p>
+{% if jobs %}
+  {% for job in jobs %}
+    {% include "card.html" %}
+  {% endfor %}
+{% else %}
+  <p>No jobs match these filters.</p>
+{% endif %}
+<nav class="pager">
+  {% if filters.page > 1 %}
+  <a href="/jobs?{{ prev_query }}">Previous</a>
+  {% endif %}
+  {% if filters.page < pages %}
+  <a href="/jobs?{{ next_query }}">Next</a>
+  {% endif %}
+</nav>

@@ -114,9 +114,17 @@ def calibrate_report() -> None:
 
 
 @app.command("serve")
-def serve() -> None:
+def serve(
+    host: str = typer.Option("127.0.0.1", "--host"),
+    port: int = typer.Option(8765, "--port"),
+) -> None:
     """Serve the local filter UI on 127.0.0.1:8765."""
-    _not_yet("serve")
+    if host not in {"127.0.0.1", "0.0.0.0"}:
+        typer.echo("refusing to bind a non-local host", err=True)
+        raise typer.Exit(code=1)
+    import uvicorn
+
+    uvicorn.run("jobhunt.web.app:create_app", factory=True, host=host, port=port)
 
 
 @app.command("mcp")

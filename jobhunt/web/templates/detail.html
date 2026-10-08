@@ -1,0 +1,27 @@
+<article class="detail">
+  <h2>{{ job.title }}</h2>
+  <p class="meta">
+    <span>{{ job.company }}</span>
+    {% if job.place %}<span>{{ job.place }}</span>{% endif %}
+    <span class="pill">{{ job.remote }}</span>
+    {% if job.salary_label %}<span>{{ job.salary_label }}</span>{% endif %}
+  </p>
+  <p><a href="{{ job.apply_url }}">Apply</a></p>
+  <h3>Sources</h3>
+  <ul>
+    {% for posting in job.postings %}
+    <li><a href="{{ posting.source_url }}">{{ posting.source_id }}</a></li>
+    {% endfor %}
+  </ul>
+  <h3>Description</h3>
+  <pre class="jd">{{ job.description_md or "No description stored." }}</pre>
+  {% if job.events %}
+  <h3>Status</h3>
+  <ul>
+    {% for event in job.events %}
+    <li>{{ event.status }}{% if event.reason %} — {{ event.reason }}{% endif %}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  <p>Tailor my resume for jobhunt job #{{ job.id }} — {{ job.company }} · {{ job.title }}</p>
+</article>

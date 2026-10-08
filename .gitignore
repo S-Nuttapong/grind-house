@@ -16,3 +16,4 @@ credentials.json
 .coverage
 htmlcov/
 .pgdata/
+.pgdata-app/

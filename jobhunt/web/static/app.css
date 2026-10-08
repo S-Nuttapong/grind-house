@@ -1,0 +1,146 @@
+:root {
+  color-scheme: light dark;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  line-height: 1.45;
+  background: Canvas;
+  color: CanvasText;
+}
+
+body {
+  margin: 0;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid Highlight;
+  outline-offset: 2px;
+}
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+}
+
+.top nav {
+  display: flex;
+  gap: 1rem;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(16rem, 22rem) 1fr minmax(16rem, 24rem);
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.filters,
+.card,
+.detail,
+table {
+  border: 1px solid color-mix(in srgb, CanvasText 18%, transparent);
+  border-radius: 0.5rem;
+}
+
+.filters,
+.card,
+.detail,
+main {
+  padding: 0.75rem 1rem;
+}
+
+.filters {
+  display: grid;
+  gap: 0.75rem;
+  align-self: start;
+}
+
+label {
+  display: block;
+  font-size: 0.85rem;
+}
+
+input,
+select,
+button {
+  font: inherit;
+}
+
+input,
+select {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.check {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.check input {
+  width: auto;
+}
+
+.card {
+  margin-bottom: 0.75rem;
+}
+
+.card h2,
+.detail h2 {
+  font-size: 1.05rem;
+  margin: 0 0 0.35rem;
+}
+
+.meta,
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  align-items: center;
+}
+
+.pill {
+  border: 1px solid color-mix(in srgb, CanvasText 30%, transparent);
+  border-radius: 999px;
+  padding: 0 0.45rem;
+  font-size: 0.8rem;
+}
+
+.actions form {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.actions input[type="text"] {
+  width: 8rem;
+}
+
+.jd {
+  white-space: pre-wrap;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid color-mix(in srgb, CanvasText 12%, transparent);
+  vertical-align: top;
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
