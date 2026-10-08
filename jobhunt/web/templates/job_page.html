@@ -1,8 +1,0 @@
-{% extends "base.html" %}
-{% block title %}{{ job.title }} · Job Hunt OS{% endblock %}
-{% block content %}
-<main class="shell job-page">
-  <p class="back"><a href="/{% if query %}?{{ query }}{% endif %}">Back to results</a></p>
-  {% include "detail.html" %}
-</main>
-{% endblock %}

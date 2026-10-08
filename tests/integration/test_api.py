@@ -99,7 +99,8 @@ def test_events_update_status_and_pipeline(seeded: dict[str, int]) -> None:
     )
     assert skipped.json()["events"][0]["reason"] == "too old"
 
-    assert client.post(f"/api/jobs/{seeded['new']}/events", json={"status": "bogus"}).status_code == 422
+    bogus = client.post(f"/api/jobs/{seeded['new']}/events", json={"status": "bogus"})
+    assert bogus.status_code == 422
 
     pipeline = client.get("/api/pipeline").json()
     assert seeded["new"] in [job["id"] for job in pipeline["saved"]]

@@ -2,7 +2,6 @@
 
 from datetime import date, datetime
 from typing import Any
-from urllib.parse import urlencode
 
 from psycopg import Connection
 from psycopg.rows import dict_row
@@ -21,7 +20,6 @@ _REMOTE_LABELS = {
     "onsite": "On-site",
     "unknown": "Workplace unknown",
 }
-_MISSING = object()
 PIPELINE_STATUSES = ("saved", "applied", "skipped")
 _SCORE_COLUMNS = (
     "m.score, m.band, pf.passed_hard, pf.filter_reason, pf.shortlisted, pf.job_id AS prefiltered"
@@ -218,53 +216,6 @@ def list_runs(conn: Connection[Any]) -> list[dict[str, Any]]:
             """
         )
         return [dict(row) for row in cursor.fetchall()]
-
-
-def filter_query(
-    filters: dict[str, Any],
-    *,
-    page: int | None = None,
-    jk: int | None | object = _MISSING,
-) -> str:
-    page_value = filters["page"] if page is None else page
-    chosen_jk = filters.get("jk") if jk is _MISSING else jk
-    pairs: dict[str, object] = {
-        "q": filters.get("q") or "",
-        "where": filters.get("where") or "",
-        "country": filters.get("country") or "",
-        "remote": filters.get("remote") or "",
-        "source": filters.get("source") or "",
-        "posted_within": filters.get("posted_within") or "",
-        "has_salary": "1" if filters.get("has_salary") else "",
-        "include_closed": "1" if filters.get("include_closed") else "",
-        "sort": filters.get("sort") or "posted",
-        "jk": chosen_jk or "",
-    }
-    if page_value != 1:
-        pairs["page"] = page_value
-    return urlencode({key: value for key, value in pairs.items() if value not in ("", None)})
-
-
-def page_links(filters: dict[str, Any], pages: int) -> list[dict[str, Any]]:
-    current = int(filters["page"])
-    numbers = {1, pages, current}
-    for number in range(current - 2, current + 3):
-        if 1 <= number <= pages:
-            numbers.add(number)
-    links: list[dict[str, Any]] = []
-    previous = 0
-    for number in sorted(numbers):
-        if previous and number - previous > 1:
-            links.append({"ellipsis": True})
-        links.append(
-            {
-                "n": number,
-                "query": filter_query(filters, page=number),
-                "current": number == current,
-            }
-        )
-        previous = number
-    return links
 
 
 def _where(filters: dict[str, Any]) -> tuple[str, tuple[Any, ...]]:
