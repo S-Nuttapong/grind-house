@@ -29,17 +29,19 @@ class _AxisEncoder:
         self.axes: dict[str, int] = {}
 
     def encode(self, texts: list[str], *, normalize_embeddings: bool) -> np.ndarray:
-        for text in texts:
+        prefix = "Represent this sentence for searching relevant passages: "
+        bare = [text.removeprefix(prefix) for text in texts]
+        for text in bare:
             self.axes.setdefault(text, len(self.axes))
         vectors = np.zeros((len(texts), len(self.axes)))
-        for row, text in enumerate(texts):
+        for row, text in enumerate(bare):
             vectors[row, self.axes[text]] = 1.0
         return vectors
 
 
 def test_bge_scores_from_best_chunk_matches() -> None:
     model = BgeFitModel(_AxisEncoder())
-    profile = "built payments in go\n\nkafka pipelines"
+    profile = "built payments in go\n\n" + "x" * 2000 + "\n\nkafka pipelines"
     scores = model.score_many(profile, ["built payments in go", "something else entirely"])
     assert scores[0] == round(calibrate(1.0), 1)
     assert scores[1] == round(calibrate(0.0), 1)
