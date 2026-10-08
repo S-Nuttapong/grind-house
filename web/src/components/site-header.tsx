@@ -1,0 +1,53 @@
+"use client";
+
+import { BriefcaseBusinessIcon } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
+import { CommandMenu } from "@/components/command-menu";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { cn } from "@/lib/utils";
+
+const NAV = [
+  { href: "/", label: "Board" },
+  { href: "/pipeline", label: "Pipeline" },
+  { href: "/runs", label: "Runs" },
+];
+
+export function SiteHeader() {
+  const pathname = usePathname();
+  return (
+    <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+      <div className="mx-auto flex h-14 max-w-[1600px] items-center gap-6 px-4 lg:px-6">
+        <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
+          <span className="grid size-7 place-items-center rounded-lg bg-primary text-primary-foreground">
+            <BriefcaseBusinessIcon className="size-4" />
+          </span>
+          <span className="hidden sm:inline">Job Hunt</span>
+        </Link>
+        <nav aria-label="Main" className="flex items-center gap-1 text-sm">
+          {NAV.map((item) => {
+            const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+                  active && "bg-accent font-medium text-accent-foreground hover:bg-accent",
+                )}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+        <div className="ml-auto flex items-center gap-2">
+          <CommandMenu />
+          <ThemeToggle />
+        </div>
+      </div>
+    </header>
+  );
+}
