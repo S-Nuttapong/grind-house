@@ -78,7 +78,7 @@ def list_resumes(conn: Connection[Any]) -> list[dict[str, Any]]:
     with conn.cursor(row_factory=_dict_row) as cursor:
         cursor.execute(
             """
-            SELECT id, name, filename, origin, is_selected, created_at,
+            SELECT id, name, filename, text, origin, is_selected, created_at,
                    length(text) AS text_length
             FROM resumes ORDER BY id
             """

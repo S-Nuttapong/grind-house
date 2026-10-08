@@ -3,6 +3,7 @@
 import {
   BookmarkIcon,
   BriefcaseBusinessIcon,
+  IdCardIcon,
   KanbanSquareIcon,
   ListIcon,
   SearchIcon,
@@ -116,6 +117,10 @@ export function CommandMenu() {
               <CommandItem value="nav-pipeline" onSelect={() => go("/pipeline")}>
                 <KanbanSquareIcon />
                 Pipeline
+              </CommandItem>
+              <CommandItem value="nav-profile" onSelect={() => go("/profile")}>
+                <IdCardIcon />
+                Profile
               </CommandItem>
               <CommandItem value="nav-saved" onSelect={() => go("/pipeline#saved")}>
                 <BookmarkIcon />

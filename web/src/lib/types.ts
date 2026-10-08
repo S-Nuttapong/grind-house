@@ -52,6 +52,56 @@ export type Facets = { sources: string[]; remote: string[] };
 
 export type Pipeline = Record<JobStatus, JobSummary[]>;
 
+export type BankMetric = { text: string; confidence?: string };
+
+export type BankRole = "led" | "built" | "co-built" | "contributed";
+export type BankStatus = "draft" | "needs-metric" | "verified";
+
+export type BankEntry = {
+  id: string;
+  title: string;
+  company: string | null;
+  role: string | null;
+  period: string | null;
+  my_role: BankRole | null;
+  scope: string | null;
+  metrics: BankMetric[];
+  strength: number | null;
+  confidential: boolean;
+  status: BankStatus;
+  tags: string[];
+  body_md: string;
+  origin: "vault" | "ui";
+  updated_at: string;
+};
+
+export type BankEntryInput = {
+  id: string;
+  title: string;
+  company: string | null;
+  role: string | null;
+  period: string | null;
+  my_role: BankRole | null;
+  scope: string | null;
+  metrics: BankMetric[];
+  strength: number | null;
+  confidential: boolean;
+  status: BankStatus;
+  tags: string[];
+  body_md: string;
+};
+
+export type ResumeFile = {
+  id: number;
+  name: string;
+  filename: string | null;
+  text: string;
+  origin: "upload" | "vault";
+  is_selected: boolean;
+  created_at: string;
+  text_length: number;
+};
+
 export type Run = {
   id: number;
   source_id: string;
