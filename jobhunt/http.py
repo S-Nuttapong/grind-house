@@ -1,6 +1,8 @@
 """Shared HTTP client: one host at a time, backoff on 5xx, stop on 429 or 403."""
 
+import os
 import random
+import ssl
 import time
 from collections.abc import Callable
 from urllib.parse import urlparse
@@ -31,10 +33,15 @@ class HttpClient:
         min_delay: float = 1.0,
         max_delay: float = 3.0,
     ) -> None:
+        cafile = os.environ.get("SSL_CERT_FILE")
+        verify: ssl.SSLContext | bool = (
+            ssl.create_default_context(cafile=cafile) if cafile else True
+        )
         self._client = client or httpx.Client(
-            timeout=httpx.Timeout(20.0),
+            timeout=httpx.Timeout(60.0),
             headers={"User-Agent": USER_AGENT},
             follow_redirects=True,
+            verify=verify,
         )
         self._clock = clock
         self._sleep = sleep

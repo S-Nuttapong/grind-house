@@ -48,7 +48,14 @@ VAULT_BANK_PATH=/tmp/jobhunt-bank \
 uv run jobhunt scrape --source greenhouse
 ```
 
-The same local password is only for this Docker database. Ashby’s public API is blocked by the network gateway on this machine, so that source stays empty until the gateway allows it.
+The same local password is only for this Docker database. This network intercepts TLS with a Cloudflare Gateway CA, so Python will not trust the public boards until you point it at a bundle that includes that CA:
+
+```bash
+export SSL_CERT_FILE="$PWD/.certs/ca-bundle.pem"
+export REQUESTS_CA_BUNDLE="$SSL_CERT_FILE"
+```
+
+Build that file by appending the gateway certificate (from the macOS system keychain) to certifi’s `cacert.pem`. Do not commit it. Ashby’s public API is still blocked by the gateway, so that source stays empty.
 
 `companies.seed.yaml` is a starter set of public Greenhouse and Lever boards. Replace it with the companies you want.
 

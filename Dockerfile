@@ -2,14 +2,9 @@ FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 
 WORKDIR /app
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl ca-certificates \
-    && arch="$(uname -m)" \
-    && case "$arch" in aarch64|arm64) machine=arm64 ;; *) machine=amd64 ;; esac \
-    && curl -fsSL -o /usr/local/bin/dbmate \
-      "https://github.com/amacneil/dbmate/releases/download/v2.36.0/dbmate-linux-${machine}" \
-    && chmod +x /usr/local/bin/dbmate \
-    && rm -rf /var/lib/apt/lists/*
+# dbmate is downloaded with Python so the image does not need apt.
+# apt on this network fails signature checks behind the TLS gateway.
+RUN python -c "import os,stat,urllib.request; m='arm64' if os.uname().machine in {'aarch64','arm64'} else 'amd64'; urllib.request.urlretrieve(f'https://github.com/amacneil/dbmate/releases/download/v2.36.0/dbmate-linux-{m}', '/usr/local/bin/dbmate'); os.chmod('/usr/local/bin/dbmate', 0o755)"
 
 COPY pyproject.toml uv.lock README.md ./
 COPY jobhunt jobhunt

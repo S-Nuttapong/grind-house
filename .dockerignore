@@ -1,0 +1,10 @@
+.git
+.venv
+.pgdata
+.pgdata-app
+.certs
+.mypy_cache
+.pytest_cache
+.ruff_cache
+__pycache__
+*.pyc
