@@ -41,6 +41,45 @@ def database_url() -> str:
 
 
 @pytest.fixture
+def committed(database_url: str) -> Iterator[psycopg.Connection[tuple[object, ...]]]:
+    """A connection that commits for real. Used by code that commits mid-run.
+
+    Cleans up everything the test inserted so later tests stay isolated.
+    """
+    # The worker reads through the pool, which may have been opened by an
+    # earlier test before DATABASE_URL pointed here.
+    from jobhunt.db import close_pool
+
+    close_pool()
+    connection = psycopg.connect(database_url)
+    try:
+        yield connection
+    finally:
+        close_pool()
+        # Code under test commits, which ends this transaction, so read leftovers
+        # through a fresh connection.
+        connection.close()
+        cleaner = psycopg.connect(database_url)
+        for table in (
+            "fit_run_events",
+            "fit_runs",
+            "job_fits",
+            "fit_sources",
+            "resumes",
+            "bank_entries",
+            "postings",
+            "jobs",
+            "runs",
+        ):
+            cleaner.execute(f"DELETE FROM {table}")
+        cleaner.execute("DELETE FROM fit_schedules WHERE name NOT LIKE '%daily%'")
+        cleaner.execute("UPDATE bank_profile SET body_md = ''")
+        cleaner.execute("UPDATE fit_worker SET model_id = NULL, heartbeat_at = NULL")
+        cleaner.commit()
+        cleaner.close()
+
+
+@pytest.fixture
 def conn(database_url: str) -> Iterator[psycopg.Connection[tuple[object, ...]]]:
     connection = psycopg.connect(database_url)
     connection.execute("BEGIN")

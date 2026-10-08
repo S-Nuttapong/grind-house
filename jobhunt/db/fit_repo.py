@@ -246,7 +246,8 @@ def claim_run(conn: Connection[Any]) -> dict[str, Any] | None:
             WHERE id = (
                 SELECT id FROM fit_runs
                 WHERE status = 'queued'
-                ORDER BY queued_at
+                -- A scheduled run the user is waiting on beats the daily scrape sweep.
+                ORDER BY (trigger = 'scrape'), queued_at
                 FOR UPDATE SKIP LOCKED
                 LIMIT 1
             )

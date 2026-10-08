@@ -149,6 +149,15 @@ def fit_run(
     typer.echo(f"scored {result['scored']}, skipped {result['skipped']} ({model.model_id})")
 
 
+@fit_app.command("worker")
+def fit_worker_cmd() -> None:
+    """Score jobs in the background. Loads the model once and polls every minute."""
+    from jobhunt.fit.registry import create
+    from jobhunt.fit.worker import serve
+
+    serve(create())
+
+
 @fit_app.command("download-model")
 def fit_download_model() -> None:
     """Cache the BGE model into ./.models for the Docker worker."""
