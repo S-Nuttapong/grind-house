@@ -46,14 +46,20 @@ def decide(report: Path = _REPORT) -> None:
 def backfill(
     dry_run: bool = typer.Option(False, "--dry-run"),
     restore: bool = typer.Option(False, "--restore"),
+    limit: int | None = typer.Option(None, "--limit"),
+    retry_failed: bool = typer.Option(False, "--retry-failed"),
 ) -> None:
-    """Fill empty job columns. --restore copies jobs_facts_backup_20261011 back."""
+    """Fill empty role, location, level, and pay. Pay is best effort."""
     from jobhunt.core.db import pool
     from jobhunt.facts.backfill import run_backfill
 
     conn = pool().getconn()
     try:
-        typer.echo(run_backfill(conn, dry_run=dry_run, restore=restore))
+        typer.echo(
+            run_backfill(
+                conn, dry_run=dry_run, restore=restore, limit=limit, retry_failed=retry_failed
+            )
+        )
     finally:
         pool().putconn(conn)
 

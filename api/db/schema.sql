@@ -179,7 +179,7 @@ CREATE TABLE postings (                                 -- each place a job was 
   detail_status  text NOT NULL DEFAULT 'done' CHECK (detail_status IN ('pending','done','failed')),
   detail_attempts int NOT NULL DEFAULT 0,
   facts          jsonb,                                 -- JobDetail from api + parsers
-  facts_status   text NOT NULL DEFAULT 'done' CHECK (facts_status IN ('pending','done')),
+  facts_status   text NOT NULL DEFAULT 'done' CHECK (facts_status IN ('pending','done','failed')),
   UNIQUE (source_id, source_job_id)
 );
 CREATE INDEX postings_job ON postings (job_id);

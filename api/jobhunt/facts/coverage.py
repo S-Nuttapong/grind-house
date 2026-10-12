@@ -12,7 +12,12 @@ SELECT p.source_id,
        count(DISTINCT j.id) FILTER (WHERE j.remote = 'unknown') AS unknown_workplace,
        count(DISTINCT j.id) FILTER (WHERE j.employment_type IS NULL) AS no_type,
        count(DISTINCT j.id) FILTER (WHERE j.salary_min IS NULL AND j.salary_max IS NULL) AS no_pay,
-       count(DISTINCT j.id) FILTER (WHERE j.posted_at IS NULL) AS no_posted
+       count(DISTINCT j.id) FILTER (WHERE j.posted_at IS NULL) AS no_posted,
+       count(DISTINCT j.id) FILTER (WHERE j.role IS NULL) AS no_role,
+       count(DISTINCT j.id) FILTER (WHERE j.level = 'unknown') AS unknown_level,
+       count(DISTINCT j.id) FILTER (
+           WHERE j.country IS NULL OR j.locations = '[]'::jsonb
+       ) AS no_location
 FROM jobs j
 JOIN postings p ON p.job_id = j.id
 WHERE j.closed_at IS NULL
@@ -33,6 +38,9 @@ def coverage_rows(conn: Connection[Any]) -> list[dict[str, int | str]]:
             "no_type": int(row[5]),
             "no_pay": int(row[6]),
             "no_posted": int(row[7]),
+            "no_role": int(row[8]),
+            "unknown_level": int(row[9]),
+            "no_location": int(row[10]),
         }
         for row in rows
     ]
@@ -48,6 +56,9 @@ def coverage_table(conn: Connection[Any]) -> str:
         "no_type",
         "no_pay",
         "no_posted",
+        "no_role",
+        "unknown_level",
+        "no_location",
     )
     lines = ["\t".join(header)]
     for row in coverage_rows(conn):

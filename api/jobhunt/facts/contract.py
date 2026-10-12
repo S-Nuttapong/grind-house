@@ -1,5 +1,6 @@
 """Drop a parsed field that breaks a rule. The rule id is logged, not the text."""
 
+from contextvars import ContextVar
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -10,6 +11,8 @@ from jobhunt.facts.base import LEVELS, JobDetail, LocationFact, PayFact, Place
 from jobhunt.scrape.normalize.role import role_ids
 
 log = get_logger("facts")
+
+_recorded: ContextVar[list[tuple[str, str]] | None] = ContextVar("contract_drops", default=None)
 
 _JOB_TYPES = {"fulltime", "parttime", "contract", "internship", "temporary"}
 _WORKPLACES = {"onsite", "hybrid", "remote"}
@@ -37,11 +40,24 @@ _BANDS: dict[str, tuple[Decimal, Decimal]] = {
 
 
 def check_facts(
-    detail: JobDetail, *, title: str, description: str, today: date | None = None
+    detail: JobDetail,
+    *,
+    title: str,
+    description: str,
+    today: date | None = None,
+    drops: list[tuple[str, str]] | None = None,
 ) -> JobDetail:
     """Return a copy with each failing field removed."""
     moment = today or date.today()
     text = f"{title}\n{description}"
+    token = _recorded.set(drops)
+    try:
+        return _checked(detail, text, moment)
+    finally:
+        _recorded.reset(token)
+
+
+def _checked(detail: JobDetail, text: str, moment: date) -> JobDetail:
     return JobDetail(
         pay=_keep(detail.pay, "pay", _pay_ok(detail.pay), text),
         job_type=_keep(detail.job_type, "job_type", _text_ok(detail.job_type, _JOB_TYPES), text),
@@ -148,3 +164,6 @@ def _confidence_ok(confidence: float) -> bool:
 
 def _drop(field: str, rule: str) -> None:
     log.info("contract_drop field=%s rule=%s", field, rule)
+    recorded = _recorded.get()
+    if recorded is not None:
+        recorded.append((field, rule))
