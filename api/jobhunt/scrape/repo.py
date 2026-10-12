@@ -695,9 +695,7 @@ def replace_sources(
 
 
 def source_min_seconds(conn: Connection[Any]) -> dict[str, int]:
-    rows = conn.execute(
-        "SELECT id, extract(epoch FROM min_interval)::int FROM sources"
-    ).fetchall()
+    rows = conn.execute("SELECT id, extract(epoch FROM min_interval)::int FROM sources").fetchall()
     return {str(row[0]): int(row[1]) for row in rows}
 
 

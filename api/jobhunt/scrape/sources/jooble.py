@@ -37,7 +37,7 @@ _AMOUNT = re.compile(r"\d[\d,]*")
 _CURRENCY = re.compile(r"\b([A-Z]{3})\b")
 
 
-class JoobleAdapter:
+class JoobleSource:
     id = "jooble"
     kind = "aggregator"
     full_board = False

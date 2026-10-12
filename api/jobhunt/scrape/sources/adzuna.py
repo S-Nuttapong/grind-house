@@ -37,7 +37,7 @@ _PAGE = "https://api.adzuna.com/v1/api/jobs/{country}/search/1"
 _CAP = 50
 
 
-class AdzunaAdapter:
+class AdzunaSource:
     id = "adzuna"
     kind = "aggregator"
     full_board = False

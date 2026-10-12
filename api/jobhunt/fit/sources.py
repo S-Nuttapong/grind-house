@@ -9,7 +9,7 @@ from psycopg import Connection
 
 from jobhunt.brag import repo as brag_repo
 from jobhunt.fit import repo as fit_repo
-from jobhunt.fit.base import BragDoc, JobFitModel
+from jobhunt.fit.base import BragDoc, FitScorer
 from jobhunt.profile import repo as profile_repo
 
 _NO_RESUME = "Select a resume on the Profile page before scoring against one."
@@ -66,7 +66,7 @@ def current_docs(conn: Connection[Any], mode: str) -> list[BragDoc]:
 
 
 def resolve(
-    conn: Connection[Any], mode: str, model: JobFitModel
+    conn: Connection[Any], mode: str, model: FitScorer
 ) -> tuple[str, list[BragDoc], int | None]:
     """Return (source_hash, docs, resume_id) and record the source."""
     _ = model.model_id

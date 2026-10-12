@@ -33,7 +33,7 @@ class FitResult:
     gaps: list[str]
 
 
-class JobFitModel(ABC):
+class FitScorer(ABC):
     """Scores job descriptions against brag docs. Scores are 0 to 100."""
 
     model_id: str

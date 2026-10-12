@@ -62,7 +62,7 @@ class FetchBatch(BaseModel):
     resume_page: int | None = None
 
 
-class SourceAdapter(Protocol):
+class JobSource(Protocol):
     id: str
     kind: str
     full_board: bool

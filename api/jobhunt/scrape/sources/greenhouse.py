@@ -20,7 +20,7 @@ from jobhunt.scrape.sources.parse import as_date, selected
 BOARD_URL = "https://boards-api.greenhouse.io/v1/boards/{slug}/jobs?content=true"
 
 
-class GreenhouseAdapter:
+class GreenhouseSource:
     id = "greenhouse"
     kind = "ats"
     full_board = True
@@ -35,7 +35,7 @@ class GreenhouseAdapter:
 def _fetch_company(ctx: FetchContext, company: CompanyTarget) -> FetchBatch:
     url = BOARD_URL.format(slug=company.ats_slug)
     try:
-        response = ctx.http.get(url, GreenhouseAdapter.id)
+        response = ctx.http.get(url, GreenhouseSource.id)
     except SourceBlocked:
         raise
     except httpx.HTTPStatusError as exc:

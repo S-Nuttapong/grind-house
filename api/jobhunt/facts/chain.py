@@ -2,22 +2,46 @@
 
 from jobhunt.facts.base import (
     FIELDS,
+    DetailParser,
     FieldName,
     JobDetail,
-    JobDetailParser,
     ParseHints,
     prefer,
 )
 
 
+def configured_chain() -> "ChainParser":
+    """Parsers named in facts.yaml. The api step is not a text parser."""
+    from jobhunt.facts.config import chains
+    from jobhunt.facts.default import DefaultParser
+
+    order = chains()
+    wanted: list[str] = []
+    for field_order in order.values():
+        for name in field_order:
+            if name != "api" and name not in wanted:
+                wanted.append(name)
+    parsers: list[DetailParser] = []
+    for name in wanted:
+        if name == "default":
+            parsers.append(DefaultParser())
+        elif name == "gliner":
+            from jobhunt.facts.gliner import GlinerParser
+
+            parsers.append(GlinerParser())
+        else:
+            raise ValueError(f"unknown facts parser {name!r}")
+    return ChainParser(parsers, order)
+
+
 class ChainParser:
-    """One JobDetailParser made of several. Order is per field."""
+    """One DetailParser made of several. Order is per field."""
 
     parser_id = "chain"
     sends_data_offsite = False
 
     def __init__(
-        self, parsers: list[JobDetailParser], order: dict[FieldName, list[str]] | None = None
+        self, parsers: list[DetailParser], order: dict[FieldName, list[str]] | None = None
     ) -> None:
         self.parsers = parsers
         self.order = order or {field: [parser.parser_id for parser in parsers] for field in FIELDS}
@@ -51,9 +75,7 @@ class ChainParser:
         return result
 
 
-def _next_parser(
-    order: list[str], tried: set[str], by_id: dict[str, JobDetailParser]
-) -> str | None:
+def _next_parser(order: list[str], tried: set[str], by_id: dict[str, DetailParser]) -> str | None:
     for name in order:
         if name in tried or name not in by_id:
             continue

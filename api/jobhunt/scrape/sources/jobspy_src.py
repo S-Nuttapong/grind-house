@@ -21,7 +21,7 @@ _CAPS = {"linkedin_guest": 100, "naukri": 50}
 _COUNTRY_REQUIRED = {"indeed", "glassdoor"}
 
 
-class JobSpyAdapter:
+class JobSpySource:
     kind = "aggregator"
     full_board = False
 

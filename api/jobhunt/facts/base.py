@@ -82,7 +82,7 @@ class ParseHints(BaseModel):
     wanted: set[FieldName] = Field(default_factory=lambda: set(FIELDS))
 
 
-class JobDetailParser(Protocol):
+class DetailParser(Protocol):
     parser_id: str
     sends_data_offsite: bool
 

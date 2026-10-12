@@ -7,6 +7,7 @@ import typer
 from psycopg import Connection
 
 from jobhunt.core.cli import not_yet
+from jobhunt.fit.base import FitScorer
 
 fit_app = typer.Typer(no_args_is_help=True, help="Job fit scoring.")
 
@@ -36,13 +37,14 @@ def fit_run(
     limit: int | None = typer.Option(None, "--limit"),
 ) -> None:
     """Score open jobs against the brag docs or the selected resume."""
+    from jobhunt.composition import COMPOSITION
     from jobhunt.core.db import tx
-    from jobhunt.fit.registry import create
+    from jobhunt.fit.pipeline import FitPipeline
     from jobhunt.fit.runner import run_fit
     from jobhunt.fit.sources import SourceError
 
     started = datetime.now(UTC)
-    model = create()
+    model = FitPipeline(COMPOSITION).composition.scorer
     try:
         with tx() as conn:
             result = run_fit(conn, model, mode, limit=limit)
@@ -92,21 +94,21 @@ def _remember_cli_failure(model_id: str, mode: str, started: datetime, error: st
 @fit_app.command("worker")
 def fit_worker_cmd() -> None:
     """Score jobs in the background. Loads the model once and polls every minute."""
-    from jobhunt.fit.registry import create
-    from jobhunt.fit.worker import serve
+    from jobhunt.composition import COMPOSITION
+    from jobhunt.fit.pipeline import FitPipeline
 
-    serve(create())
+    FitPipeline(COMPOSITION).serve()
 
 
 @fit_app.command("download-model")
 def fit_download_model(
-    model: str = typer.Option(None, "--model", help="qwen3 or bge. Defaults to FIT_MODEL."),
+    model: str = typer.Option(None, "--model", help="qwen3 or bge."),
 ) -> None:
     """Cache the embedding model into ./.models for the Docker worker."""
     import os
 
     os.environ.setdefault("HF_HOME", os.path.join(os.getcwd(), ".models"))
-    chosen = model or os.environ.get("FIT_MODEL", "qwen3")
+    chosen = model or _matrix_name()
     from jobhunt.fit.matrix import CONFIGS, load_matrix
 
     if chosen not in CONFIGS:
@@ -123,13 +125,14 @@ def fit_score(
     mode: str = typer.Option("bank", "--mode"),
 ) -> None:
     """Print the fit of one job. For ad-hoc checks; the board reads stored scores."""
+    from jobhunt.composition import COMPOSITION
     from jobhunt.core.db import tx
     from jobhunt.fit.calibrate import tier
     from jobhunt.fit.keywords import compare
-    from jobhunt.fit.registry import create
+    from jobhunt.fit.pipeline import FitPipeline
     from jobhunt.fit.sources import SourceError, joined_text, resolve
 
-    model = create()
+    model = FitPipeline(COMPOSITION).composition.scorer
     try:
         with tx() as conn:
             _source_hash, docs, _resume_id = resolve(conn, mode, model)
@@ -155,24 +158,19 @@ def fit_score(
 
 @fit_app.command("calibrate")
 def fit_calibrate(
-    model: str = typer.Option(None, "--model", help="Registry name. Defaults to FIT_MODEL."),
+    model: str = typer.Option(None, "--model", help="qwen3 or bge."),
 ) -> None:
     """Print a calibration floor and span from stored raw scores. Does not change the model."""
-    import os
-
     from jobhunt.core.db import tx
     from jobhunt.fit.calibrate import suggest_floor_span
     from jobhunt.fit.matrix import CONFIGS
-    from jobhunt.fit.registry import names
 
-    chosen = model or os.environ.get("FIT_MODEL", "qwen3")
-    if chosen == "fake":
-        model_id = "fake/v1"
-    elif chosen in CONFIGS:
-        model_id = CONFIGS[chosen].model_id
-    else:
-        typer.echo(f"unknown fit model {chosen!r}; known: {', '.join(names())}", err=True)
+    chosen = model or _matrix_name()
+    if chosen not in CONFIGS:
+        known = ", ".join(sorted(CONFIGS))
+        typer.echo(f"unknown fit model {chosen!r}; known: {known}", err=True)
         raise typer.Exit(code=1)
+    model_id = CONFIGS[chosen].model_id
     with tx() as conn:
         raw_scores = [
             float(value)
@@ -206,7 +204,6 @@ def fit_eval(
 
     from jobhunt.core.db import tx
     from jobhunt.fit.eval import hit_at_k, spearman
-    from jobhunt.fit.registry import create, names
     from jobhunt.fit.sources import SourceError, resolve
 
     path = Path(labels)
@@ -214,11 +211,11 @@ def fit_eval(
         typer.echo(f"no label file at {path}", err=True)
         raise typer.Exit(code=1)
     rows = _label_rows(yaml.safe_load(path.read_text()))
-    chosen = model or names()
+    chosen = model or [_matrix_name()]
     failed = False
     for name in chosen:
         try:
-            scorer = create(name)
+            scorer = _named_scorer(name)
         except ValueError as exc:
             typer.echo(str(exc), err=True)
             failed = True
@@ -257,6 +254,31 @@ def fit_eval(
         typer.echo(f"  hit@10: {hit_text}")
     if failed:
         raise typer.Exit(code=1)
+
+
+def _matrix_name() -> str:
+    from jobhunt.composition import COMPOSITION
+
+    name = getattr(COMPOSITION.scorer, "name", None)
+    if not isinstance(name, str):
+        raise ValueError("the composition scorer is not a matrix model")
+    return name
+
+
+def _named_scorer(name: str) -> FitScorer:
+    from jobhunt.composition import COMPOSITION, require_on_machine
+    from jobhunt.fit.fake import FakeFitScorer
+    from jobhunt.fit.matrix import CONFIGS, MatrixFitScorer
+
+    if name == getattr(COMPOSITION.scorer, "name", None):
+        require_on_machine(COMPOSITION.scorer, "fit scorer")
+        return COMPOSITION.scorer
+    if name == "fake":
+        return FakeFitScorer()
+    if name in CONFIGS:
+        return MatrixFitScorer(name)
+    known = ", ".join(["fake", *sorted(CONFIGS)])
+    raise ValueError(f"unknown fit model {name!r}; known: {known}")
 
 
 def _label_rows(payload: object) -> list[dict[str, Any]]:

@@ -29,5 +29,5 @@ up:
 
 # Resume worker on the host, against the compose Postgres. Uses the same key injection.
 resume-worker:
-	cd api && op run --env-file=../.env.tpl --env-file=../.env -- env FIT_ALLOW_OFFSITE=1 \
+	cd api && op run --env-file=../.env.tpl --env-file=../.env -- env JOBHUNT_ALLOW_OFFSITE=1 \
 		DATABASE_URL='$(APP_DATABASE_URL)' uv run jobhunt resume worker

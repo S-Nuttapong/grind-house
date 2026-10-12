@@ -6,7 +6,7 @@ Filler bullets are measured and reported. They cannot fail the gate.
 
 from dataclasses import dataclass
 
-from jobhunt.fit.base import BragDoc, JobFitModel
+from jobhunt.fit.base import BragDoc, FitScorer
 from jobhunt.fit.select import GAP_THRESHOLD
 
 
@@ -22,7 +22,7 @@ class GateResult:
 
 
 def evaluate(
-    model: JobFitModel,
+    model: FitScorer,
     job_description: str,
     resume_json: dict[str, object],
     *,

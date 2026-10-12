@@ -1,5 +1,6 @@
 """Drain postings that still need the GLiNER pass. Runs in the fit worker."""
 
+from jobhunt.composition import require_on_machine
 from jobhunt.core.db import tx
 from jobhunt.core.log import get_logger
 from jobhunt.facts.api_fields import augment_text
@@ -7,7 +8,6 @@ from jobhunt.facts.apply import _country
 from jobhunt.facts.base import FIELDS, JobDetail, ParseHints, prefer
 from jobhunt.facts.config import gliner_enabled
 from jobhunt.facts.merge import merge_facts, save_facts
-from jobhunt.facts.registry import create
 
 log = get_logger("facts")
 
@@ -36,7 +36,10 @@ def drain_once(limit: int = 20) -> int:
         ).fetchall()
     if not rows:
         return 0
-    parser = create("gliner")
+    from jobhunt.facts.gliner import GlinerParser
+
+    parser = GlinerParser()
+    require_on_machine(parser, "gliner")
     done = 0
     for row in rows:
         if not isinstance(row[0], int) or not isinstance(row[1], int):

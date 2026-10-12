@@ -1,19 +1,21 @@
 """Resume and admin usage routes. The agent is the fake one, so nothing leaves the machine."""
 
 from collections.abc import Iterator
+from dataclasses import replace
 from datetime import date
 from uuid import uuid4
 
 import psycopg
 import pytest
 from fastapi.testclient import TestClient
+from jobhunt import composition
 from jobhunt.app import create_app
 from jobhunt.brag import repo as brag_repo
 from jobhunt.core.db import close_pool
 from jobhunt.fit import repo as fit_repo
 from jobhunt.fit.base import BragDoc
-from jobhunt.fit.fake import FakeFitModel
-from jobhunt.resume.fake import FakeResumeAgent
+from jobhunt.fit.fake import FakeFitScorer
+from jobhunt.resume.fake import FakeResumeWriter
 from jobhunt.resume.worker import execute_run
 from jobhunt.scrape import repo as scrape_repo
 
@@ -22,7 +24,11 @@ _TEXT = "Built React services for payment teams."
 
 @pytest.fixture
 def client(database_url: str, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
-    monkeypatch.setenv("RESUME_AGENT", "fake")
+    monkeypatch.setattr(
+        composition,
+        "COMPOSITION",
+        replace(composition.COMPOSITION, writer=FakeResumeWriter()),
+    )
     close_pool()
     with TestClient(create_app()) as test_client:
         yield test_client
@@ -75,7 +81,7 @@ def _seed(conn: psycopg.Connection) -> int:
         },
     )
     source = f"api-{slug}"
-    baseline = FakeFitModel().fit([BragDoc(id=f"BB-{slug}", text=_TEXT)], _TEXT)
+    baseline = FakeFitScorer().fit([BragDoc(id=f"BB-{slug}", text=_TEXT)], _TEXT)
     fit_repo.upsert_fit_source(conn, source_hash=source, kind="bank", resume_id=None)
     fit_repo.mark_source_scored(conn, source)
     fit_repo.upsert_job_fit(
@@ -132,7 +138,7 @@ def test_enqueue_requires_a_scored_job_then_serves_the_pdf(
     again = client.post(f"/api/jobs/{job_id}/resume")
     assert again.status_code == 202 and again.json()["run_id"] == run_id
 
-    execute_run(FakeResumeAgent(), FakeFitModel(), run_id)
+    execute_run(FakeResumeWriter(), FakeFitScorer(), run_id)
 
     listed = client.get(f"/api/jobs/{job_id}/resume-runs")
     assert listed.status_code == 200

@@ -12,7 +12,7 @@ from typing import Protocol, cast
 import numpy as np
 
 from jobhunt.fit.aspects import split_aspects
-from jobhunt.fit.base import BragDoc, FitResult, JobFitModel
+from jobhunt.fit.base import BragDoc, FitResult, FitScorer
 from jobhunt.fit.calibrate import calibrate
 from jobhunt.fit.select import BUDGET, select_docs
 
@@ -68,13 +68,26 @@ BGE = EncoderConfig(
 CONFIGS: dict[str, EncoderConfig] = {"qwen3": QWEN3, "bge": BGE}
 
 
-class MatrixFitModel(JobFitModel):
+class MatrixFitScorer(FitScorer):
     """One cosine matrix per job description, then greedy coverage over the docs."""
 
-    def __init__(self, encoder: Encoder, config: EncoderConfig) -> None:
-        self._encoder = encoder
+    def __init__(self, encoder: Encoder | str, config: EncoderConfig | None = None) -> None:
+        if isinstance(encoder, str):
+            chosen = CONFIGS.get(encoder)
+            if chosen is None:
+                known = ", ".join(sorted(CONFIGS))
+                raise ValueError(f"unknown matrix model {encoder!r}; known: {known}")
+            self.name = encoder
+            self._config = chosen
+            self.model_id = chosen.model_id
+            self._encoder: Encoder | None = None
+            return
+        if config is None:
+            raise ValueError("config is required when an encoder is passed")
+        self.name = config.model_id
         self._config = config
         self.model_id = config.model_id
+        self._encoder = encoder
 
     def fit(self, docs: Sequence[BragDoc], job_description: str) -> FitResult:
         return self.fit_many(docs, [job_description])[0]
@@ -130,11 +143,18 @@ class MatrixFitModel(JobFitModel):
         self, texts: list[str], *, prompt: str | None, prefix: str
     ) -> np.ndarray[tuple[int, int], np.dtype[np.float64]]:
         prepared = [prefix + text for text in texts] if prefix else list(texts)
-        encoded = self._encoder.encode(prepared, normalize_embeddings=True, prompt=prompt)
+        encoded = self._loaded().encode(prepared, normalize_embeddings=True, prompt=prompt)
         array = np.asarray(encoded, dtype=np.float64)
         if array.ndim == 1:
             return array.reshape(1, -1)
         return array
+
+    def _loaded(self) -> Encoder:
+        if self._encoder is None:
+            import os
+
+            self._encoder = load_encoder(self._config, os.environ.get("HF_HOME"))
+        return self._encoder
 
 
 def _blank(aspects: list[str]) -> FitResult:
@@ -146,13 +166,11 @@ def _calibrated(raw: float, config: EncoderConfig) -> float:
     return round(max(0.0, min(100.0, scaled)), 1)
 
 
-def load_matrix(name: str, cache_dir: str | None = None) -> MatrixFitModel:
-    """Load a registered encoder. Downloads the weights on first use unless cached."""
-    config = CONFIGS.get(name)
-    if config is None:
-        known = ", ".join(sorted(CONFIGS))
-        raise ValueError(f"unknown matrix model {name!r}; known: {known}")
-    return MatrixFitModel(load_encoder(config, cache_dir), config)
+def load_matrix(name: str, cache_dir: str | None = None) -> MatrixFitScorer:
+    """Load a named encoder now. Downloads the weights unless they are cached."""
+    scorer = MatrixFitScorer(name)
+    scorer._encoder = load_encoder(scorer._config, cache_dir)
+    return scorer
 
 
 def load_encoder(config: EncoderConfig, cache_dir: str | None = None) -> Encoder:

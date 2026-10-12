@@ -12,11 +12,11 @@ import psycopg
 
 from jobhunt.core.db import pool, tx
 from jobhunt.core.settings import load_settings
-from jobhunt.fit.base import JobFitModel
+from jobhunt.fit.base import FitScorer
 from jobhunt.fit.sources import bank_docs
 from jobhunt.jobs import queries
 from jobhunt.resume import repo
-from jobhunt.resume.base import ResumeAgent, ResumeDraft, ResumeRequest
+from jobhunt.resume.base import ResumeDraft, ResumeRequest, ResumeWriter
 from jobhunt.resume.filler import rank_filler
 from jobhunt.resume.gate import GateResult, cited_ids, covered_aspects, evaluate
 
@@ -40,7 +40,7 @@ def gate_mode() -> str:
     return "fail" if os.environ.get("RESUME_GATE") == "fail" else "warn"
 
 
-def execute_run(agent: ResumeAgent, model: JobFitModel, run_id: int) -> None:
+def execute_run(agent: ResumeWriter, model: FitScorer, run_id: int) -> None:
     """Generate one claimed run, committing after every attempt."""
     conn = pool().getconn()
     stop = threading.Event()
@@ -58,7 +58,7 @@ def execute_run(agent: ResumeAgent, model: JobFitModel, run_id: int) -> None:
         pool().putconn(conn)
 
 
-def serve(agent: ResumeAgent, model: JobFitModel, *, handle_signals: bool = True) -> None:
+def serve(agent: ResumeWriter, model: FitScorer, *, handle_signals: bool = True) -> None:
     """Listen for new runs until stopped. One run at a time."""
     import signal
 
@@ -95,7 +95,7 @@ def _stopping() -> bool:
 
 
 def _score_shortlist(
-    conn: Any, model: JobFitModel, job: dict[str, Any], run_id: int
+    conn: Any, model: FitScorer, job: dict[str, Any], run_id: int
 ) -> dict[str, Any]:
     """Score one job that has a fit row but no shortlist, then reload it."""
     from jobhunt.fit import repo as fit_repo
@@ -118,7 +118,7 @@ def _score_shortlist(
     return refreshed or job
 
 
-def _execute(conn: Any, agent: ResumeAgent, model: JobFitModel, run_id: int) -> None:
+def _execute(conn: Any, agent: ResumeWriter, model: FitScorer, run_id: int) -> None:
     run = repo.get_run(conn, run_id)
     if run is None:
         return
@@ -320,7 +320,7 @@ def _record(conn: Any, run_id: int, attempt: int, agent_id: str, draft: ResumeDr
 
 
 def _record_failure_usage(
-    conn: Any, run_id: int, attempt: int, agent: ResumeAgent, model: str
+    conn: Any, run_id: int, attempt: int, agent: ResumeWriter, model: str
 ) -> None:
     repo.record_usage(
         conn,

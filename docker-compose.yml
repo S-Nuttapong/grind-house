@@ -42,7 +42,6 @@ services:
       DATABASE_URL: postgresql://jobhunt:jobhunt@postgres:5432/jobhunt?sslmode=disable
       VAULT_BANK_PATH: /tmp/jobhunt-bank
       HF_HOME: /models
-      FIT_MODEL: qwen3
     volumes:
       - ./.models:/models:ro
     command: ["jobhunt", "fit", "worker"]
@@ -60,9 +59,7 @@ services:
     environment:
       DATABASE_URL: postgresql://jobhunt:jobhunt@postgres:5432/jobhunt?sslmode=disable
       HF_HOME: /models
-      FIT_MODEL: qwen3
-      FIT_ALLOW_OFFSITE: "1"
-      RESUME_AGENT: claude-sdk
+      JOBHUNT_ALLOW_OFFSITE: "1"
       RESUME_MODEL: claude-haiku-5-5
       RESUME_GATE: warn
       RESUME_MAX_COST_USD: "5"

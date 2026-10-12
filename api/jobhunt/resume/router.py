@@ -11,11 +11,12 @@ import psycopg
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response, StreamingResponse
 
+from jobhunt import composition
+from jobhunt.composition import require_on_machine
 from jobhunt.core.db import tx
 from jobhunt.core.settings import load_settings
 from jobhunt.jobs import queries
 from jobhunt.resume import repo
-from jobhunt.resume.registry import create
 
 router = APIRouter(prefix="/api")
 _FILENAME = re.compile(r"[^A-Za-z0-9]+")
@@ -33,9 +34,10 @@ def enqueue_resume(job_id: int) -> dict[str, int]:
         if not job.get("top_brags") and (not job.get("fit_model_id") or not job.get("fit_source")):
             raise HTTPException(status_code=409, detail="score this job before generating a resume")
         try:
-            agent = create()
+            require_on_machine(composition.COMPOSITION.writer, "resume writer")
         except ValueError as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
+        agent = composition.COMPOSITION.writer
         run_id, _created = repo.enqueue(
             conn,
             job_id=job_id,

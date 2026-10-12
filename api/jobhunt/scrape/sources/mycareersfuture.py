@@ -24,7 +24,7 @@ _SALARY_INTERVAL = {
 }
 
 
-class MyCareersFutureAdapter:
+class MyCareersFutureSource:
     id = "mycareersfuture"
     kind = "feed"
     full_board = False

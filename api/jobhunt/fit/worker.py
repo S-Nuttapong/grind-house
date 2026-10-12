@@ -13,7 +13,7 @@ from psycopg import Connection
 
 from jobhunt.core.db import advisory_lock, pool, tx
 from jobhunt.fit import repo as fit_repo
-from jobhunt.fit.base import JobFitModel
+from jobhunt.fit.base import FitScorer
 from jobhunt.fit.runner import _pending, score_batch
 from jobhunt.fit.schedule import next_runs
 from jobhunt.fit.sources import SourceError, resolve
@@ -54,7 +54,7 @@ def queue_run(
 
 
 def execute_run(
-    model: JobFitModel,
+    model: FitScorer,
     run_id: int,
     *,
     limit: int | None = None,
@@ -79,7 +79,7 @@ def execute_run(
 
 def _execute(
     conn: Connection[Any],
-    model: JobFitModel,
+    model: FitScorer,
     run_id: int,
     limit: int | None,
     batch_size: int,
@@ -131,7 +131,7 @@ def _execute(
     fit_repo.notify_run(conn, run_id, event_id)
 
 
-def poll_once(model: JobFitModel, *, now: datetime | None = None) -> None:
+def poll_once(model: FitScorer, *, now: datetime | None = None) -> None:
     """Queue whatever is due, then run the oldest queued run."""
     moment = now or datetime.now(UTC)
     with tx() as conn:
@@ -165,7 +165,7 @@ def request_stop() -> None:
     _stopping_flag.requested = True
 
 
-def serve(model: JobFitModel, *, interval: int = 60) -> None:
+def serve(model: FitScorer, *, interval: int = 60) -> None:
     """Poll until stopped. The model stays loaded for the life of the process."""
     import signal
     import time
@@ -190,7 +190,7 @@ def _claim() -> int | None:
         pool().putconn(conn)
 
 
-def _queue_due(conn: Connection[Any], model: JobFitModel, now: datetime) -> None:
+def _queue_due(conn: Connection[Any], model: FitScorer, now: datetime) -> None:
     for schedule in fit_repo.due_schedules(conn, now):
         try:
             source_hash, _docs, _resume_id = resolve(conn, schedule["mode"], model)
@@ -214,7 +214,7 @@ def _queue_due(conn: Connection[Any], model: JobFitModel, now: datetime) -> None
         )
 
 
-def _queue_scrapes(conn: Connection[Any], model: JobFitModel, now: datetime) -> None:
+def _queue_scrapes(conn: Connection[Any], model: FitScorer, now: datetime) -> None:
     """Queue a scrape run when open jobs are unscored or changed and none is queued."""
     slot = now.strftime("%Y-%m-%dT%H:%M")
     for mode in ("bank", "resume"):

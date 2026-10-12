@@ -8,14 +8,14 @@ import httpx
 import pytest
 import respx
 import yaml
+from jobhunt.composition import COMPOSITION
 from jobhunt.core.http import HttpClient
 from jobhunt.scrape.sources.adzuna import map_job as map_adzuna
 from jobhunt.scrape.sources.base import FetchContext, RunPartial, ScopeView
-from jobhunt.scrape.sources.jooble import JoobleAdapter, parse_salary
-from jobhunt.scrape.sources.mycareersfuture import MyCareersFutureAdapter
+from jobhunt.scrape.sources.jooble import JoobleSource, parse_salary
+from jobhunt.scrape.sources.mycareersfuture import MyCareersFutureSource
 from jobhunt.scrape.sources.mycareersfuture import map_job as map_mcf
 from jobhunt.scrape.sources.reed import map_job as map_reed
-from jobhunt.scrape.sources.registry import adapter_for
 
 _CONFIG = Path(__file__).resolve().parents[2] / "config"
 
@@ -120,7 +120,7 @@ def test_jooble_omits_the_api_key_from_a_partial_error(monkeypatch: pytest.Monke
         respx.post("https://th.jooble.org/api/super-secret-key").mock(
             return_value=httpx.Response(400, text="no")
         )
-        adapter = JoobleAdapter()
+        adapter = JoobleSource()
         scope = ScopeView(
             id=1,
             source_id="jooble",
@@ -183,7 +183,7 @@ def test_mycareersfuture_maps_monthly_sgd_and_skips_a_hidden_employer() -> None:
 
 def test_registry_serves_the_new_boards() -> None:
     for source_id in ("naukri", "adzuna", "reed", "jooble", "mycareersfuture"):
-        assert adapter_for(source_id).id == source_id
+        assert COMPOSITION.source(source_id).id == source_id
 
 
 def test_adzuna_refuses_thailand() -> None:
@@ -194,7 +194,7 @@ def test_adzuna_refuses_thailand() -> None:
     )
     ctx = FetchContext(http=HttpClient(), companies=[])
     with pytest.raises(RunPartial, match="not an Adzuna feed"):
-        list(adapter_for("adzuna").fetch(scope, ctx))
+        list(COMPOSITION.source("adzuna").fetch(scope, ctx))
 
 
 @pytest.mark.live
@@ -205,7 +205,7 @@ def test_mycareersfuture_sg_smoke() -> None:
         params={"search_term": "software engineer", "results_wanted": 2},
     )
     ctx = FetchContext(http=HttpClient(), companies=[])
-    batches = list(MyCareersFutureAdapter().fetch(scope, ctx))
+    batches = list(MyCareersFutureSource().fetch(scope, ctx))
     assert batches[0].postings
 
 
@@ -224,7 +224,7 @@ def test_adzuna_gb_smoke() -> None:
         },
     )
     ctx = FetchContext(http=HttpClient(), companies=[])
-    batches = list(adapter_for("adzuna").fetch(scope, ctx))
+    batches = list(COMPOSITION.source("adzuna").fetch(scope, ctx))
     assert batches[0].postings
 
 
@@ -237,7 +237,8 @@ def test_reed_uk_smoke() -> None:
         source_id="reed",
         params={"search_term": "software engineer", "location": "London", "results_wanted": 2},
     )
-    batches = list(adapter_for("reed").fetch(scope, FetchContext(http=HttpClient(), companies=[])))
+    ctx = FetchContext(http=HttpClient(), companies=[])
+    batches = list(COMPOSITION.source("reed").fetch(scope, ctx))
     assert batches[0].postings
 
 
@@ -256,5 +257,5 @@ def test_jooble_th_smoke() -> None:
         },
     )
     ctx = FetchContext(http=HttpClient(), companies=[])
-    batches = list(adapter_for("jooble").fetch(scope, ctx))
+    batches = list(COMPOSITION.source("jooble").fetch(scope, ctx))
     assert batches[0].postings

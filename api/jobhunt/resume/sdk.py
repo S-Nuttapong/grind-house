@@ -7,7 +7,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from jobhunt.resume.base import AgentUsage, ResumeAgent, ResumeDraft, ResumeRequest
+from jobhunt.resume.base import AgentUsage, ResumeDraft, ResumeRequest, ResumeWriter
 from jobhunt.resume.hooks import deny_reason
 from jobhunt.resume.kit import kit_dir
 from jobhunt.resume.pricing import estimate
@@ -20,7 +20,7 @@ _MAX_TURNS = 24
 _ATTEMPT_BUDGET_USD = 0.80
 
 
-class ClaudeSdkAgent(ResumeAgent):
+class ClaudeSdkWriter(ResumeWriter):
     agent_id = "claude-sdk/v1"
     sends_data_offsite = True
 

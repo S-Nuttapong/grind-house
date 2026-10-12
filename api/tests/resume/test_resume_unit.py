@@ -4,13 +4,14 @@ from decimal import Decimal
 from pathlib import Path
 
 import pytest
+from jobhunt.composition import require_on_machine
 from jobhunt.fit.base import BragDoc
-from jobhunt.fit.fake import FakeFitModel
+from jobhunt.fit.fake import FakeFitScorer
 from jobhunt.resume.filler import rank_filler
 from jobhunt.resume.gate import evaluate
 from jobhunt.resume.hooks import deny_reason
 from jobhunt.resume.pricing import estimate
-from jobhunt.resume.registry import create
+from jobhunt.resume.sdk import ClaudeSdkWriter
 
 _JOB = "- Built React services for payments\n- TypeScript services for the web app"
 _REACT = "Built React services for payments"
@@ -22,7 +23,7 @@ def _resume(*bullets: dict[str, object]) -> dict[str, object]:
 
 
 def test_gate_scores_only_shortlist_bullets() -> None:
-    model = FakeFitModel()
+    model = FakeFitScorer()
     shortlist_only = model.fit([BragDoc(id="BB-1", text=_REACT)], _JOB)
     result = evaluate(
         model,
@@ -44,7 +45,7 @@ def test_gate_scores_only_shortlist_bullets() -> None:
 
 
 def test_gate_reports_a_lost_requirement_and_ignores_a_different_model() -> None:
-    model = FakeFitModel()
+    model = FakeFitScorer()
     lost = evaluate(
         model,
         _JOB,
@@ -80,7 +81,7 @@ def test_filler_ranks_by_impact_then_similarity() -> None:
         BragDoc(id="unrated", text=_KAFKA),
     ]
     ranked = rank_filler(
-        FakeFitModel(),
+        FakeFitScorer(),
         docs,
         {"BB-1"},
         {"low": 1, "high-weak": 5, "high-strong": 5, "unrated": None},
@@ -105,10 +106,12 @@ def test_hook_allows_kit_scripts_and_denies_everything_else(tmp_path: Path) -> N
     assert deny_reason("Read", {"file_path": "/etc/hosts"}, workdir, kit) is None
 
 
-def test_offsite_agent_requires_the_opt_in(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("FIT_ALLOW_OFFSITE", raising=False)
-    with pytest.raises(ValueError, match="FIT_ALLOW_OFFSITE"):
-        create("claude-sdk")
+def test_offsite_writer_requires_the_opt_in(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("JOBHUNT_ALLOW_OFFSITE", raising=False)
+    with pytest.raises(ValueError, match="JOBHUNT_ALLOW_OFFSITE"):
+        require_on_machine(ClaudeSdkWriter(), "resume writer")
+    monkeypatch.setenv("JOBHUNT_ALLOW_OFFSITE", "1")
+    require_on_machine(ClaudeSdkWriter(), "resume writer")
 
 
 def test_pricing_uses_short_and_long_context_rates() -> None:

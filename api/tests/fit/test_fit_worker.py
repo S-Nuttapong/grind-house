@@ -3,7 +3,7 @@ from pathlib import Path
 
 import psycopg
 from jobhunt.fit import repo as fit_repo
-from jobhunt.fit.fake import FakeFitModel
+from jobhunt.fit.fake import FakeFitScorer
 from jobhunt.fit.sources import job_hash
 from jobhunt.fit.worker import execute_run, idempotency_key, poll_once, queue_run
 from jobhunt.profile.import_bank import import_bank
@@ -98,7 +98,7 @@ def test_run_records_progress_and_a_restart_scores_only_the_rest(committed, bank
         seen["checks"] += 1
         return seen["checks"] > 1
 
-    execute_run(FakeFitModel(), run_id, batch_size=1, should_stop=stop_after_first_batch)
+    execute_run(FakeFitScorer(), run_id, batch_size=1, should_stop=stop_after_first_batch)
 
     conn.commit()  # end the snapshot so the worker's commits are visible
     stored = conn.execute("SELECT count(*) FROM job_fits").fetchone()
@@ -108,7 +108,7 @@ def test_run_records_progress_and_a_restart_scores_only_the_rest(committed, bank
     claimed_again = fit_repo.claim_run(conn)
     assert claimed_again is not None and claimed_again["id"] == run_id
     conn.commit()
-    execute_run(FakeFitModel(), run_id)
+    execute_run(FakeFitScorer(), run_id)
 
     conn.commit()
     finished = fit_repo.get_run(conn, run_id)
@@ -140,7 +140,7 @@ def test_poll_runs_a_due_schedule(committed, bank_dir: Path) -> None:
     )
     conn.commit()
 
-    poll_once(FakeFitModel(), now=datetime(2026, 10, 8, 6, tzinfo=UTC))
+    poll_once(FakeFitScorer(), now=datetime(2026, 10, 8, 6, tzinfo=UTC))
 
     conn.commit()
     runs = [run for run in fit_repo.list_runs(conn) if run["trigger"] == "schedule"]
@@ -166,14 +166,14 @@ def test_poll_scores_a_job_ingested_later_the_same_day(committed, bank_dir: Path
     _open_job(conn, company_id, 1)
     conn.commit()
 
-    poll_once(FakeFitModel(), now=datetime(2026, 10, 8, 6, 0, tzinfo=UTC))
+    poll_once(FakeFitScorer(), now=datetime(2026, 10, 8, 6, 0, tzinfo=UTC))
     conn.commit()
     assert len(_scrape_runs(conn)) == 1
     assert _scrape_runs(conn)[0]["status"] == "ok"
 
     _open_job(conn, company_id, 2)
     conn.commit()
-    poll_once(FakeFitModel(), now=datetime(2026, 10, 8, 6, 1, tzinfo=UTC))
+    poll_once(FakeFitScorer(), now=datetime(2026, 10, 8, 6, 1, tzinfo=UTC))
 
     conn.commit()
     runs = _scrape_runs(conn)
@@ -189,11 +189,11 @@ def test_poll_queues_no_scrape_run_when_nothing_is_unscored(committed, bank_dir:
     _open_job(conn, company_id, 3)
     conn.commit()
 
-    poll_once(FakeFitModel(), now=datetime(2026, 10, 8, 7, 0, tzinfo=UTC))
+    poll_once(FakeFitScorer(), now=datetime(2026, 10, 8, 7, 0, tzinfo=UTC))
     conn.commit()
     assert len(_scrape_runs(conn)) == 1
 
-    poll_once(FakeFitModel(), now=datetime(2026, 10, 8, 7, 1, tzinfo=UTC))
+    poll_once(FakeFitScorer(), now=datetime(2026, 10, 8, 7, 1, tzinfo=UTC))
     conn.commit()
     assert len(_scrape_runs(conn)) == 1
 
@@ -204,7 +204,7 @@ def test_poll_rescores_a_job_whose_description_changed(committed, bank_dir: Path
     job_id = _open_job(conn, company_id, 4)
     conn.commit()
 
-    poll_once(FakeFitModel(), now=datetime(2026, 10, 8, 8, 0, tzinfo=UTC))
+    poll_once(FakeFitScorer(), now=datetime(2026, 10, 8, 8, 0, tzinfo=UTC))
     conn.commit()
     before = conn.execute("SELECT job_hash FROM job_fits WHERE job_id = %s", (job_id,)).fetchone()
     assert before is not None
@@ -212,7 +212,7 @@ def test_poll_rescores_a_job_whose_description_changed(committed, bank_dir: Path
     revised = "Payments in Rust and Kafka."
     conn.execute("UPDATE jobs SET description_md = %s WHERE id = %s", (revised, job_id))
     conn.commit()
-    poll_once(FakeFitModel(), now=datetime(2026, 10, 8, 8, 1, tzinfo=UTC))
+    poll_once(FakeFitScorer(), now=datetime(2026, 10, 8, 8, 1, tzinfo=UTC))
 
     conn.commit()
     after = conn.execute("SELECT job_hash FROM job_fits WHERE job_id = %s", (job_id,)).fetchone()
@@ -238,7 +238,7 @@ def test_poll_does_not_queue_a_second_scrape_run_while_one_is_queued(
     )
     conn.commit()
 
-    poll_once(FakeFitModel(), now=datetime(2026, 10, 8, 9, 0, tzinfo=UTC))
+    poll_once(FakeFitScorer(), now=datetime(2026, 10, 8, 9, 0, tzinfo=UTC))
 
     conn.commit()
     runs = _scrape_runs(conn)

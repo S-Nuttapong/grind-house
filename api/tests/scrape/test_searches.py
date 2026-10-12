@@ -10,6 +10,7 @@ import pytest
 import respx
 from fastapi.testclient import TestClient
 from jobhunt.app import create_app
+from jobhunt.composition import COMPOSITION
 from jobhunt.core.db import advisory_lock, close_pool
 from jobhunt.core.http import HttpClient
 from jobhunt.scrape import repo
@@ -19,7 +20,6 @@ from jobhunt.scrape.searches import expand, or_query
 from jobhunt.scrape.sources.base import FetchContext, RunPartial, ScopeView
 from jobhunt.scrape.sources.linkedin import parse_cards
 from jobhunt.scrape.sources.pacing import Breaker, empty_is_throttle
-from jobhunt.scrape.sources.registry import adapter_for
 from jobhunt.scrape.sources.seek import map_job
 from jobhunt.scrape.tick import tick
 
@@ -129,7 +129,7 @@ def test_linkedin_retries_an_empty_page(monkeypatch: pytest.MonkeyPatch) -> None
             max_delay=6,
         )
         batches = list(
-            adapter_for("linkedin_guest").fetch(
+            COMPOSITION.source("linkedin_guest").fetch(
                 ScopeView(
                     id=0,
                     source_id="linkedin_guest",
@@ -220,9 +220,7 @@ tick:
             conn.commit()
 
 
-def test_after_runs_when_scraping_raises(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_after_runs_when_scraping_raises(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     phases: list[str] = []
 
     def record(phase: str) -> HookOutcome:
@@ -242,9 +240,7 @@ def test_after_runs_when_scraping_raises(
     assert phases == ["before_start", "after"]
 
 
-def test_leftover_vpn_state_restores_first(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_leftover_vpn_state_restores_first(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     state = tmp_path / "vpn.state"
     state.write_text("connected", encoding="utf-8")
     phases: list[str] = []

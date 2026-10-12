@@ -7,12 +7,12 @@ from pathlib import Path
 
 from pypdf import PdfWriter
 
-from jobhunt.resume.base import AgentUsage, ResumeAgent, ResumeDraft, ResumeRequest
+from jobhunt.resume.base import AgentUsage, ResumeDraft, ResumeRequest, ResumeWriter
 
 _LINT = "# Resume lint — 0 FAIL · 0 WARN\n"
 
 
-class FakeResumeAgent(ResumeAgent):
+class FakeResumeWriter(ResumeWriter):
     """passes_on_attempt is 1-based. Later attempts keep failing when it is above 3."""
 
     agent_id = "fake/v1"

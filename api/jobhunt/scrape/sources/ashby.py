@@ -29,7 +29,7 @@ _INTERVALS = {
 }
 
 
-class AshbyAdapter:
+class AshbySource:
     id = "ashby"
     kind = "ats"
     full_board = True
@@ -44,7 +44,7 @@ class AshbyAdapter:
 def _fetch_company(ctx: FetchContext, company: CompanyTarget) -> FetchBatch:
     url = BOARD_URL.format(slug=company.ats_slug)
     try:
-        response = ctx.http.get(url, AshbyAdapter.id)
+        response = ctx.http.get(url, AshbySource.id)
     except SourceBlocked:
         raise
     except httpx.HTTPStatusError as exc:

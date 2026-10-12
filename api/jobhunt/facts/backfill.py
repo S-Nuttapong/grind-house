@@ -10,9 +10,9 @@ from jobhunt.core.paths import API_ROOT
 from jobhunt.facts.api_fields import augment_text, from_payload
 from jobhunt.facts.apply import _country
 from jobhunt.facts.base import ParseHints, prefer
+from jobhunt.facts.chain import configured_chain
 from jobhunt.facts.coverage import coverage_table
 from jobhunt.facts.merge import merge_facts, save_facts
-from jobhunt.facts.registry import chain_from_config
 
 _BACKUP = "jobs_facts_backup_20261011"
 _BATCH = 200
@@ -77,7 +77,7 @@ def _restore(conn: Connection[Any]) -> None:
 
 
 def _fill(conn: Connection[Any], *, dry_run: bool) -> None:
-    chain = chain_from_config()
+    chain = configured_chain()
     last = 0 if dry_run else _read_checkpoint()
     total = conn.execute("SELECT count(*) FROM jobs WHERE closed_at IS NULL").fetchone()
     job_total = int(total[0]) if total else 0

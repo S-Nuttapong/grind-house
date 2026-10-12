@@ -3,12 +3,12 @@
 from collections.abc import Sequence
 
 from jobhunt.fit.aspects import split_aspects
-from jobhunt.fit.base import BragDoc, FitResult, JobFitModel
+from jobhunt.fit.base import BragDoc, FitResult, FitScorer
 from jobhunt.fit.keywords import terms_in
 from jobhunt.fit.select import select_docs
 
 
-class FakeFitModel(JobFitModel):
+class FakeFitScorer(FitScorer):
     model_id = "fake/v1"
 
     def fit(self, docs: Sequence[BragDoc], job_description: str) -> FitResult:

@@ -2,14 +2,14 @@ from datetime import UTC, datetime
 
 import numpy as np
 import pytest
-from jobhunt.fit.base import BragDoc, JobFitModel
+from jobhunt.composition import require_on_machine
+from jobhunt.fit.base import BragDoc, FitScorer
 from jobhunt.fit.calibrate import calibrate, suggest_floor_span, tier
 from jobhunt.fit.chunking import CHUNK_CHARS, chunk_text
 from jobhunt.fit.eval import hit_at_k, spearman
-from jobhunt.fit.fake import FakeFitModel
+from jobhunt.fit.fake import FakeFitScorer
 from jobhunt.fit.keywords import compare
-from jobhunt.fit.matrix import QWEN3, EncoderConfig, MatrixFitModel
-from jobhunt.fit.registry import create, register
+from jobhunt.fit.matrix import QWEN3, EncoderConfig, MatrixFitScorer
 from jobhunt.fit.schedule import describe, next_runs, validate
 from jobhunt.fit.sources import docs_hash, resume_sections
 
@@ -47,7 +47,7 @@ class _AxisEncoder:
 
 def test_matrix_model_matches_each_aspect_and_batches_one_encode() -> None:
     encoder = _AxisEncoder()
-    model = MatrixFitModel(encoder, QWEN3)
+    model = MatrixFitScorer(encoder, QWEN3)
     docs = [
         BragDoc(id="b1", text="alpha requirement story"),
         BragDoc(id="b2", text="beta requirement story"),
@@ -67,7 +67,7 @@ def test_matrix_model_matches_each_aspect_and_batches_one_encode() -> None:
 
 def test_matrix_model_scores_nothing_without_docs() -> None:
     encoder = _AxisEncoder()
-    result = MatrixFitModel(
+    result = MatrixFitScorer(
         encoder,
         EncoderConfig(
             model_id="test/v1",
@@ -103,7 +103,7 @@ def test_keywords_match_synonyms_and_report_gaps() -> None:
 
 
 def test_fake_model_is_deterministic() -> None:
-    model = FakeFitModel()
+    model = FakeFitScorer()
     docs = [BragDoc(id="a", text="react")]
     assert model.fit(docs, "React and TypeScript").score == 50.0
     scores = [
@@ -112,38 +112,26 @@ def test_fake_model_is_deterministic() -> None:
     assert scores == [50.0, 0.0]
 
 
-def test_registry_resolves_fake_and_rejects_unknown(monkeypatch) -> None:
-    monkeypatch.delenv("FIT_MODEL", raising=False)
-    assert create("fake").model_id == "fake/v1"
-    try:
-        create("nope")
-    except ValueError as exc:
-        assert "nope" in str(exc)
-    else:
-        raise AssertionError("expected ValueError")
+def test_unknown_matrix_name_is_rejected() -> None:
+    with pytest.raises(ValueError, match="nope"):
+        MatrixFitScorer("nope")
 
 
-def test_offsite_model_requires_an_opt_in(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_offsite_scorer_requires_an_opt_in(monkeypatch: pytest.MonkeyPatch) -> None:
     from jobhunt.fit.base import FitResult
 
-    class Offsite(JobFitModel):
+    class Offsite(FitScorer):
         model_id = "off/v1"
         sends_data_offsite = True
 
         def fit(self, docs, job_description: str) -> FitResult:
             return FitResult(score=0.0, raw=0.0, coverage=0.0, top_docs=[], gaps=[])
 
-    register("off", Offsite)
-    try:
-        monkeypatch.delenv("FIT_ALLOW_OFFSITE", raising=False)
-        with pytest.raises(ValueError, match="FIT_ALLOW_OFFSITE"):
-            create("off")
-        monkeypatch.setenv("FIT_ALLOW_OFFSITE", "1")
-        assert create("off").model_id == "off/v1"
-    finally:
-        from jobhunt.fit import registry
-
-        del registry._FACTORIES["off"]
+    monkeypatch.delenv("JOBHUNT_ALLOW_OFFSITE", raising=False)
+    with pytest.raises(ValueError, match="JOBHUNT_ALLOW_OFFSITE"):
+        require_on_machine(Offsite(), "fit scorer")
+    monkeypatch.setenv("JOBHUNT_ALLOW_OFFSITE", "1")
+    require_on_machine(Offsite(), "fit scorer")
 
 
 def test_schedule_validation() -> None:

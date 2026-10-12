@@ -46,7 +46,7 @@ class ResumeDraft:
     usage: AgentUsage
 
 
-class ResumeAgent(ABC):
+class ResumeWriter(ABC):
     """Turns a shortlist and a job description into a one-page resume."""
 
     agent_id: str

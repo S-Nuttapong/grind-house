@@ -23,10 +23,10 @@ from jobhunt.scrape.sources.base import (
     CompanyTarget,
     FetchBatch,
     FetchContext,
+    JobSource,
     RawPosting,
     RunPartial,
     ScopeView,
-    SourceAdapter,
 )
 
 log = get_logger(__name__)
@@ -68,7 +68,7 @@ class _Normalized:
     industry: str | None
 
 
-def run_scope(scope_id: int, adapter: SourceAdapter, http: HttpClient | None = None) -> RunResult:
+def run_scope(scope_id: int, adapter: JobSource, http: HttpClient | None = None) -> RunResult:
     """Fetch one scope and ingest each company batch in its own transaction."""
     with tx() as conn:
         scope_row = repo.get_scope(conn, scope_id)

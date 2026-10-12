@@ -29,7 +29,7 @@ _BROWSER = (
 )
 
 
-class SeekAdapter:
+class SeekSource:
     id = "seek"
     kind = "aggregator"
     full_board = False

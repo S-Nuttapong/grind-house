@@ -2,7 +2,7 @@ from datetime import date
 from pathlib import Path
 
 from jobhunt.brag import repo as brag_repo
-from jobhunt.fit.fake import FakeFitModel
+from jobhunt.fit.fake import FakeFitScorer
 from jobhunt.fit.runner import run_fit
 from jobhunt.profile import repo as profile_repo
 from jobhunt.profile.import_bank import import_bank
@@ -58,7 +58,7 @@ def test_run_fit_is_incremental_and_rescored_after_an_edit(conn, bank_dir: Path)
         description_md="Brand design, no overlap with the bank.",
     )
 
-    model = FakeFitModel()
+    model = FakeFitScorer()
     first_run = run_fit(conn, model, "bank")
     assert first_run == {"scored": 2, "skipped": 0}
 

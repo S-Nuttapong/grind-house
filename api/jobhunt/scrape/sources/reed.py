@@ -13,7 +13,7 @@ _SEARCH = "https://www.reed.co.uk/api/1.0/search"
 _CAP = 50
 
 
-class ReedAdapter:
+class ReedSource:
     id = "reed"
     kind = "aggregator"
     full_board = False

@@ -19,7 +19,7 @@ from jobhunt.scrape.sources.parse import as_date, selected
 BOARD_URL = "https://api.lever.co/v0/postings/{slug}?mode=json"
 
 
-class LeverAdapter:
+class LeverSource:
     id = "lever"
     kind = "ats"
     full_board = True
@@ -34,7 +34,7 @@ class LeverAdapter:
 def _fetch_company(ctx: FetchContext, company: CompanyTarget) -> FetchBatch:
     url = BOARD_URL.format(slug=company.ats_slug)
     try:
-        response = ctx.http.get(url, LeverAdapter.id)
+        response = ctx.http.get(url, LeverSource.id)
     except SourceBlocked:
         raise
     except httpx.HTTPStatusError as exc:

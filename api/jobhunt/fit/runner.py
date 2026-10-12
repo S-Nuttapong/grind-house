@@ -6,7 +6,7 @@ from psycopg import Connection
 from psycopg.rows import dict_row
 
 from jobhunt.fit import repo as fit_repo
-from jobhunt.fit.base import BragDoc, JobFitModel
+from jobhunt.fit.base import BragDoc, FitScorer
 from jobhunt.fit.keywords import compare
 from jobhunt.fit.sources import job_hash, joined_text, resolve
 
@@ -14,7 +14,7 @@ _BATCH = 64
 
 
 def run_fit(
-    conn: Connection[Any], model: JobFitModel, mode: str, *, limit: int | None = None
+    conn: Connection[Any], model: FitScorer, mode: str, *, limit: int | None = None
 ) -> dict[str, int]:
     """Score open jobs whose text changed. Returns {scored, skipped}."""
     source_hash, docs, _resume_id = resolve(conn, mode, model)
@@ -30,7 +30,7 @@ def run_fit(
 
 def score_batch(
     conn: Connection[Any],
-    model: JobFitModel,
+    model: FitScorer,
     docs: list[BragDoc],
     source_hash: str,
     batch: list[dict[str, Any]],

@@ -2,12 +2,12 @@
 
 from collections.abc import Sequence
 
-from jobhunt.fit.base import BragDoc, JobFitModel
-from jobhunt.fit.matrix import MatrixFitModel
+from jobhunt.fit.base import BragDoc, FitScorer
+from jobhunt.fit.matrix import MatrixFitScorer
 
 
 def rank_filler(
-    model: JobFitModel,
+    model: FitScorer,
     docs: Sequence[BragDoc],
     shortlist_ids: set[str],
     impacts: dict[str, int | None],
@@ -24,9 +24,9 @@ def rank_filler(
     return sorted(pool, key=sort_key)
 
 
-def _relevance(model: JobFitModel, docs: list[BragDoc], job_description: str) -> dict[str, float]:
+def _relevance(model: FitScorer, docs: list[BragDoc], job_description: str) -> dict[str, float]:
     if not docs:
         return {}
-    if isinstance(model, MatrixFitModel):
+    if isinstance(model, MatrixFitScorer):
         return model.max_per_doc(docs, job_description)
     return {doc.id: model.fit([doc], job_description).raw for doc in docs}

@@ -11,7 +11,7 @@ from jobhunt.app import create_app
 from jobhunt.brag import repo as brag_repo
 from jobhunt.core.db import close_pool
 from jobhunt.fit import repo as fit_repo
-from jobhunt.fit.fake import FakeFitModel
+from jobhunt.fit.fake import FakeFitScorer
 from jobhunt.fit.runner import run_fit
 from jobhunt.profile.import_bank import import_bank
 from jobhunt.scrape import repo
@@ -178,7 +178,7 @@ def test_board_sorts_by_stored_score(client: TestClient, database_url: str, bank
             dedupe_key=f"{company_id}|zzfit go|SG",
             description_md="Go and Kafka for payments.",
         )
-        run_fit(conn, FakeFitModel(), "bank")
+        run_fit(conn, FakeFitScorer(), "bank")
         conn.commit()
 
     try:
@@ -251,7 +251,7 @@ def test_status_reports_stale_after_an_edit(
 ) -> None:
     with psycopg.connect(database_url) as conn:
         import_bank(conn, bank_dir)
-        run_fit(conn, FakeFitModel(), "bank")
+        run_fit(conn, FakeFitScorer(), "bank")
         brag_repo.save_brag_doc(
             conn,
             {

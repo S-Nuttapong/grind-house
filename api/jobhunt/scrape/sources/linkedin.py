@@ -26,7 +26,7 @@ _ATS = re.compile(
 _MAX_PAGES = 20
 
 
-class LinkedInAdapter:
+class LinkedInSource:
     id = "linkedin_guest"
     kind = "aggregator"
     full_board = False
@@ -86,7 +86,9 @@ def parse_cards(html: str, country: str) -> list[RawPosting]:
         if not title or not company:
             continue
         link = card.select_one("a.base-card__full-link")
-        href = str(link.get("href") if link else "") or f"https://www.linkedin.com/jobs/view/{job_id}"
+        href = (
+            str(link.get("href") if link else "") or f"https://www.linkedin.com/jobs/view/{job_id}"
+        )
         href = href.split("?", 1)[0]
         when = card.select_one("time")
         posted = _posted(str(when.get("datetime")) if when and when.get("datetime") else None)

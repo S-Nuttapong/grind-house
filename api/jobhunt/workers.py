@@ -37,28 +37,27 @@ def _scrape() -> None:
 
 
 def _fit() -> None:
-    from jobhunt.fit.registry import create
-    from jobhunt.fit.worker import poll_once
+    from jobhunt.composition import COMPOSITION
+    from jobhunt.fit.pipeline import FitPipeline
 
     try:
-        model = create()
+        pipeline = FitPipeline(COMPOSITION)
     except Exception:
         log.exception("fit model failed to load")
         return
-    log.info("fit worker ready, %s", model.model_id)
+    log.info("fit worker ready, %s", COMPOSITION.scorer.model_id)
     while True:
         try:
-            poll_once(model)
+            pipeline.poll_once()
         except Exception:
             log.exception("fit pass failed")
         time.sleep(_FIT_SECONDS)
 
 
 def _resume() -> None:
-    os.environ["FIT_ALLOW_OFFSITE"] = "1"
-    from jobhunt.fit.registry import create as create_model
-    from jobhunt.resume.registry import create
-    from jobhunt.resume.worker import serve
+    os.environ["JOBHUNT_ALLOW_OFFSITE"] = "1"
+    from jobhunt.composition import COMPOSITION
+    from jobhunt.resume.pipeline import ResumePipeline
 
     log.info("resume worker ready")
-    serve(create(), create_model(), handle_signals=False)
+    ResumePipeline(COMPOSITION).serve(handle_signals=False)

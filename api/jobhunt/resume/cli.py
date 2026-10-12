@@ -12,11 +12,10 @@ resume_app = typer.Typer(no_args_is_help=True, help="Generate a one-page resume 
 @resume_app.command("worker")
 def resume_worker() -> None:
     """Claim queued resume runs. Wakes on NOTIFY and falls back to a 30 second wait."""
-    from jobhunt.fit.registry import create as create_model
-    from jobhunt.resume.registry import create
-    from jobhunt.resume.worker import serve
+    from jobhunt.composition import COMPOSITION
+    from jobhunt.resume.pipeline import ResumePipeline
 
-    serve(create(), create_model())
+    ResumePipeline(COMPOSITION).serve()
 
 
 @resume_app.command("sync-kit")

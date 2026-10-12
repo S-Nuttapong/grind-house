@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 import httpx
 
 from jobhunt import __version__
+from jobhunt.composition import COMPOSITION
 from jobhunt.core.db import advisory_lock, tx
 from jobhunt.core.http import HttpClient, SourceBlocked
 from jobhunt.core.log import get_logger
@@ -16,12 +17,12 @@ from jobhunt.fit.schedule import next_runs
 from jobhunt.scrape import repo
 from jobhunt.scrape.details import drain_details
 from jobhunt.scrape.hooks import run_phase, vpn_state_path
-from jobhunt.scrape.ingest import ingest_batch, run_scope
+from jobhunt.scrape.ingest import ingest_batch
 from jobhunt.scrape.network import corporate_network
+from jobhunt.scrape.pipeline import ScrapePipeline
 from jobhunt.scrape.searches import expand
-from jobhunt.scrape.sources.base import FetchContext, RunPartial, ScopeView
+from jobhunt.scrape.sources.base import FetchContext, JobSource, RunPartial, ScopeView
 from jobhunt.scrape.sources.pacing import Breaker
-from jobhunt.scrape.sources.registry import adapter_for
 
 log = get_logger(__name__)
 
@@ -32,6 +33,11 @@ _BROWSER = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36"
 )
+
+
+def adapter_for(source_id: str) -> JobSource:
+    """Lookup used by the tick. Tests replace this."""
+    return ScrapePipeline(COMPOSITION).source(source_id)
 
 
 def tick(search_id: int | None = None) -> int:
@@ -303,7 +309,7 @@ def _window(
 def _run_ats(scope: tuple[Any, ...], http: HttpClient) -> None:
     scope_id = int(scope[0])
     try:
-        run_scope(scope_id, adapter_for(str(scope[1])), http)
+        ScrapePipeline(COMPOSITION).run(scope_id, str(scope[1]), http)
         upcoming = next_runs(str(scope[2]), str(scope[3]), 1)[0]
     except Exception:
         log.exception("scope %s failed", scope_id)
