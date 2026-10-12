@@ -106,7 +106,9 @@ plan/
     config/                      # prefs, companies/scopes seeds, synonyms, fx, regions
     jobhunt/
       core/                      # settings, db pool, migrate, cli root, http, log, paths
+      composition.py             # the only file that picks adapters
       scrape/                    # sources/, normalize/, ingest, runner, repo, router, seed, cli
+      facts/                     # parser, contract checks, merge, backfill
       jobs/                      # board queries and /api/jobs routes
       brag/                      # brag docs, tags, metric keys, vault migration
       profile/                   # profile summary, resumes, bank import
@@ -257,14 +259,19 @@ class RawPosting(BaseModel):
     level_hint: str | None          # LinkedIn job_level etc.
     payload: dict                   # the raw item, stored in raw_payloads on change
 
-class SourceAdapter(Protocol):
+class JobSource(Protocol):
     id: str
-    kind: Literal["ats", "aggregator", "feed"]
+    spec: SourceSpec                # kind, min_interval, close_after; upserted into sources
     full_board: bool                # True when a fetch returns the company's entire board
-    def fetch(self, scope: FetchScope, ctx: FetchContext) -> Iterator[FetchBatch]: ...
+    needs_detail_fetch: bool
+    def fetch(self, scope: ScopeView, ctx: FetchContext) -> Iterator[FetchBatch]: ...
+    def payload_facts(self, payload: dict) -> JobDetail: ...
+    def augment_text(self, payload: dict, text: str) -> str: ...
 ```
 
-`FetchBatch` = `(company_key | None, list[RawPosting])`. For `full_board` adapters, one batch per company, so `ingest` can close missing jobs per company.
+The live list is `COMPOSITION.sources` in `jobhunt/composition.py` ([ADR-0006](docs/adr/0006-composition-root.md)). There is no source registry. `ScrapePipeline` upserts `kind`, `min_interval`, and `close_after` and does not change `enabled`. `payload_facts` maps the stored payload. `augment_text` adds lines the description omitted. LinkedIn and SEEK set `needs_detail_fetch`.
+
+`FetchBatch` carries the postings for one company, or for a search page. For `full_board` sources, one batch per company, so `ingest` can close missing jobs per company.
 
 ### 7.2 Greenhouse (`greenhouse.py`)
 - `GET https://boards-api.greenhouse.io/v1/boards/{slug}/jobs?content=true`
@@ -388,6 +395,8 @@ All functions are pure and unit-tested with table-driven tests.
    Skip closing for a company whose fetch failed (never close on error).
 4. **Aggregator close (daily, in tick):** jobs with no posting seen within its source's `close_after` → `closed_at = now()`.
 5. Finish `runs` row: counts, `finished_at`, `status` (`ok` | `partial` | `failed`), `error` (redacted).
+
+**Parser** (`facts/`). A new or changed posting becomes a `PostingInput` (structured fields, the augmented description, and `payload_facts`). `COMPOSITION.parser` returns a `JobDetail`. `facts/contract.py` drops a field that fails a rule and logs the rule id. `merge_facts` fills empty job columns only; `level = 'unknown'` counts as empty. The default parser is `DefaultParser`. `ClaudeParser` is the offsite adapter ([ADR-0007](docs/adr/0007-claude-adapters.md)). `jobhunt facts backfill` runs that parser over jobs missing role, location, or level, then pay. It refuses unless `composition.py` sets `ClaudeParser` and `JOBHUNT_ALLOW_OFFSITE=1`.
 
 **Acceptance tests (integration):** same fixture twice → 0 new jobs on run 2; Greenhouse + LinkedIn posting of the same job → 1 job, 2 postings, `apply_url` = Greenhouse; posting removed from fixture on run 2 → job closed; fetch error for one company → none of its jobs closed; JD edited → `raw_payloads` row added, job description updated.
 
@@ -595,7 +604,7 @@ Pre-computed fit scores for every open job, against two sources: the whole brag 
 **Model interface** (`fit/base.py`). Every strategy (the matrix starter now, an LLM or another encoder later) implements one contract ([ADR-0004](docs/adr/0004-pluggable-fit-interface.md)):
 
 ```python
-class JobFitModel(ABC):
+class FitScorer(ABC):
     model_id: str                 # stored with every score, e.g. "qwen3-embedding-0.6b/v1"
     sends_data_offsite: bool = False
 
@@ -603,7 +612,7 @@ class JobFitModel(ABC):
     def fit_many(self, docs: Sequence[BragDoc], job_descriptions: Sequence[str]) -> list[FitResult]: ...
 ```
 
-`BragDoc` is an id and a text. `FitResult` is a 0–100 `score`, the uncalibrated `raw` aggregate, `coverage`, `top_docs` (doc id, the aspect it covers, similarity 0–1), and `gaps`. `fit/registry.py` maps `FIT_MODEL` (default `qwen3`) to a factory. Adding a strategy is one class plus one registry line. A model with `sends_data_offsite = True` does not load unless `FIT_ALLOW_OFFSITE=1`.
+`BragDoc` is an id and a text. `FitResult` is a 0–100 `score`, the uncalibrated `raw` aggregate, `coverage`, `top_docs` (doc id, the aspect it covers, similarity 0–1), and `gaps`. The scorer is `COMPOSITION.scorer` in `jobhunt/composition.py`. The default is `MatrixFitScorer("qwen3")`. `ClaudeFitScorer` is the offsite adapter. Adding a strategy is one class plus one line there. A scorer with `sends_data_offsite = True` refuses to run unless `JOBHUNT_ALLOW_OFFSITE=1`. `fit/contract.py` drops a match whose doc id was not in the input.
 
 **Matrix starter** (`fit/matrix.py`, `fit/aspects.py`, `fit/select.py`). `qwen3` loads `Qwen/Qwen3-Embedding-0.6B` once per worker process. Each brag doc is one vector. `split_aspects` keeps Markdown bullets and sentences and drops sections whose heading matches benefits, perks, about us, EEO, or salary. Aspects are encoded with the instruction "Given a job requirement, retrieve resume achievements that demonstrate it." The cosine matrix has one row per doc and one column per aspect. Greedy coverage picks up to 10 docs: each step adds the doc with the largest gain in the sum over aspects of the best similarity so far, and stops when that gain drops below 0.01. The raw score is the mean, over the selected rows, of each row's maximum. `bge` is the same matrix model with `BAAI/bge-base-en-v1.5` and the prefix `Represent this sentence for searching relevant passages: `. Each model has its own calibration floor and span, because the cosine ranges differ. The defaults stretch 0.40–0.85 to 0–100: `max(0, min(100, (raw - floor) / span * 100))`. `jobhunt fit calibrate` prints a replacement floor and span from the stored raw scores and does not edit the constants. `fake` implements the same interface with term overlap, for tests.
 

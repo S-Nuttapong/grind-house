@@ -102,13 +102,13 @@ The worker uses the same Dockerfile as the API (`api/Dockerfile`) with the `fit`
 
 Schedules are rows in the database. Change them on the Schedules page at `http://127.0.0.1:3000/schedules`. The worker re-reads that table every minute, so a change does not need a restart.
 
-To add a strategy, implement `JobFitModel.fit` (brag docs and a job description in, a score and the selected docs out) and register the factory in `api/jobhunt/fit/registry.py`. Set `FIT_MODEL` to that name. The default is `qwen3`, a local embedding model. A model with `sends_data_offsite = True` refuses to load unless `FIT_ALLOW_OFFSITE=1`. Do not log something you would not put on a resume.
+The default scorer is `MatrixFitScorer("qwen3")`, a local embedding model. Swap it in [composition.py](api/jobhunt/composition.py), as below. Do not log something you would not put on a resume.
 
 ## Resume generation
 
 A **Generate resume** button on a scored job queues a run. The `resume-worker` claims it, runs the Claude Agent SDK on Haiku 5.5, and stores the PDF. See [ADR-0005](docs/adr/0005-resume-agent.md).
 
-Copy the vault kit into the gitignored directory the worker reads. `ANTHROPIC_API_KEY` in `.env.tpl` must be an `op://` reference, not a raw key.
+Copy the vault kit into the gitignored directory the worker reads. `ANTHROPIC_API_KEY` lives in gitignored `.env`, not in `.env.tpl`.
 
 ```bash
 make jh ARGS="resume sync-kit"
@@ -125,11 +125,27 @@ On Apple Silicon, if `python` is the x86_64 build, the SDK's bundled CLI hangs. 
 
 Token cost is on `http://127.0.0.1:3000/admin/usage`, linked from the command menu only.
 
-The Playwright check drives the board. `RESUME_AGENT=fake` is the free run. Leave it unset for Haiku. Artifacts, including the PDF, stay in gitignored `app/e2e/artifacts/`.
+The Playwright check drives the board. A free run sets `writer=FakeResumeWriter()` in `composition.py`. Artifacts, including the PDF, stay in gitignored `app/e2e/artifacts/`.
 
 ```bash
 cd app && npm run uat
 ```
+
+## Swap an adapter
+
+`api/jobhunt/composition.py` is the only file that picks adapters. Implement the port, then change its line:
+
+```python
+COMPOSITION = Composition(
+    sources=[GreenhouseSource(), ...],
+    parser=DefaultParser(),          # or ClaudeParser()
+    scorer=MatrixFitScorer("qwen3"), # or ClaudeFitScorer()
+    writer=ClaudeSdkWriter(),        # or FakeResumeWriter()
+    store=PgStore(),
+)
+```
+
+Ports are `JobSource`, `DetailParser`, `FitScorer`, `ResumeWriter`, and `Store`. An adapter that sends text off this machine refuses to run unless `JOBHUNT_ALLOW_OFFSITE=1`. See [ADR-0006](docs/adr/0006-composition-root.md) and [ADR-0007](docs/adr/0007-claude-adapters.md).
 
 ## Scheduling
 
