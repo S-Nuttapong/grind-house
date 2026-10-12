@@ -7,11 +7,15 @@ from typing import Any
 from psycopg import Connection
 
 from jobhunt.composition import COMPOSITION
+from jobhunt.core.log import get_logger
 from jobhunt.core.paths import API_ROOT
 from jobhunt.facts.api_fields import augment_text, from_payload
-from jobhunt.facts.base import PostingInput
+from jobhunt.facts.base import JobDetail, PostingInput
+from jobhunt.facts.contract import check_facts
 from jobhunt.facts.coverage import coverage_table
 from jobhunt.facts.merge import merge_facts, save_facts
+
+log = get_logger("facts")
 
 _BACKUP = "jobs_facts_backup_20261011"
 _BATCH = 200
@@ -133,14 +137,21 @@ def _one(conn: Connection[Any], parser: Any, job_id: int, description: str) -> N
     ).fetchall()
     for posting_id, source_id, payload in rows:
         body = payload if isinstance(payload, dict) else {}
-        parsed = parser.parse(
-            PostingInput(
-                source_id=str(source_id),
-                description_md=augment_text(str(source_id), body, description),
-                source_facts=from_payload(str(source_id), body),
-            )
+        item = PostingInput(
+            source_id=str(source_id),
+            description_md=augment_text(str(source_id), body, description),
+            source_facts=from_payload(str(source_id), body),
         )
-        save_facts(conn, int(posting_id), parsed, "done")
+        try:
+            parsed = check_facts(
+                parser.parse(item), title=item.title, description=item.description_md
+            )
+            status = "done"
+        except Exception as exc:
+            log.warning("parser failed: %s", type(exc).__name__)
+            parsed = JobDetail()
+            status = "failed"
+        save_facts(conn, int(posting_id), parsed, status)
     merge_facts(conn, job_id)
 
 

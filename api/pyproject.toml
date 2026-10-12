@@ -47,6 +47,9 @@ resume = [
     "claude-agent-sdk==0.1.69",
     "reportlab==5.0.1",
 ]
+claude = [
+    "anthropic==1.13.0",
+]
 
 [project.scripts]
 jobhunt = "jobhunt.cli:main"
@@ -117,6 +120,8 @@ module = [
     "croniter",
     "cron_descriptor",
     "sentence_transformers",
+    "anthropic",
+    "anthropic.*",
 ]
 ignore_missing_imports = true
 

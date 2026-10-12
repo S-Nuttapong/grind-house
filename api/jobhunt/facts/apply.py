@@ -5,10 +5,14 @@ from typing import Any
 from psycopg import Connection
 
 from jobhunt.composition import COMPOSITION, require_on_machine
+from jobhunt.core.log import get_logger
 from jobhunt.facts.api_fields import augment_text, from_payload
 from jobhunt.facts.base import JobDetail, PostingInput
+from jobhunt.facts.contract import check_facts
 from jobhunt.facts.merge import merge_facts, save_facts
 from jobhunt.scrape.sources.base import RawPosting
+
+log = get_logger("facts")
 
 
 def posting_input(posting: RawPosting, description: str | None) -> PostingInput:
@@ -32,9 +36,15 @@ def posting_input(posting: RawPosting, description: str | None) -> PostingInput:
 
 
 def build_detail(posting: RawPosting, description: str | None) -> tuple[JobDetail, str]:
-    """Run the composed parser. A parser error is the caller's to handle."""
+    """Run the composed parser, then the contract. A parser error is stored as failed."""
     require_on_machine(COMPOSITION.parser, "parser")
-    return COMPOSITION.parser.parse(posting_input(posting, description)), "done"
+    item = posting_input(posting, description)
+    try:
+        detail = COMPOSITION.parser.parse(item)
+    except Exception as exc:
+        log.warning("parser failed: %s", type(exc).__name__)
+        return JobDetail(), "failed"
+    return check_facts(detail, title=item.title, description=item.description_md), "done"
 
 
 def record(

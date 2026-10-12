@@ -64,11 +64,11 @@ def _from_fields(item: PostingInput, hints: ParseHints) -> JobDetail:
             value=[Place(city=city, country=country)],
             confidence=1.0,
             evidence=evidence,
-            parser_id="default",
+            parser_id="api:posting",
         )
     if wants(hints, "workplace") and evidence and remote != "unknown":
         detail.workplace = TextFact(
-            value=remote, confidence=1.0, evidence=evidence, parser_id="default"
+            value=remote, confidence=1.0, evidence=evidence, parser_id="api:posting"
         )
     if wants(hints, "pay") and (item.salary_min is not None or item.salary_max is not None):
         detail.pay = PayFact(
@@ -80,7 +80,7 @@ def _from_fields(item: PostingInput, hints: ParseHints) -> JobDetail:
             ),
             confidence=1.0,
             evidence=_pay_evidence(item),
-            parser_id="default",
+            parser_id="api:posting",
         )
     if wants(hints, "job_type"):
         kind = map_job_type(item.employment_type_raw)
@@ -89,14 +89,14 @@ def _from_fields(item: PostingInput, hints: ParseHints) -> JobDetail:
                 value=kind,
                 confidence=1.0,
                 evidence=item.employment_type_raw,
-                parser_id="default",
+                parser_id="api:posting",
             )
     if wants(hints, "posted") and item.posted_at is not None:
         detail.posted = DateFact(
             value=item.posted_at,
             confidence=1.0,
             evidence=item.posted_at.isoformat(),
-            parser_id="default",
+            parser_id="api:posting",
         )
     if wants(hints, "role"):
         detail.role = _role_fact(item)
@@ -115,7 +115,7 @@ def _role_fact(item: PostingInput) -> TextFact | None:
         evidence = item.title
     if not evidence:
         return None
-    return TextFact(value=slug, confidence=1.0, evidence=evidence, parser_id="default")
+    return TextFact(value=slug, confidence=1.0, evidence=evidence, parser_id="api:posting")
 
 
 def _level_fact(item: PostingInput) -> TextFact | None:
@@ -123,11 +123,15 @@ def _level_fact(item: PostingInput) -> TextFact | None:
     if from_title != "unknown":
         if not item.title:
             return None
-        return TextFact(value=from_title, confidence=1.0, evidence=item.title, parser_id="default")
+        return TextFact(
+            value=from_title, confidence=1.0, evidence=item.title, parser_id="api:posting"
+        )
     from_hint = infer_level("", item.level_hint)
     if from_hint == "unknown" or not item.level_hint:
         return None
-    return TextFact(value=from_hint, confidence=1.0, evidence=item.level_hint, parser_id="default")
+    return TextFact(
+        value=from_hint, confidence=1.0, evidence=item.level_hint, parser_id="api:posting"
+    )
 
 
 def _pay_evidence(item: PostingInput) -> str:

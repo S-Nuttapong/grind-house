@@ -5,10 +5,15 @@ from typing import Any
 from psycopg import Connection
 from psycopg.rows import dict_row
 
+from jobhunt.core.log import get_logger
 from jobhunt.fit import repo as fit_repo
-from jobhunt.fit.base import BragDoc, FitScorer
+from jobhunt.fit.aspects import split_aspects
+from jobhunt.fit.base import BragDoc, FitResult, FitScorer, FitUnavailable
+from jobhunt.fit.contract import check_fit
 from jobhunt.fit.keywords import compare
 from jobhunt.fit.sources import job_hash, joined_text, resolve
+
+log = get_logger("fit")
 
 _BATCH = 64
 
@@ -37,10 +42,18 @@ def score_batch(
 ) -> None:
     """Score one batch and store the fit row plus the selected docs."""
     descriptions = [row["description_md"] or row["title"] for row in batch]
-    results = model.fit_many(docs, descriptions)
+    results = _score_all(model, docs, descriptions)
     profile_text = joined_text(docs)
+    doc_ids = {doc.id for doc in docs}
     for row, result in zip(batch, results, strict=True):
+        if result is None:
+            continue
         description = row["description_md"] or ""
+        result = check_fit(
+            result,
+            doc_ids=doc_ids,
+            aspects=split_aspects(description or row["title"]),
+        )
         matched, missing = compare(profile_text, f"{row['title']}\n{description}")
         fit_repo.upsert_job_fit(
             conn,
@@ -71,6 +84,23 @@ def score_batch(
                 for match in result.top_docs
             ],
         )
+
+
+def _score_all(
+    model: FitScorer, docs: list[BragDoc], descriptions: list[str]
+) -> list[FitResult | None]:
+    try:
+        return list(model.fit_many(docs, descriptions))
+    except FitUnavailable:
+        log.warning("fit batch unavailable; scoring one job at a time")
+        found: list[FitResult | None] = []
+        for description in descriptions:
+            try:
+                found.append(model.fit(docs, description))
+            except FitUnavailable:
+                log.warning("fit unavailable; leaving the job for the next run")
+                found.append(None)
+        return found
 
 
 def _pending(

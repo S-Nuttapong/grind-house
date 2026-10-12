@@ -192,14 +192,14 @@ def _upsert(
         if previous_hash == digest:
             _maybe_follow(conn, _company_id(conn, job_id), posting)
             return "seen"
-        normalized, detail = _normalize(posting, title_norm, description, digest)
+        normalized, detail, status = _normalize(posting, title_norm, description, digest)
         _write_job(conn, job_id, posting, normalized, company_id or _company_id(conn, job_id))
         repo.insert_raw_payload(conn, posting_id=posting_id, run_id=run_id, payload=posting.payload)
-        _store_facts(conn, job_id, posting_id, detail)
+        _store_facts(conn, job_id, posting_id, detail, status)
         _maybe_follow(conn, _company_id(conn, job_id), posting)
         return "updated"
 
-    normalized, detail = _normalize(posting, title_norm, description, digest)
+    normalized, detail, status = _normalize(posting, title_norm, description, digest)
     resolved = company_id if company_id is not None else _resolve_company(conn, posting)
     dedupe_key = f"{resolved}|{normalized.title_norm}|{normalized.country or '??'}"
     duplicate = repo.find_open_duplicate(
@@ -246,7 +246,7 @@ def _upsert(
         detail_status="pending" if _needs_detail(posting) else "done",
     )
     repo.insert_raw_payload(conn, posting_id=posting_id, run_id=run_id, payload=posting.payload)
-    _store_facts(conn, job_id, posting_id, detail)
+    _store_facts(conn, job_id, posting_id, detail, status)
     _maybe_follow(conn, resolved, posting)
     return outcome
 
@@ -311,7 +311,7 @@ def _preview(posting: RawPosting) -> tuple[str, str | None, str]:
 
 def _normalize(
     posting: RawPosting, title_norm: str, description: str | None, digest: str
-) -> tuple[_Normalized, Any]:
+) -> tuple[_Normalized, Any, str]:
     # Timezone is not a parsed fact. Country, pay, role, and level come from the parser.
     _country, _city, _remote, tz_min, tz_max = parse_location(
         posting.location_raw, posting.remote_hint
@@ -338,18 +338,21 @@ def _normalize(
     )
     from jobhunt.facts.apply import build_detail
 
-    detail, _status = build_detail(posting, description)
-    _fill_from_detail(normalized, detail)
+    detail, status = build_detail(posting, description)
+    if status == "done":
+        _fill_from_detail(normalized, detail)
     hinted = posting.payload.get("country")
     if normalized.country is None and isinstance(hinted, str) and len(hinted.strip()) == 2:
         normalized.country = hinted.strip().upper()
-    return normalized, detail
+    return normalized, detail, status
 
 
-def _store_facts(conn: Connection[Any], job_id: int, posting_id: int, detail: Any) -> None:
+def _store_facts(
+    conn: Connection[Any], job_id: int, posting_id: int, detail: Any, status: str
+) -> None:
     from jobhunt.facts.apply import record
 
-    record(conn, job_id, posting_id, detail, "done")
+    record(conn, job_id, posting_id, detail, status)
 
 
 def _fill_from_detail(normalized: _Normalized, detail: Any) -> None:
