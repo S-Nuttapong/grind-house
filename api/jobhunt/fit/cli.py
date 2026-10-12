@@ -6,7 +6,6 @@ from typing import Any
 import typer
 from psycopg import Connection
 
-from jobhunt.core.cli import not_yet
 from jobhunt.fit.base import FitScorer
 
 fit_app = typer.Typer(no_args_is_help=True, help="Job fit scoring.")
@@ -19,16 +18,41 @@ calibrate_app = typer.Typer(no_args_is_help=True, help="Score calibration.")
 
 
 @calibrate_app.command("sample")
-def calibrate_sample(n: int = typer.Option(40, "--n")) -> None:
-    """Print a stratified sample of scored jobs."""
-    _ = n
-    not_yet("calibrate sample")
+def calibrate_sample(
+    n: int = typer.Option(60, "--n"),
+    seed: int = typer.Option(20261012, "--seed"),
+    mode: str = typer.Option("bank", "--mode"),
+    out: str = typer.Option("evals/cache/fit-benchmark", "--out"),
+) -> None:
+    """Score a stratified sample with the existing Claude scorer and freeze it."""
+    from pathlib import Path
+
+    from jobhunt.core.db import tx
+    from jobhunt.fit.benchmark import BenchmarkError, execute_sample
+
+    destination = Path(out) / str(seed)
+    try:
+        with tx() as conn:
+            digest = execute_sample(conn, n=n, seed=seed, mode=mode, out=destination)
+    except BenchmarkError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"froze {destination}")
+    typer.echo(f"raw_sha256 {digest}")
 
 
 @calibrate_app.command("report")
-def calibrate_report() -> None:
-    """Print band agreement and precision@10."""
-    not_yet("calibrate report")
+def calibrate_report(run: str = typer.Option(..., "--run")) -> None:
+    """Print the frozen sample and each judge. Does not combine their recommendations."""
+    from pathlib import Path
+
+    from jobhunt.fit.benchmark import BenchmarkError, render_report
+
+    try:
+        typer.echo(render_report(Path(run)), nl=False)
+    except BenchmarkError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
 
 
 @fit_app.command("run")
@@ -196,14 +220,15 @@ def fit_calibrate(
 def fit_eval(
     labels: str = typer.Option(..., "--labels", help="Private YAML of job ratings. Not committed."),
     model: list[str] | None = _EVAL_MODELS,
+    reps: int = typer.Option(1, "--reps", help="Repeated scores for retest sd and ICC."),
 ) -> None:
-    """Score labeled jobs and print Spearman correlation and hit@10. Loads each model."""
+    """Score labeled jobs with eval_fit. Loads each named model, or the composition scorer."""
     from pathlib import Path
 
     import yaml
 
     from jobhunt.core.db import tx
-    from jobhunt.fit.eval import hit_at_k, spearman
+    from jobhunt.fit.eval import FitLabel, eval_fit
     from jobhunt.fit.sources import SourceError, resolve
 
     path = Path(labels)
@@ -236,22 +261,30 @@ def fit_eval(
             typer.echo(f"{scorer.model_id}: no labeled jobs in the database")
             failed = True
             continue
-        results = scorer.fit_many(docs, [found[row["job_id"]] for row in present])
-        ratings = [float(row["rating"]) for row in present]
-        rho = spearman([result.score for result in results], ratings)
-        labeled = [
-            (result, row) for result, row in zip(results, present, strict=True) if row["docs"]
+        fit_labels = [
+            FitLabel(
+                description=found[row["job_id"]],
+                rating=float(row["rating"]),
+                docs=tuple(row["docs"]),
+            )
+            for row in present
         ]
-        rate = hit_at_k(
-            [[item.brag_doc_id for item in result.top_docs] for result, _row in labeled],
-            [row["docs"] for _result, row in labeled],
-            10,
-        )
-        rho_text = "n/a" if rho is None else f"{rho:.3f}"
-        hit_text = "n/a" if rate is None else f"{rate:.3f} (n={len(labeled)})"
+        report = eval_fit(scorer, docs, fit_labels, reps)
+        rho_text = "n/a" if report.spearman is None else f"{report.spearman:.3f}"
+        labeled_docs = sum(1 for row in present if row["docs"])
+        if report.hit_at_10 is None:
+            hit_text = "n/a"
+        else:
+            hit_text = f"{report.hit_at_10:.3f} (n={labeled_docs})"
         typer.echo(f"{scorer.model_id}")
         typer.echo(f"  spearman: {rho_text} (n={len(present)})")
         typer.echo(f"  hit@10: {hit_text}")
+        if report.kappa is not None:
+            typer.echo(f"  kappa: {report.kappa:.3f}")
+        if report.retest_sd is not None:
+            typer.echo(f"  retest_sd: {report.retest_sd:.3f}")
+        if report.order_delta is not None:
+            typer.echo(f"  order_delta: {report.order_delta:.3f}")
     if failed:
         raise typer.Exit(code=1)
 

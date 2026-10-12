@@ -25,6 +25,8 @@ api/resume-kit/
 app/e2e/artifacts/
 app/test-results/
 api/reports/facts_backfill.checkpoint
+api/evals/cache/
+api/evals/gold/
 
 node_modules
 .next/

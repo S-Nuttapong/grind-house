@@ -6,7 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
-from jobhunt.core.claude import ClaudeError, structured_call
+from jobhunt.core.claude import CallMeta, ClaudeError, structured_call
 from jobhunt.facts.base import (
     LEVELS,
     DateFact,
@@ -81,18 +81,20 @@ class ClaudeParser:
     def __init__(self, model: str = _MODEL) -> None:
         self.model = model
         self.parser_id = f"{model}/{_PROMPT_VERSION}"
+        self.calls: list[CallMeta] = []
 
     def parse(self, posting: PostingInput | str, hints: ParseHints | None = None) -> JobDetail:
         del hints
         item = as_input(posting)
         try:
-            parsed, _meta = structured_call(
+            parsed, meta = structured_call(
                 model=self.model,
                 system=_SYSTEM,
                 user=_user(item),
                 output=ParsedFields,
                 max_tokens=_MAX_TOKENS,
             )
+            self.calls.append(meta)
         except ClaudeError:
             raise
         return prefer(item.source_facts, detail_from_parsed(parsed, self.parser_id))
