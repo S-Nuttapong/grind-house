@@ -1,0 +1,21 @@
+# Matched against the source industry hint, then the company name. Unknown stays null.
+fintech:
+  - fintech
+  - financial services
+  - payments
+  - banking
+  - lending
+ecommerce:
+  - ecommerce
+  - e-commerce
+  - retail
+saas:
+  - saas
+gaming:
+  - gaming
+  - games
+  - game studio
+health:
+  - healthcare
+  - healthtech
+  - medical

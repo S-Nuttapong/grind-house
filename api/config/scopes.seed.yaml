@@ -1,0 +1,15 @@
+- name: Greenhouse tiers A and B
+  source_id: greenhouse
+  params: {tiers: [A, B]}
+  cron: "0 7 * * *"
+  timezone: Asia/Bangkok
+- name: Lever tiers A and B
+  source_id: lever
+  params: {tiers: [A, B]}
+  cron: "0 7 * * *"
+  timezone: Asia/Bangkok
+- name: Ashby tiers A and B
+  source_id: ashby
+  params: {tiers: [A, B]}
+  cron: "0 7 * * *"
+  timezone: Asia/Bangkok

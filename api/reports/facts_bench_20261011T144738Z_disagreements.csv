@@ -1,0 +1,5 @@
+field,job_id,source,truth,default,gliner,chain
+job_type,8353,ashby,fulltime,,fulltime,fulltime
+workplace,8353,ashby,hybrid,,hybrid,hybrid
+locations,8353,ashby,"[{""city"": null, ""region"": null, ""country"": ""FR""}, {""city"": ""Paris"", ""region"": ""Paris"", ""country"": ""FR""}]",,"[{""city"": null, ""region"": null, ""country"": ""FR""}, {""city"": ""London"", ""region"": null, ""country"": ""GB""}]","[{""city"": null, ""region"": null, ""country"": ""FR""}, {""city"": ""London"", ""region"": null, ""country"": ""GB""}]"
+job_type,2080,greenhouse,fulltime,,fulltime,fulltime

@@ -1,0 +1,12 @@
+# Tick lifecycle. Paths are relative to the repo root. The runner does not use a shell.
+tick:
+  before_start:
+    - name: vpn-off
+      run: scripts/vpn.sh off
+      timeout: 30s
+      on_fail: skip_tick
+  after:
+    - name: vpn-restore
+      run: scripts/vpn.sh restore
+      timeout: 30s
+      always: true

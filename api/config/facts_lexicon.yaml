@@ -1,0 +1,45 @@
+# Phrases the default parser treats as explicit. Matched on cue lines, not the whole description.
+job_type:
+  fulltime: ["full-time", "full time", "permanent"]
+  parttime: ["part-time", "part time"]
+  contract: ["contract", "contractor"]
+  internship: ["internship", "intern"]
+  temporary: ["temporary"]
+workplace:
+  hybrid: ["hybrid"]
+  remote: ["remote", "work from home", "wfh"]
+  onsite: ["on-site", "onsite", "in-office", "in office", "office-based"]
+salary_cues:
+  - salary
+  - compensation
+  - pay range
+  - base pay
+  - base salary
+  - per year
+  - per hour
+  - per month
+  - annually
+  - "/year"
+  - "/hour"
+  - ote
+salary_reject:
+  - funding
+  - revenue
+  - arr
+  - valuation
+  - customers
+location_cues:
+  - available locations
+  - office location
+  - locations
+  - location
+type_cues:
+  - employment type
+  - job type
+  - time type
+  - type of employment
+workplace_cues:
+  - workplace
+  - work arrangement
+  - location
+  - office

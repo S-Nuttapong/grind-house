@@ -1,0 +1,13 @@
+# Board payload only. GLiNER is out. A page-label reader can be added later.
+chains:
+  pay:
+  - api
+  job_type:
+  - api
+  workplace:
+  - api
+  locations:
+  - api
+  posted:
+  - api
+flagged: []

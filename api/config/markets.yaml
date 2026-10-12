@@ -1,0 +1,109 @@
+# Per-country parameters for each board. A board with no entry for a country is skipped.
+# LinkedIn geo_id values are LinkedIn's public location ids. TH and SG were checked live.
+TH:
+  location: Thailand
+  linkedin: {geo_id: "105146118"}
+  indeed: {country_indeed: Thailand}
+  seek: {host: th.jobsdb.com, site_key: TH-Main}
+  jooble: {host: th.jooble.org}
+SG:
+  location: Singapore
+  linkedin: {geo_id: "102454443"}
+  indeed: {country_indeed: Singapore}
+  glassdoor: {country_indeed: Singapore}
+  seek: {host: sg.jobstreet.com, site_key: SG-Main}
+  adzuna: {country: sg}
+  jooble: {host: sg.jooble.org}
+  mycareersfuture: {}
+TW:
+  location: Taiwan
+  linkedin: {geo_id: "104187078"}
+  indeed: {country_indeed: Taiwan}
+  jooble: {host: tw.jooble.org}
+JP:
+  location: Japan
+  linkedin: {geo_id: "101355337"}
+  indeed: {country_indeed: Japan}
+  jooble: {host: jp.jooble.org}
+AU:
+  location: Australia
+  linkedin: {geo_id: "101452733"}
+  indeed: {country_indeed: Australia}
+  glassdoor: {country_indeed: Australia}
+  seek: {host: www.seek.com.au, site_key: AU-Main}
+  adzuna: {country: au}
+  jooble: {host: au.jooble.org}
+NZ:
+  location: New Zealand
+  linkedin: {geo_id: "105490917"}
+  indeed: {country_indeed: "New Zealand"}
+  glassdoor: {country_indeed: "New Zealand"}
+  seek: {host: nz.seek.com, site_key: NZ-Main}
+  adzuna: {country: nz}
+  jooble: {host: nz.jooble.org}
+HK:
+  location: Hong Kong
+  linkedin: {geo_id: "103291313"}
+  indeed: {country_indeed: "Hong Kong"}
+  glassdoor: {country_indeed: "Hong Kong"}
+  seek: {host: hk.jobsdb.com, site_key: HK-Main}
+  jooble: {host: hk.jooble.org}
+MY:
+  location: Malaysia
+  linkedin: {geo_id: "106808692"}
+  indeed: {country_indeed: Malaysia}
+  glassdoor: {country_indeed: Malaysia}
+  seek: {host: my.jobstreet.com, site_key: MY-Main}
+  jooble: {host: my.jooble.org}
+VN:
+  location: Vietnam
+  linkedin: {geo_id: "104195383"}
+  indeed: {country_indeed: Vietnam}
+  glassdoor: {country_indeed: Vietnam}
+ID:
+  location: Indonesia
+  linkedin: {geo_id: "102478259"}
+  indeed: {country_indeed: Indonesia}
+  seek: {host: id.jobstreet.com, site_key: ID-Main}
+  jooble: {host: id.jooble.org}
+PH:
+  location: Philippines
+  linkedin: {geo_id: "103121230"}
+  indeed: {country_indeed: Philippines}
+  seek: {host: ph.jobstreet.com, site_key: PH-Main}
+IN:
+  location: India
+  linkedin: {geo_id: "102713980"}
+  indeed: {country_indeed: India}
+  adzuna: {country: "in"}
+  jooble: {host: in.jooble.org}
+  naukri: {location: Bengaluru}
+GB:
+  location: "United Kingdom"
+  linkedin: {geo_id: "101165590"}
+  indeed: {country_indeed: UK, location: London}
+  glassdoor: {country_indeed: UK, location: London}
+  adzuna: {country: gb}
+  jooble: {host: uk.jooble.org}
+  reed: {location: "London, United Kingdom"}
+DE:
+  location: Germany
+  linkedin: {geo_id: "101282230"}
+  indeed: {country_indeed: Germany, location: Berlin}
+  glassdoor: {country_indeed: Germany, location: Berlin}
+  adzuna: {country: de}
+  jooble: {host: de.jooble.org}
+NL:
+  location: Netherlands
+  linkedin: {geo_id: "102890719"}
+  indeed: {country_indeed: Netherlands, location: Amsterdam}
+  glassdoor: {country_indeed: Netherlands, location: Amsterdam}
+  adzuna: {country: nl}
+  jooble: {host: nl.jooble.org}
+FR:
+  location: France
+  linkedin: {geo_id: "105015875"}
+  indeed: {country_indeed: France, location: Paris}
+  glassdoor: {country_indeed: France, location: Paris}
+  adzuna: {country: fr}
+  jooble: {host: fr.jooble.org}

@@ -1,0 +1,201 @@
+field,job_id,source,truth,default,gliner,chain
+job_type,8353,ashby,fulltime,,fulltime,fulltime
+workplace,8353,ashby,hybrid,,hybrid,hybrid
+locations,8353,ashby,"[{""city"": null, ""region"": null, ""country"": ""FR""}, {""city"": ""Paris"", ""region"": ""Paris"", ""country"": ""FR""}]",,"[{""city"": null, ""region"": null, ""country"": ""FR""}, {""city"": ""London"", ""region"": null, ""country"": ""GB""}]","[{""city"": null, ""region"": null, ""country"": ""FR""}, {""city"": ""London"", ""region"": null, ""country"": ""GB""}]"
+job_type,2080,greenhouse,fulltime,,fulltime,fulltime
+locations,2080,greenhouse,"[{""city"": null, ""region"": ""York"", ""country"": ""GB""}, {""city"": null, ""region"": ""New York"", ""country"": ""US""}, {""city"": null, ""region"": null, ""country"": ""US""}, {""city"": ""Austin"", ""region"": null, ""country"": ""US""}, {""city"": ""Boston"", ""region"": null, ""country"": ""US""}, {""city"": ""Chicago"", ""region"": null, ""country"": ""US""}, {""city"": ""Palo Alto"", ""region"": null, ""country"": ""US""}, {""city"": ""San Francisco"", ""region"": null, ""country"": ""US""}]","[{""city"": null, ""region"": ""Indiana"", ""country"": ""US""}, {""city"": null, ""region"": ""Tocantins"", ""country"": ""BR""}]",,"[{""city"": null, ""region"": ""Indiana"", ""country"": ""US""}, {""city"": null, ""region"": ""Tocantins"", ""country"": ""BR""}]"
+locations,6656,seek,"[{""city"": null, ""region"": null, ""country"": ""PH""}]",,"[{""city"": null, ""region"": null, ""country"": ""PH""}]","[{""city"": null, ""region"": null, ""country"": ""PH""}]"
+job_type,2080,greenhouse,fulltime,,fulltime,fulltime
+locations,2080,greenhouse,"[{""city"": null, ""region"": ""York"", ""country"": ""GB""}, {""city"": null, ""region"": ""New York"", ""country"": ""US""}, {""city"": null, ""region"": null, ""country"": ""US""}]","[{""city"": null, ""region"": ""Indiana"", ""country"": ""US""}, {""city"": null, ""region"": ""Tocantins"", ""country"": ""BR""}]",,"[{""city"": null, ""region"": ""Indiana"", ""country"": ""US""}, {""city"": null, ""region"": ""Tocantins"", ""country"": ""BR""}]"
+locations,5727,indeed,"[{""city"": ""Chiang Mai"", ""region"": null, ""country"": ""TH""}, {""city"": null, ""region"": ""Th\u00fcringen"", ""country"": ""DE""}]",,"[{""city"": ""Asia"", ""region"": null, ""country"": ""PH""}, {""city"": null, ""region"": null, ""country"": ""TH""}]","[{""city"": ""Asia"", ""region"": null, ""country"": ""PH""}, {""city"": null, ""region"": null, ""country"": ""TH""}]"
+workplace,8337,lever,hybrid,,onsite,onsite
+locations,8337,lever,"[{""city"": null, ""region"": ""Gomel'skaja oblast'"", ""country"": ""BY""}]",,"[{""city"": null, ""region"": ""Gomel'skaja oblast'"", ""country"": ""BY""}, {""city"": null, ""region"": null, ""country"": ""GB""}, {""city"": ""Amancio"", ""region"": null, ""country"": ""CU""}]","[{""city"": null, ""region"": ""Gomel'skaja oblast'"", ""country"": ""BY""}, {""city"": null, ""region"": null, ""country"": ""GB""}, {""city"": ""Amancio"", ""region"": null, ""country"": ""CU""}]"
+workplace,8337,lever,hybrid,,onsite,onsite
+workplace,8337,lever,hybrid,,onsite,onsite
+locations,6437,indeed,"[{""city"": null, ""region"": ""Th\u00fcringen"", ""country"": ""DE""}]",,"[{""city"": ""Bangkok"", ""region"": null, ""country"": ""TH""}]","[{""city"": ""Bangkok"", ""region"": null, ""country"": ""TH""}]"
+locations,6437,indeed,"[{""city"": null, ""region"": ""Th\u00fcringen"", ""country"": ""DE""}]",,"[{""city"": ""Bangkok"", ""region"": null, ""country"": ""TH""}]","[{""city"": ""Bangkok"", ""region"": null, ""country"": ""TH""}]"
+locations,6437,indeed,"[{""city"": null, ""region"": ""Th\u00fcringen"", ""country"": ""DE""}]",,"[{""city"": ""Bangkok"", ""region"": null, ""country"": ""TH""}]","[{""city"": ""Bangkok"", ""region"": null, ""country"": ""TH""}]"
+locations,6655,seek,"[{""city"": null, ""region"": null, ""country"": ""PH""}]",,,
+locations,6655,seek,"[{""city"": null, ""region"": null, ""country"": ""PH""}]",,,
+locations,6655,seek,"[{""city"": null, ""region"": null, ""country"": ""PH""}]",,,
+job_type,8359,ashby,fulltime,,fulltime,fulltime
+locations,8359,ashby,"[{""city"": ""London"", ""region"": null, ""country"": ""GB""}, {""city"": null, ""region"": null, ""country"": ""GB""}]",,,
+locations,8359,ashby,"[{""city"": ""London"", ""region"": null, ""country"": ""GB""}, {""city"": null, ""region"": null, ""country"": ""GB""}]",,,
+locations,8359,ashby,"[{""city"": ""London"", ""region"": null, ""country"": ""GB""}, {""city"": null, ""region"": null, ""country"": ""GB""}]",,,
+job_type,2082,greenhouse,fulltime,,fulltime,fulltime
+locations,2082,greenhouse,"[{""city"": null, ""region"": null, ""country"": ""IE""}]",,"[{""city"": ""Dublin"", ""region"": ""Dublin"", ""country"": ""IE""}, {""city"": null, ""region"": null, ""country"": ""IE""}]","[{""city"": ""Dublin"", ""region"": ""Dublin"", ""country"": ""IE""}, {""city"": null, ""region"": null, ""country"": ""IE""}]"
+workplace,8339,lever,remote,,onsite,onsite
+locations,8339,lever,"[{""city"": null, ""region"": null, ""country"": ""GB""}]",,,
+workplace,8339,lever,remote,,onsite,onsite
+locations,8339,lever,"[{""city"": null, ""region"": null, ""country"": ""GB""}]",,,
+workplace,8339,lever,remote,,onsite,onsite
+locations,8339,lever,"[{""city"": null, ""region"": null, ""country"": ""GB""}]",,,
+locations,6654,seek,"[{""city"": null, ""region"": null, ""country"": ""PH""}]",,,
+locations,6654,seek,"[{""city"": null, ""region"": null, ""country"": ""PH""}]",,,
+locations,6654,seek,"[{""city"": null, ""region"": null, ""country"": ""PH""}]",,,
+job_type,8361,ashby,fulltime,,fulltime,fulltime
+locations,8361,ashby,"[{""city"": ""London"", ""region"": null, ""country"": ""GB""}, {""city"": null, ""region"": null, ""country"": ""GB""}]",,,
+pay,8361,ashby,"{""minimum"": ""75000"", ""maximum"": ""200000"", ""currency"": ""GBP"", ""interval"": ""yearly""}","{""minimum"": ""75000"", ""maximum"": ""200000"", ""currency"": ""GBP"", ""interval"": ""yearly""}",,"{""minimum"": ""75000"", ""maximum"": ""200000"", ""currency"": ""GBP"", ""interval"": ""yearly""}"
+locations,8361,ashby,"[{""city"": ""London"", ""region"": null, ""country"": ""GB""}, {""city"": null, ""region"": null, ""country"": ""GB""}]",,,
+locations,8361,ashby,"[{""city"": ""London"", ""region"": null, ""country"": ""GB""}, {""city"": null, ""region"": null, ""country"": ""GB""}]",,,
+job_type,8363,ashby,fulltime,,fulltime,fulltime
+locations,8363,ashby,"[{""city"": ""London"", ""region"": null, ""country"": ""GB""}, {""city"": null, ""region"": null, ""country"": ""GB""}]",,,
+locations,8363,ashby,"[{""city"": ""London"", ""region"": null, ""country"": ""GB""}, {""city"": null, ""region"": null, ""country"": ""GB""}]",,,
+locations,8363,ashby,"[{""city"": ""London"", ""region"": null, ""country"": ""GB""}, {""city"": null, ""region"": null, ""country"": ""GB""}]",,,
+job_type,8365,ashby,fulltime,,fulltime,fulltime
+locations,8365,ashby,"[{""city"": ""London"", ""region"": null, ""country"": ""GB""}, {""city"": null, ""region"": null, ""country"": ""GB""}]",,,
+locations,8365,ashby,"[{""city"": ""London"", ""region"": null, ""country"": ""GB""}, {""city"": null, ""region"": null, ""country"": ""GB""}]",,,
+locations,8365,ashby,"[{""city"": ""London"", ""region"": null, ""country"": ""GB""}, {""city"": null, ""region"": null, ""country"": ""GB""}]",,,
+job_type,8342,lever,contract,,contract,contract
+workplace,8342,lever,hybrid,,hybrid,hybrid
+locations,8342,lever,"[{""city"": null, ""region"": null, ""country"": ""GB""}]",,,
+locations,8342,lever,"[{""city"": null, ""region"": null, ""country"": ""GB""}]",,,
+locations,8342,lever,"[{""city"": null, ""region"": null, ""country"": ""GB""}]",,,
+job_type,2087,greenhouse,fulltime,,fulltime,fulltime
+locations,2087,greenhouse,"[{""city"": ""Singapore"", ""region"": null, ""country"": ""SG""}, {""city"": null, ""region"": ""Central Singapore"", ""country"": ""SG""}]",,,
+locations,2087,greenhouse,"[{""city"": ""Singapore"", ""region"": null, ""country"": ""SG""}, {""city"": null, ""region"": ""Central Singapore"", ""country"": ""SG""}]",,,
+locations,2087,greenhouse,"[{""city"": ""Singapore"", ""region"": null, ""country"": ""SG""}, {""city"": null, ""region"": ""Central Singapore"", ""country"": ""SG""}]",,,
+job_type,6788,indeed,fulltime,,fulltime,fulltime
+locations,6788,indeed,"[{""city"": ""Clementi Housing Estate"", ""region"": null, ""country"": ""SG""}, {""city"": null, ""region"": ""Sankt Gallen"", ""country"": ""CH""}]",,,
+locations,6788,indeed,"[{""city"": ""Clementi Housing Estate"", ""region"": null, ""country"": ""SG""}, {""city"": null, ""region"": ""Sankt Gallen"", ""country"": ""CH""}]",,,
+locations,6788,indeed,"[{""city"": ""Clementi Housing Estate"", ""region"": null, ""country"": ""SG""}, {""city"": null, ""region"": ""Sankt Gallen"", ""country"": ""CH""}]",,,
+job_type,8343,lever,contract,,contract,contract
+workplace,8343,lever,hybrid,,hybrid,hybrid
+locations,8343,lever,"[{""city"": null, ""region"": null, ""country"": ""GB""}]",,,
+locations,8343,lever,"[{""city"": null, ""region"": null, ""country"": ""GB""}]",,,
+locations,8343,lever,"[{""city"": null, ""region"": null, ""country"": ""GB""}]",,,
+locations,6652,seek,"[{""city"": null, ""region"": null, ""country"": ""PH""}]",,,
+locations,6652,seek,"[{""city"": null, ""region"": null, ""country"": ""PH""}]",,,
+locations,6652,seek,"[{""city"": null, ""region"": null, ""country"": ""PH""}]",,,
+locations,3811,greenhouse,"[{""city"": ""Bengaluru"", ""region"": null, ""country"": ""IN""}, {""city"": null, ""region"": null, ""country"": ""IN""}]",,"[{""city"": ""San Francisco"", ""region"": null, ""country"": ""US""}]","[{""city"": ""San Francisco"", ""region"": null, ""country"": ""US""}]"
+locations,3811,greenhouse,"[{""city"": ""Bengaluru"", ""region"": null, ""country"": ""IN""}, {""city"": null, ""region"": null, ""country"": ""IN""}]",,"[{""city"": ""San Francisco"", ""region"": null, ""country"": ""US""}]","[{""city"": ""San Francisco"", ""region"": null, ""country"": ""US""}]"
+locations,3811,greenhouse,"[{""city"": ""Bengaluru"", ""region"": null, ""country"": ""IN""}, {""city"": null, ""region"": null, ""country"": ""IN""}]",,"[{""city"": ""San Francisco"", ""region"": null, ""country"": ""US""}]","[{""city"": ""San Francisco"", ""region"": null, ""country"": ""US""}]"
+locations,6797,indeed,"[{""city"": null, ""region"": ""Sankt Gallen"", ""country"": ""CH""}]",,,
+workplace,8345,lever,hybrid,,,
+workplace,8345,lever,hybrid,,,
+workplace,8345,lever,hybrid,,,
+job_type,8374,ashby,fulltime,,fulltime,fulltime
+pay,8374,ashby,"{""minimum"": ""75000"", ""maximum"": ""200000"", ""currency"": ""GBP"", ""interval"": ""yearly""}","{""minimum"": ""75000"", ""maximum"": ""200000"", ""currency"": ""GBP"", ""interval"": ""yearly""}",,"{""minimum"": ""75000"", ""maximum"": ""200000"", ""currency"": ""GBP"", ""interval"": ""yearly""}"
+job_type,6119,indeed,fulltime,,fulltime,fulltime
+workplace,8347,lever,hybrid,,onsite,onsite
+workplace,8347,lever,hybrid,,onsite,onsite
+workplace,8347,lever,hybrid,,onsite,onsite
+job_type,8611,ashby,fulltime,,fulltime,fulltime
+workplace,8348,lever,hybrid,,onsite,onsite
+workplace,8348,lever,hybrid,,onsite,onsite
+workplace,8348,lever,hybrid,,onsite,onsite
+pay,8349,lever,"{""minimum"": ""1529960"", ""maximum"": ""1799950"", ""currency"": ""CZK"", ""interval"": ""yearly""}",,,
+workplace,8349,lever,onsite,,onsite,onsite
+pay,8349,lever,"{""minimum"": ""1529960"", ""maximum"": ""1799950"", ""currency"": ""CZK"", ""interval"": ""yearly""}",,,
+pay,8349,lever,"{""minimum"": ""1529960"", ""maximum"": ""1799950"", ""currency"": ""CZK"", ""interval"": ""yearly""}",,,
+job_type,8613,ashby,fulltime,,fulltime,fulltime
+workplace,8613,ashby,remote,hybrid,hybrid,hybrid
+workplace,8613,ashby,remote,hybrid,hybrid,hybrid
+workplace,8613,ashby,remote,hybrid,hybrid,hybrid
+job_type,6220,ashby,fulltime,,fulltime,fulltime
+job_type,8614,ashby,fulltime,,fulltime,fulltime
+job_type,5683,indeed,fulltime,,,
+job_type,5683,indeed,fulltime,,,
+job_type,5683,indeed,fulltime,,,
+workplace,8354,lever,remote,,,
+workplace,8354,lever,remote,,,
+workplace,8354,lever,remote,,,
+job_type,5679,indeed,contract,,,
+job_type,5679,indeed,contract,,,
+job_type,5679,indeed,contract,,,
+pay,8356,lever,"{""minimum"": ""489465"", ""maximum"": ""598235"", ""currency"": ""CZK"", ""interval"": ""yearly""}",,,
+workplace,8356,lever,hybrid,,onsite,onsite
+pay,8356,lever,"{""minimum"": ""489465"", ""maximum"": ""598235"", ""currency"": ""CZK"", ""interval"": ""yearly""}",,,
+workplace,8356,lever,hybrid,,onsite,onsite
+pay,8356,lever,"{""minimum"": ""489465"", ""maximum"": ""598235"", ""currency"": ""CZK"", ""interval"": ""yearly""}",,,
+workplace,8356,lever,hybrid,,onsite,onsite
+workplace,8362,lever,hybrid,,onsite,onsite
+workplace,8362,lever,hybrid,,onsite,onsite
+workplace,8362,lever,hybrid,,onsite,onsite
+workplace,8364,lever,hybrid,,remote,remote
+workplace,8364,lever,hybrid,,remote,remote
+workplace,8364,lever,hybrid,,remote,remote
+workplace,8366,lever,hybrid,,onsite,onsite
+workplace,8366,lever,hybrid,,onsite,onsite
+workplace,8366,lever,hybrid,,onsite,onsite
+pay,8619,ashby,"{""minimum"": ""1500"", ""maximum"": ""2000"", ""currency"": ""USD"", ""interval"": ""monthly""}",,,
+job_type,8619,ashby,fulltime,,contract,contract
+workplace,8619,ashby,hybrid,,remote,remote
+pay,8619,ashby,"{""minimum"": ""1500"", ""maximum"": ""2000"", ""currency"": ""USD"", ""interval"": ""monthly""}",,,
+job_type,8619,ashby,fulltime,,contract,contract
+workplace,8619,ashby,hybrid,,remote,remote
+pay,8619,ashby,"{""minimum"": ""1500"", ""maximum"": ""2000"", ""currency"": ""USD"", ""interval"": ""monthly""}",,,
+job_type,8619,ashby,fulltime,,contract,contract
+workplace,8619,ashby,hybrid,,remote,remote
+pay,6487,ashby,"{""minimum"": ""4000"", ""maximum"": ""5000"", ""currency"": ""USD"", ""interval"": ""monthly""}",,,
+job_type,6487,ashby,fulltime,,fulltime,fulltime
+workplace,6487,ashby,hybrid,remote,remote,remote
+pay,6487,ashby,"{""minimum"": ""4000"", ""maximum"": ""5000"", ""currency"": ""USD"", ""interval"": ""monthly""}",,,
+workplace,6487,ashby,hybrid,remote,remote,remote
+pay,6487,ashby,"{""minimum"": ""4000"", ""maximum"": ""5000"", ""currency"": ""USD"", ""interval"": ""monthly""}",,,
+workplace,6487,ashby,hybrid,remote,remote,remote
+job_type,5699,indeed,fulltime,,,
+job_type,5699,indeed,fulltime,,,
+job_type,5699,indeed,fulltime,,,
+workplace,8373,lever,remote,,onsite,onsite
+workplace,8373,lever,remote,,onsite,onsite
+workplace,8373,lever,remote,,onsite,onsite
+job_type,8406,ashby,fulltime,,fulltime,fulltime
+workplace,8406,ashby,remote,,onsite,onsite
+workplace,8406,ashby,remote,,onsite,onsite
+workplace,8406,ashby,remote,,onsite,onsite
+workplace,8375,lever,remote,,onsite,onsite
+job_type,8407,ashby,fulltime,,fulltime,fulltime
+job_type,2088,greenhouse,fulltime,,fulltime,fulltime
+job_type,2088,greenhouse,fulltime,,fulltime,fulltime
+job_type,2088,greenhouse,fulltime,,fulltime,fulltime
+job_type,5701,indeed,fulltime,contract,,contract
+job_type,5701,indeed,fulltime,contract,,contract
+job_type,5701,indeed,fulltime,contract,,contract
+job_type,2087,greenhouse,fulltime,,fulltime,fulltime
+job_type,6412,indeed,fulltime,contract,,contract
+job_type,6412,indeed,fulltime,contract,,contract
+job_type,6412,indeed,fulltime,contract,,contract
+job_type,8411,ashby,fulltime,,fulltime,fulltime
+job_type,2088,greenhouse,fulltime,,fulltime,fulltime
+job_type,2088,greenhouse,fulltime,,fulltime,fulltime
+job_type,2088,greenhouse,fulltime,,fulltime,fulltime
+job_type,2088,greenhouse,fulltime,,fulltime,fulltime
+job_type,2088,greenhouse,fulltime,,fulltime,fulltime
+job_type,2088,greenhouse,fulltime,,fulltime,fulltime
+pay,8399,lever,"{""minimum"": ""489465"", ""maximum"": ""598235"", ""currency"": ""CZK"", ""interval"": ""yearly""}",,,
+pay,8399,lever,"{""minimum"": ""489465"", ""maximum"": ""598235"", ""currency"": ""CZK"", ""interval"": ""yearly""}",,,
+pay,8399,lever,"{""minimum"": ""489465"", ""maximum"": ""598235"", ""currency"": ""CZK"", ""interval"": ""yearly""}",,,
+pay,7219,ashby,"{""minimum"": ""140000"", ""maximum"": ""200000"", ""currency"": ""USD"", ""interval"": ""yearly""}",,,
+pay,7219,ashby,"{""minimum"": ""140000"", ""maximum"": ""200000"", ""currency"": ""USD"", ""interval"": ""yearly""}",,,
+pay,7219,ashby,"{""minimum"": ""140000"", ""maximum"": ""200000"", ""currency"": ""USD"", ""interval"": ""yearly""}",,,
+pay,7230,ashby,"{""minimum"": ""140000"", ""maximum"": ""200000"", ""currency"": ""USD"", ""interval"": ""yearly""}",,,
+pay,7230,ashby,"{""minimum"": ""140000"", ""maximum"": ""200000"", ""currency"": ""USD"", ""interval"": ""yearly""}",,,
+pay,7230,ashby,"{""minimum"": ""140000"", ""maximum"": ""200000"", ""currency"": ""USD"", ""interval"": ""yearly""}",,,
+pay,7243,ashby,"{""minimum"": ""200000"", ""maximum"": ""260000"", ""currency"": ""USD"", ""interval"": ""yearly""}",,,
+pay,7243,ashby,"{""minimum"": ""200000"", ""maximum"": ""260000"", ""currency"": ""USD"", ""interval"": ""yearly""}",,,
+pay,7243,ashby,"{""minimum"": ""200000"", ""maximum"": ""260000"", ""currency"": ""USD"", ""interval"": ""yearly""}",,,
+pay,7253,ashby,"{""minimum"": ""70000"", ""maximum"": ""140000"", ""currency"": ""USD"", ""interval"": ""yearly""}",,,
+pay,7253,ashby,"{""minimum"": ""70000"", ""maximum"": ""140000"", ""currency"": ""USD"", ""interval"": ""yearly""}",,,
+pay,7253,ashby,"{""minimum"": ""70000"", ""maximum"": ""140000"", ""currency"": ""USD"", ""interval"": ""yearly""}",,,
+pay,7280,ashby,"{""minimum"": ""161000"", ""maximum"": ""207000"", ""currency"": ""USD"", ""interval"": ""yearly""}",,,
+pay,7280,ashby,"{""minimum"": ""161000"", ""maximum"": ""207000"", ""currency"": ""USD"", ""interval"": ""yearly""}",,,
+pay,7280,ashby,"{""minimum"": ""161000"", ""maximum"": ""207000"", ""currency"": ""USD"", ""interval"": ""yearly""}",,,
+pay,7281,ashby,"{""minimum"": ""86000"", ""maximum"": ""100000"", ""currency"": ""GBP"", ""interval"": ""yearly""}",,,
+pay,7281,ashby,"{""minimum"": ""86000"", ""maximum"": ""100000"", ""currency"": ""GBP"", ""interval"": ""yearly""}",,,
+pay,7281,ashby,"{""minimum"": ""86000"", ""maximum"": ""100000"", ""currency"": ""GBP"", ""interval"": ""yearly""}",,,
+pay,7365,ashby,"{""minimum"": ""186000"", ""maximum"": ""236000"", ""currency"": ""CAD"", ""interval"": ""yearly""}",,,
+pay,7365,ashby,"{""minimum"": ""186000"", ""maximum"": ""236000"", ""currency"": ""CAD"", ""interval"": ""yearly""}",,,
+pay,7365,ashby,"{""minimum"": ""186000"", ""maximum"": ""236000"", ""currency"": ""CAD"", ""interval"": ""yearly""}",,,
+pay,7365,ashby,"{""minimum"": ""186000"", ""maximum"": ""236000"", ""currency"": ""CAD"", ""interval"": ""yearly""}",,,
+pay,7365,ashby,"{""minimum"": ""186000"", ""maximum"": ""236000"", ""currency"": ""CAD"", ""interval"": ""yearly""}",,,
+pay,7365,ashby,"{""minimum"": ""186000"", ""maximum"": ""236000"", ""currency"": ""CAD"", ""interval"": ""yearly""}",,,
+pay,7424,ashby,"{""minimum"": ""206000"", ""maximum"": ""260000"", ""currency"": ""USD"", ""interval"": ""yearly""}",,,
+pay,7424,ashby,"{""minimum"": ""206000"", ""maximum"": ""260000"", ""currency"": ""USD"", ""interval"": ""yearly""}",,,
+pay,7424,ashby,"{""minimum"": ""206000"", ""maximum"": ""260000"", ""currency"": ""USD"", ""interval"": ""yearly""}",,,
+pay,7531,ashby,"{""minimum"": ""240000"", ""maximum"": ""240000"", ""currency"": ""USD"", ""interval"": ""yearly""}",,,
+pay,7531,ashby,"{""minimum"": ""240000"", ""maximum"": ""240000"", ""currency"": ""USD"", ""interval"": ""yearly""}",,,
+pay,7531,ashby,"{""minimum"": ""240000"", ""maximum"": ""240000"", ""currency"": ""USD"", ""interval"": ""yearly""}",,,
+pay,7545,ashby,"{""minimum"": ""70000"", ""maximum"": ""70000"", ""currency"": ""USD"", ""interval"": ""yearly""}","{""minimum"": ""25"", ""maximum"": null, ""currency"": ""USD"", ""interval"": ""hourly""}",,"{""minimum"": ""25"", ""maximum"": null, ""currency"": ""USD"", ""interval"": ""hourly""}"
+pay,7545,ashby,"{""minimum"": ""70000"", ""maximum"": ""70000"", ""currency"": ""USD"", ""interval"": ""yearly""}","{""minimum"": ""25"", ""maximum"": null, ""currency"": ""USD"", ""interval"": ""hourly""}",,"{""minimum"": ""25"", ""maximum"": null, ""currency"": ""USD"", ""interval"": ""hourly""}"
+pay,7545,ashby,"{""minimum"": ""70000"", ""maximum"": ""70000"", ""currency"": ""USD"", ""interval"": ""yearly""}","{""minimum"": ""25"", ""maximum"": null, ""currency"": ""USD"", ""interval"": ""hourly""}",,"{""minimum"": ""25"", ""maximum"": null, ""currency"": ""USD"", ""interval"": ""hourly""}"

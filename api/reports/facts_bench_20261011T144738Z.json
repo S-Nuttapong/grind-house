@@ -1,0 +1,911 @@
+{
+  "jobs": 4,
+  "gliner_load_seconds": 7.499998901039362e-06,
+  "peak_rss_kb": 2180428,
+  "thresholds": {
+    "pay": 0.3,
+    "job_type": 0.3,
+    "workplace": 0.3,
+    "locations": 0.8
+  },
+  "timing": {
+    "default": {
+      "p50_seconds": 0.007593791000545025,
+      "p95_seconds": 1.9265595839824528,
+      "jobs_per_minute": 123.74827594217072,
+      "total_seconds": 1.939420958980918
+    },
+    "gliner": {
+      "p50_seconds": 6.049371918954421,
+      "p95_seconds": 31.638811514014378,
+      "jobs_per_minute": 5.272155014809724,
+      "total_seconds": 45.52218197792536
+    },
+    "default+gliner": {
+      "p50_seconds": 7.975931502936874,
+      "p95_seconds": 31.646405305014923,
+      "jobs_per_minute": 5.056719224570802,
+      "total_seconds": 47.461602936906274
+    }
+  },
+  "scores": {
+    "test": {
+      "default": {
+        "pay": {
+          "ashby": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "greenhouse": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "job_type": {
+          "ashby": {
+            "labeled": 1,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": 0.0,
+            "coverage": 0.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "greenhouse": {
+            "labeled": 1,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": 0.0,
+            "coverage": 0.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 2,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": 0.0,
+            "coverage": 0.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "workplace": {
+          "ashby": {
+            "labeled": 1,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": 0.0,
+            "coverage": 0.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "greenhouse": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 1,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": 0.0,
+            "coverage": 0.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "locations": {
+          "ashby": {
+            "labeled": 1,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": 0.0,
+            "coverage": 0.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "greenhouse": {
+            "labeled": 1,
+            "returned": 1,
+            "correct": 1,
+            "precision": 1.0,
+            "recall": 1.0,
+            "coverage": 1.0,
+            "city_labeled": 1,
+            "city_correct": 0,
+            "city_recall": 0.0
+          },
+          "*": {
+            "labeled": 2,
+            "returned": 1,
+            "correct": 1,
+            "precision": 1.0,
+            "recall": 0.5,
+            "coverage": 0.5,
+            "city_labeled": 1,
+            "city_correct": 0,
+            "city_recall": 0.0
+          }
+        }
+      },
+      "gliner": {
+        "pay": {
+          "ashby": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "greenhouse": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "job_type": {
+          "ashby": {
+            "labeled": 1,
+            "returned": 1,
+            "correct": 1,
+            "precision": 1.0,
+            "recall": 1.0,
+            "coverage": 1.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "greenhouse": {
+            "labeled": 1,
+            "returned": 1,
+            "correct": 1,
+            "precision": 1.0,
+            "recall": 1.0,
+            "coverage": 1.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 2,
+            "returned": 2,
+            "correct": 2,
+            "precision": 1.0,
+            "recall": 1.0,
+            "coverage": 1.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "workplace": {
+          "ashby": {
+            "labeled": 1,
+            "returned": 1,
+            "correct": 1,
+            "precision": 1.0,
+            "recall": 1.0,
+            "coverage": 1.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "greenhouse": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 1,
+            "returned": 1,
+            "correct": 1,
+            "precision": 1.0,
+            "recall": 1.0,
+            "coverage": 1.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "locations": {
+          "ashby": {
+            "labeled": 1,
+            "returned": 1,
+            "correct": 1,
+            "precision": 1.0,
+            "recall": 1.0,
+            "coverage": 1.0,
+            "city_labeled": 1,
+            "city_correct": 0,
+            "city_recall": 0.0
+          },
+          "greenhouse": {
+            "labeled": 1,
+            "returned": 1,
+            "correct": 1,
+            "precision": 1.0,
+            "recall": 1.0,
+            "coverage": 1.0,
+            "city_labeled": 1,
+            "city_correct": 0,
+            "city_recall": 0.0
+          },
+          "*": {
+            "labeled": 2,
+            "returned": 2,
+            "correct": 2,
+            "precision": 1.0,
+            "recall": 1.0,
+            "coverage": 1.0,
+            "city_labeled": 2,
+            "city_correct": 0,
+            "city_recall": 0.0
+          }
+        }
+      },
+      "default+gliner": {
+        "pay": {
+          "ashby": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "greenhouse": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "job_type": {
+          "ashby": {
+            "labeled": 1,
+            "returned": 1,
+            "correct": 1,
+            "precision": 1.0,
+            "recall": 1.0,
+            "coverage": 1.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "greenhouse": {
+            "labeled": 1,
+            "returned": 1,
+            "correct": 1,
+            "precision": 1.0,
+            "recall": 1.0,
+            "coverage": 1.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 2,
+            "returned": 2,
+            "correct": 2,
+            "precision": 1.0,
+            "recall": 1.0,
+            "coverage": 1.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "workplace": {
+          "ashby": {
+            "labeled": 1,
+            "returned": 1,
+            "correct": 1,
+            "precision": 1.0,
+            "recall": 1.0,
+            "coverage": 1.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "greenhouse": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 1,
+            "returned": 1,
+            "correct": 1,
+            "precision": 1.0,
+            "recall": 1.0,
+            "coverage": 1.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "locations": {
+          "ashby": {
+            "labeled": 1,
+            "returned": 1,
+            "correct": 1,
+            "precision": 1.0,
+            "recall": 1.0,
+            "coverage": 1.0,
+            "city_labeled": 1,
+            "city_correct": 0,
+            "city_recall": 0.0
+          },
+          "greenhouse": {
+            "labeled": 1,
+            "returned": 1,
+            "correct": 1,
+            "precision": 1.0,
+            "recall": 1.0,
+            "coverage": 1.0,
+            "city_labeled": 1,
+            "city_correct": 0,
+            "city_recall": 0.0
+          },
+          "*": {
+            "labeled": 2,
+            "returned": 2,
+            "correct": 2,
+            "precision": 1.0,
+            "recall": 1.0,
+            "coverage": 1.0,
+            "city_labeled": 2,
+            "city_correct": 0,
+            "city_recall": 0.0
+          }
+        }
+      }
+    },
+    "dev": {
+      "default": {
+        "pay": {
+          "indeed": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "lever": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "job_type": {
+          "indeed": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "lever": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "workplace": {
+          "indeed": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "lever": {
+            "labeled": 1,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": 0.0,
+            "coverage": 0.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 1,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": 0.0,
+            "coverage": 0.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "locations": {
+          "indeed": {
+            "labeled": 1,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": 0.0,
+            "coverage": 0.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "lever": {
+            "labeled": 1,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": 0.0,
+            "coverage": 0.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 2,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": 0.0,
+            "coverage": 0.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        }
+      },
+      "gliner": {
+        "pay": {
+          "indeed": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "lever": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "job_type": {
+          "indeed": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "lever": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "workplace": {
+          "indeed": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "lever": {
+            "labeled": 1,
+            "returned": 1,
+            "correct": 1,
+            "precision": 1.0,
+            "recall": 1.0,
+            "coverage": 1.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 1,
+            "returned": 1,
+            "correct": 1,
+            "precision": 1.0,
+            "recall": 1.0,
+            "coverage": 1.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "locations": {
+          "indeed": {
+            "labeled": 1,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": 0.0,
+            "coverage": 0.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "lever": {
+            "labeled": 1,
+            "returned": 1,
+            "correct": 1,
+            "precision": 1.0,
+            "recall": 1.0,
+            "coverage": 1.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 2,
+            "returned": 1,
+            "correct": 1,
+            "precision": 1.0,
+            "recall": 0.5,
+            "coverage": 0.5,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        }
+      },
+      "default+gliner": {
+        "pay": {
+          "indeed": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "lever": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "job_type": {
+          "indeed": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "lever": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "workplace": {
+          "indeed": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "lever": {
+            "labeled": 1,
+            "returned": 1,
+            "correct": 1,
+            "precision": 1.0,
+            "recall": 1.0,
+            "coverage": 1.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 1,
+            "returned": 1,
+            "correct": 1,
+            "precision": 1.0,
+            "recall": 1.0,
+            "coverage": 1.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "locations": {
+          "indeed": {
+            "labeled": 1,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": 0.0,
+            "coverage": 0.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "lever": {
+            "labeled": 1,
+            "returned": 1,
+            "correct": 1,
+            "precision": 1.0,
+            "recall": 1.0,
+            "coverage": 1.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 2,
+            "returned": 1,
+            "correct": 1,
+            "precision": 1.0,
+            "recall": 0.5,
+            "coverage": 0.5,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        }
+      }
+    }
+  },
+  "choices": {
+    "pay": {
+      "mode": "api",
+      "flagged": false,
+      "reason": "none reached 0.90"
+    },
+    "job_type": {
+      "mode": "gliner",
+      "flagged": false,
+      "reason": "precision>=0.97"
+    },
+    "workplace": {
+      "mode": "gliner",
+      "flagged": false,
+      "reason": "precision>=0.97"
+    },
+    "locations": {
+      "mode": "gliner",
+      "flagged": false,
+      "reason": "precision>=0.97"
+    }
+  }
+}

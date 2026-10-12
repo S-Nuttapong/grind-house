@@ -1,0 +1,130 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "jobhunt"
+version = "0.1.0"
+description = "Collect software-engineering jobs, rank them against a brag bank, and review them locally."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "cron-descriptor==1.4.5",
+    "croniter==6.0.0",
+    "fastapi==0.118.0",
+    "httpx==0.28.1",
+    "markdownify==0.13.1",
+    "mcp==1.16.0",
+    "psycopg[binary]==3.2.10",
+    "pypdf==6.1.1",
+    "python-multipart==0.0.20",
+    "psycopg-pool==3.2.6",
+    "pycountry==24.6.1",
+    "pydantic==2.11.9",
+    "pydantic-settings==2.11.0",
+    "python-dateutil==2.9.0.post0",
+    "python-jobspy==1.1.82",
+    "pyyaml==6.0.2",
+    "tenacity==9.1.2",
+    "typer==0.19.2",
+    "uvicorn==0.37.0",
+    "price-parser==0.5.1",
+    "geonamescache==3.0.2",
+    "markdown-it-py==4.0.0",
+    "babel==2.18.0",
+]
+
+[project.optional-dependencies]
+fit = [
+    # Qwen3-Embedding needs the Qwen3 architecture, added in transformers 4.51.
+    "sentence-transformers==5.1.2",
+    "transformers==4.57.6",
+    "torch>=2.2.2,<2.3",
+    "gliner2[local]==2.1.0",
+    "sentencepiece==0.2.1",
+    "protobuf==5.29.5",
+]
+resume = [
+    "claude-agent-sdk==0.1.69",
+    "reportlab==5.0.1",
+]
+
+[project.scripts]
+jobhunt = "jobhunt.cli:main"
+
+[dependency-groups]
+dev = [
+    "mypy==1.18.2",
+    "pytest==8.4.2",
+    "pytest-cov==7.0.0",
+    "respx==0.22.0",
+    "ruff==0.13.2",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["jobhunt"]
+
+[tool.uv]
+package = true
+environments = [
+    "sys_platform == 'darwin' and platform_machine == 'x86_64'",
+    "sys_platform == 'linux' and platform_machine == 'x86_64'",
+    "sys_platform == 'linux' and platform_machine == 'aarch64'",
+]
+
+[[tool.uv.index]]
+url = "https://artifactory.dev.earnin.net/artifactory/api/pypi/pypi-virtual/simple"
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", marker = "sys_platform == 'linux'" },
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["jobhunt", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["jobhunt"]
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = [
+    "yaml",
+    "markdownify",
+    "dateutil",
+    "dateutil.*",
+    "jobspy",
+    "jobspy.*",
+    "price_parser",
+    "babel",
+    "babel.*",
+    "geonamescache",
+    "markdown_it",
+    "markdown_it.*",
+    "gliner2",
+    "gliner2.*",
+    "croniter",
+    "cron_descriptor",
+    "sentence_transformers",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q -m 'not live and not slow'"
+markers = [
+    "live: hits the network; skipped unless -m live",
+    "slow: loads the local GLiNER model",
+    "integration: needs the Docker Postgres from docker-compose.test.yml",
+]

@@ -17,8 +17,8 @@ services:
       timeout: 5s
       retries: 30
 
-  web:
-    build: .
+  api:
+    build: ./api
     depends_on:
       postgres:
         condition: service_healthy
@@ -30,32 +30,58 @@ services:
 
   fit-worker:
     build:
-      context: .
+      context: ./api
       args:
         FIT_EXTRA: fit
     depends_on:
       postgres:
         condition: service_healthy
-      web:
+      api:
         condition: service_started
     environment:
       DATABASE_URL: postgresql://jobhunt:jobhunt@postgres:5432/jobhunt?sslmode=disable
+      VAULT_BANK_PATH: /tmp/jobhunt-bank
       HF_HOME: /models
-      FIT_MODEL: bge
+      FIT_MODEL: qwen3
     volumes:
       - ./.models:/models:ro
     command: ["jobhunt", "fit", "worker"]
     stop_grace_period: 60s
     restart: unless-stopped
 
+  resume-worker:
+    build:
+      context: ./api
+      args:
+        FIT_EXTRA: fit,resume
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://jobhunt:jobhunt@postgres:5432/jobhunt?sslmode=disable
+      HF_HOME: /models
+      FIT_MODEL: qwen3
+      FIT_ALLOW_OFFSITE: "1"
+      RESUME_AGENT: claude-sdk
+      RESUME_MODEL: claude-haiku-5-5
+      RESUME_GATE: warn
+      RESUME_MAX_COST_USD: "5"
+      RESUME_KIT_DIR: /kit
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      - ./.models:/models:ro
+      - ./api/resume-kit:/kit:ro
+    command: ["jobhunt", "resume", "worker"]
+    stop_grace_period: 30s
+
   ui:
     build:
-      context: ./web
+      context: ./app
       args:
-        JOBHUNT_API_URL: http://web:8765
+        JOBHUNT_API_URL: http://api:8765
     depends_on:
-      - web
+      - api
     environment:
-      JOBHUNT_API_URL: http://web:8765
+      JOBHUNT_API_URL: http://api:8765
     ports:
       - "127.0.0.1:3000:3000"

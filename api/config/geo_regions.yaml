@@ -1,0 +1,5 @@
+# Region slug to ISO 3166-1 alpha-2 countries. Timezone bands stay in regions.yaml.
+apac: [TW, JP, SG, TH, AU, NZ, HK, MY, VN, ID, IN]
+sea: [SG, TH, MY, VN, ID, PH]
+europe: [GB, DE, NL, FR, IE, ES]
+north_america: [US, CA]

@@ -1,7 +1,7 @@
 # Job Hunt OS — Implementation Plan
 
 Owner: San (Nuttapong Saelek) · Version 1.0 · 2026-10-07
-Companion files: `schema.sql` (database, tested on Postgres 16) · design doc "Job Hunt OS Design" (why each decision was made)
+Companion files: `api/db/schema.sql` (database, tested on Postgres 16) · design doc "Job Hunt OS Design" (why each decision was made)
 
 ---
 
@@ -77,7 +77,7 @@ Note: LLM extraction and the rubric run **only on the shortlist**, in one step p
 | Packaging | `uv` (pyproject + `uv.lock`) |
 | DB | Postgres 16 on Neon (prod), `postgres:16` in Docker (tests) |
 | DB access | `psycopg[binary]` 3, `psycopg_pool`, plain SQL in `jobhunt/db/queries/*.sql` or module constants |
-| Migrations | `dbmate` (brew), files in `db/migrations/`, run with `--no-dump-schema` |
+| Migrations | `dbmate` (brew), files in `api/db/migrations/`, run with `--no-dump-schema` |
 | HTTP | `httpx` (sync client), `tenacity` for backoff on 5xx/timeouts |
 | Aggregator scraping | `python-jobspy` (pin exact version) |
 | Parsing | `markdownify` (HTML→Markdown), `pycountry`, `python-dateutil` |
@@ -85,87 +85,44 @@ Note: LLM extraction and the rubric run **only on the shortlist**, in one step p
 | Scheduling | `croniter`, `cron-descriptor`, `zoneinfo` |
 | CLI | `typer` |
 | Web API | `fastapi`, `uvicorn` (JSON only, pydantic response models, OpenAPI at `/openapi.json`) |
-| Web UI | Next.js 16 (App Router, TypeScript) in `web/`, Tailwind CSS 4, shadcn/ui, `react-markdown`; npm with exact versions |
+| Web UI | Next.js 16 (App Router, TypeScript) in `app/`, Tailwind CSS 4, shadcn/ui, `react-markdown`; npm with exact versions |
 | MCP | official `mcp` Python SDK (`from mcp.server.fastmcp import FastMCP`), stdio transport |
 | Tests | `pytest`, `respx` (httpx mocks), `pytest-cov` |
-| Lint / types | `ruff`, `mypy` (strict on `jobhunt/`) |
+| Lint / types | `ruff`, `mypy` (strict on `jobhunt/` and `api/`) |
 
 ---
 
 ## 4. Repository layout
 
 ```
-jobhunt/
-  pyproject.toml
-  uv.lock
-  README.md
-  PLAN.md                      # this file
-  .env.tpl                     # op:// references only
-  .gitignore                   # .env, .venv, __pycache__, data/, exports/, *.log
-  docker-compose.test.yml      # postgres:16 for tests
-  db/
-    migrations/
-      20261007000001_init.sql          # schema.sql wrapped in dbmate markers
-      20261007000002_seed_sources.sql
-  config/
-    prefs.yaml                 # San's hard-filter preferences
-    companies.seed.yaml        # initial target companies
-    scopes.seed.yaml           # initial fetch scopes
-    synonyms.yaml              # skill terms + synonyms + stack/domain dictionary
-    fx.yaml                    # static FX rates to USD, with as_of date
-    regions.yaml               # region word → UTC offset band (APAC, EMEA, ...)
-  prompts/
-    assess_v1.md               # extraction + rubric instructions for Claude
-  jobhunt/
-    __init__.py
-    settings.py                # pydantic-settings: DATABASE_URL, VAULT_BANK_PATH, ...
-    cli.py                     # typer app
-    log.py                     # structured logging with redaction
-    http.py                    # shared httpx client, per-host delay, UA
-    models.py                  # RawPosting, NormalizedJob, FetchScope, Filter, Assessment, ...
-    db/
-      __init__.py              # pool, transaction helper, advisory lock
-      repo.py                  # all SQL access
-    sources/
-      __init__.py              # registry: id → adapter
-      base.py                  # SourceAdapter protocol
-      greenhouse.py  lever.py  ashby.py
-      jobspy_src.py            # indeed, linkedin_guest, glassdoor, ziprecruiter
-      hn.py  remoteok.py  remotive.py      # P2
-      detect.py                # ATS detection from a careers URL
-    normalize/
-      company.py  title.py  level.py  location.py  salary.py  text.py
-    ingest.py                  # run a scope: fetch → normalize → dedupe → close
-    tick.py                    # due scopes, locks, next_run_at
-    schedule.py                # cron validation, plain words, next runs, guardrails
-    filters.py                 # filter DSL → SQL (whitelist)
-    profile.py                 # brag bank → profile (in-memory + sanitized DB copy)
-    match/
-      hard.py                  # prefs → filter DSL
-      prefilter.py             # deterministic keyword score
-      evidence.py              # check cited bank ids
-      score.py                 # rubric labels → score, band
-      assess.py                # save_assessment orchestration
-    rules.py                   # evaluate rules, write rule_hits
-    retention.py
-    calibrate.py
-    mcp_server.py
-    web/
-      app.py                   # FastAPI app factory (JSON API only)
-      api.py                   # /api/* routes and pydantic response models
-      board.py                 # board queries (filters, list, detail, events, runs)
-  web/                         # Next.js UI (talks only to /api, proxied to FastAPI)
-    src/app/                   # pages: board, pipeline, runs
-    src/components/            # shadcn/ui primitives + job card, detail, filters
-    src/lib/api.ts             # typed client matching /openapi.json
-  tests/
-    conftest.py                # db fixture: migrate once, transaction-per-test rollback
-    fixtures/
-      greenhouse/*.json  lever/*.json  ashby/*.json  jobspy/*.csv
-      bank/                    # synthetic brag bank
-    unit/  integration/  e2e/
-  ops/
-    com.san.jobhunt.tick.plist # launchd template
+plan/
+  README.md  PLAN.md  docs/adr/   # spec, decisions, runbook
+  docker-compose.yml             # postgres, api, fit-worker, ui
+  Makefile                       # check, check-app, api, app, jh
+  .env.tpl                       # op:// references only
+  api/                           # Python project (uv, FastAPI, Typer)
+    pyproject.toml  uv.lock  Dockerfile  docker-compose.test.yml
+    db/migrations/               # dbmate; db/schema.sql is the reference shape
+    config/                      # prefs, companies/scopes seeds, synonyms, fx, regions
+    jobhunt/
+      core/                      # settings, db pool, migrate, cli root, http, log, paths
+      scrape/                    # sources/, normalize/, ingest, runner, repo, router, seed, cli
+      jobs/                      # board queries and /api/jobs routes
+      brag/                      # brag docs, tags, metric keys, vault migration
+      profile/                   # profile summary, resumes, bank import
+      fit/                       # scoring models, worker, schedules, repo, router, cli
+    tests/                       # mirrors jobhunt/ (core, scrape, jobs, brag, profile, fit)
+  app/                           # Next.js project (App Router, Tailwind, shadcn/ui)
+    Dockerfile  package.json  next.config.ts  components.json  AGENTS.md
+    src/
+      app/                       # thin routes: pages, layout, error
+      components/                # shared shadcn/ui primitives and small widgets
+      features/                  # shell, jobs, scrape, brag, profile, fit
+        <feature>/api.ts         # server-only fetchers for /api/*
+        <feature>/types.ts       # types mirroring the API models
+        <feature>/actions.ts     # server actions
+        <feature>/components/    # feature UI
+      lib/                       # api-client (request helper), utils, hooks
 ```
 
 ---
@@ -227,7 +184,7 @@ fintech: {kind: domain, syn: [payments, banking, lending, earned wage access]}
 
 ## 6. Database
 
-- `db/migrations/20261007000001_init.sql` = `schema.sql` with `-- migrate:up` at the top and a `-- migrate:down` section that drops everything in reverse order.
+- `api/db/migrations/20261007000001_init.sql` = `schema.sql` with `-- migrate:up` at the top and a `-- migrate:down` section that drops everything in reverse order.
 - `20261007000002_seed_sources.sql` inserts:
 
 | id | kind | min_interval | close_after |
@@ -235,15 +192,21 @@ fintech: {kind: domain, syn: [payments, banking, lending, earned wage access]}
 | greenhouse | ats | 6 hours | null |
 | lever | ats | 6 hours | null |
 | ashby | ats | 6 hours | null |
-| indeed | aggregator | 6 hours | 14 days |
-| linkedin_guest | aggregator | 12 hours | 14 days |
-| glassdoor | aggregator | 24 hours | 14 days |
+| indeed | aggregator | 6 hours (15 minutes after `20261011000009`) | 14 days |
+| seek | aggregator | 15 minutes | 14 days |
+| linkedin_guest | aggregator | 12 hours (15 minutes after `20261011000009`) | 14 days |
+| glassdoor | aggregator | 24 hours (15 minutes after `20261011000009`) | 14 days |
 | ziprecruiter | aggregator | 24 hours | 14 days |
+| naukri | aggregator | 24 hours | 14 days |
+| adzuna | aggregator | 24 hours | 14 days |
+| reed | aggregator | 24 hours | 14 days |
+| jooble | aggregator | 24 hours | 14 days |
+| mycareersfuture | feed | 12 hours | 21 days |
 | hn | feed | 24 hours | 45 days |
 | remoteok | feed | 12 hours | 21 days |
 | remotive | feed | 12 hours | 21 days |
 
-- `20261008000003_job_fit.sql` adds the job fit tables (§13.8). `20261009000004_brag_docs.sql` replaces `bank_entries` with the brag doc tables below, copying existing rows. Both are mirrored in `schema.sql`:
+- `20261008000003_job_fit.sql` adds the job fit tables (§13.8). `20261009000004_brag_docs.sql` replaces `bank_entries` with the brag doc tables below, copying existing rows. Both are mirrored in `api/db/schema.sql`:
 
 | table | holds |
 |---|---|
@@ -263,7 +226,7 @@ fintech: {kind: domain, syn: [payments, banking, lending, earned wage access]}
 | fit_worker | single row: model id and heartbeat |
 
 - `jobhunt seed` loads `companies.seed.yaml` and `scopes.seed.yaml` idempotently (upsert by `name_norm` / scope `name`).
-- `jobhunt/db/__init__.py` provides: `pool()`, `tx()` context manager, `advisory_lock(name) -> bool` using `pg_try_advisory_lock(hashtext(name))` on a dedicated connection held for the lock's lifetime.
+- `api/jobhunt/core/db.py` provides: `pool()`, `tx()` context manager, `advisory_lock(name) -> bool` using `pg_try_advisory_lock(hashtext(name))` on a dedicated connection held for the lock's lifetime.
 - All SQL lives in `db/repo.py` (or `.sql` files it loads). No SQL elsewhere.
 
 ---
@@ -320,12 +283,41 @@ class SourceAdapter(Protocol):
 - Expected fields under `jobs[]`: `id`, `title`, `location`, `isRemote`/`workplaceType`, `publishedAt`, `jobUrl`, `applyUrl`, `descriptionHtml`/`descriptionPlain`, `employmentType`, compensation summary. Confirm from the fixture.
 
 ### 7.5 JobSpy (`jobspy_src.py`)
-- One adapter class parameterized by site: `indeed`, `linkedin_guest` (JobSpy site `linkedin`), `glassdoor`, `ziprecruiter`.
-- Call `jobspy.scrape_jobs(site_name=[site], search_term, location, is_remote, hours_old, job_type, results_wanted, country_indeed, description_format="markdown", fetch_description=<bool>, verbose=0)`.
-- Never pass `proxies`. Caps: `results_wanted ≤ 100` for `linkedin_guest`, `≤ 200` otherwise. `fetch_description=True` only for LinkedIn and only when `results_wanted ≤ 50`.
+- One adapter class parameterized by site: `indeed`, `glassdoor`, `ziprecruiter`, `naukri` (India, cap 50). LinkedIn is not a JobSpy site; see §7.5c.
+- Call `jobspy.scrape_jobs(...)`. Indeed and Glassdoor scopes must set `country_indeed` to JobSpy's country name (`Thailand`, `UK`, `Germany`, …). Do not fall back to JobSpy's `usa` default. Naukri omits `country_indeed` unless the scope set it.
+- Never pass `proxies`. Caps: `results_wanted ≤ 50` for `naukri`, `≤ 200` otherwise.
 - Map DataFrame columns (confirm against a saved CSV fixture): `id` (if present, else sha256 of `job_url`), `job_url`, `job_url_direct` (→ `apply_url`), `title`, `company`, `company_url`, `location`, `is_remote`, `date_posted`, `job_type`, `interval`, `min_amount`, `max_amount`, `currency`, `description`, `job_level`.
 - Wrap the call: catch exceptions and 429-like errors → `RunPartial`.
 - Record `company_url` in `company_hint` so discovered companies can be ATS-detected later.
+
+### 7.5c LinkedIn guest and SEEK (`linkedin.py`, `seek.py`)
+- LinkedIn guest search uses `geoId` and `f_TPR`, parsed with BeautifulSoup. Descriptions come from the detail queue, not the search card. An authwall or captcha page is a partial run, not zero jobs.
+- SEEK, JobsDB, and JobStreet share the v5 search on `classification=6281` plus a GraphQL detail call. Indonesia job URLs use `/id/job/{id}`. New Zealand is `nz.seek.com`. Their robots.txt disallows `/api/jobsearch/`; this is accepted for low-volume personal use.
+- Scheduled searches in `searches` / `search_sources` / `search_markets` drive these boards. `jobhunt tick` polls markets whose `last_polled_at` is older than that source's `poll_minutes`. ATS company boards stay on `fetch_scopes`.
+
+### 7.5a API boards
+
+Keys stay in the environment (`ADZUNA_APP_ID`, `ADZUNA_APP_KEY`, `REED_API_KEY`, `JOOBLE_API_KEYS`). A missing key finishes the scope as `RunPartial` and does not call the network. Error text must not include the key or the request URL.
+
+| source | call | coverage used here |
+|---|---|---|
+| adzuna | `GET https://api.adzuna.com/v1/api/jobs/{country}/search/1` | gb, de, nl, fr, au, nz, sg, in. No TH, TW, JP, HK, MY, VN, ID. One page, max 50. Predicted salaries are dropped. Amounts are annual in the feed currency. |
+| reed | `GET https://www.reed.co.uk/api/1.0/search` with the key as HTTP basic username and an empty password | UK only. Search salaries are annual. Max 50. |
+| jooble | `POST https://{host}/api/{key}` | One key per host (`uk.jooble.org` for GB, `{cc}.jooble.org` otherwise). Free plan is 500 requests per key, lifetime, so one page of 20. No `vn.jooble.org`. |
+| mycareersfuture | `POST https://api.mycareersfuture.gov.sg/v2/search` | Singapore. No key. Hidden employer names are skipped. Salary is SGD. |
+
+### 7.5b Boards checked and not added
+
+robots.txt or the lack of a documented API ruled these out. Do not add an HTML scraper for them.
+
+| board | reason |
+|---|---|
+| StepStone | `Disallow` on the result list and job search |
+| Dice | `Disallow` on `/jobsearch/` and `/jobs?q*` |
+| 104.com.tw | robots.txt forbids automated scraping of listings |
+| Green Japan | `Disallow: /search?` |
+| Trade Me Jobs | `Disallow` on search query parameters |
+| Wellfound, Wantedly, Cake, JobThai | no documented JSON API; a scraper would depend on page HTML |
 
 ### 7.6 Feeds (P2)
 - `hn.py`: find the latest "Ask HN: Who is hiring?" story via `https://hn.algolia.com/api/v1/search?tags=story,author_whoishiring&query=who%20is%20hiring`, then `https://hn.algolia.com/api/v1/items/{id}` and treat each top-level comment as a posting. First line usually holds `Company | Role | Location | Remote | Salary`; parse it best-effort, keep full text as description.
@@ -414,19 +406,22 @@ All functions are pure and unit-tested with table-driven tests.
 
 ### 10.2 `tick.py` — `jobhunt tick`
 1. Acquire `advisory_lock("jobhunt.tick")`. If not acquired, exit 0 ("another tick is running").
-2. `SELECT … FROM fetch_scopes WHERE enabled AND (next_run_at IS NULL OR next_run_at <= now()) ORDER BY next_run_at NULLS FIRST`.
-3. For each due scope: `run_scope`, then set `last_run_at = now()`, `next_run_at = croniter.next` (in scope tz, stored UTC). A failing scope doesn't stop the others.
-4. Daily (first tick after 03:00 local): aggregator close (§9.4) and retention (§15).
-5. After fetching: `match.run_deterministic()` on new/changed jobs (hard filters + prefilter, §13), then `rules.evaluate()` (§12.3).
-6. Release lock. Print a one-line summary per scope.
+2. If `~/.jobhunt/vpn.state` exists, run `after` hooks first so a crashed tick cannot leave WARP off.
+3. Run `before_start` hooks (`api/config/scrape.yaml`). `on_fail: skip_tick` skips scraping. `after` hooks still run.
+4. If the TLS certificate for `www.linkedin.com` is not publicly trusted, record `skipped` and do not scrape.
+5. Poll due search markets (one thread per source, at most four at a time) and due ATS `fetch_scopes`. A failing source doesn't stop the others. Advance `next_run_at` for each ATS scope.
+6. First tick after 03:00 Asia/Bangkok: aggregator close (§9.4). The 7-day catch-up uses the same pass.
+7. Release lock. `after` hooks run in `finally`, including VPN restore.
+
+`jobhunt serve` runs this pass at startup and every 15 minutes, and runs the fit worker every minute. The schedules already stored (search poll intervals, ATS cron, fit cron) are what those loops honor.
+
+Searches are edited on `/searches`. Off-topic titles are dropped at ingest and counted in `runs.skipped`. Apply links to Greenhouse, Lever, or Ashby set `companies.ats` and append the company to a discovered ATS scope.
 
 ### 10.3 launchd (`ops/com.san.jobhunt.tick.plist`)
-- `StartInterval` 3600, `RunAtLoad` false, `StandardOutPath`/`StandardErrorPath` to `~/Library/Logs/jobhunt/tick.log`.
-- `ProgramArguments`: `/bin/zsh -lc "cd ~/code/jobhunt && op run --env-file=.env.tpl -- uv run jobhunt tick"`.
-- If 1Password is locked, `op run` fails; the tick is skipped and the next hour retries. Document this in README.
-- `jobhunt ops install-launchd` writes the plist to `~/Library/LaunchAgents/` and runs `launchctl bootstrap gui/$UID …`; `ops uninstall-launchd` reverses it.
-
-Hourly is deliberate: each tick wakes the Neon compute (scale-to-zero after 5 min), and hourly keeps usage well inside the free 100 CU-hours/month.
+- `StartInterval` 900, `RunAtLoad` false, `StandardOutPath`/`StandardErrorPath` to `~/Library/Logs/jobhunt/tick.log`.
+- `ProgramArguments`: `/bin/zsh -lc "cd <repo>/api && op run --env-file=../.env.tpl -- uv run jobhunt tick"`.
+- If 1Password is locked, `op run` fails; the tick is skipped and the next interval retries.
+- `jobhunt ops install-launchd` writes the plist to `~/Library/LaunchAgents/` and runs `launchctl bootstrap gui/$UID …`; `ops uninstall-launchd` reverses it. `--dry-run` prints the plist.
 
 ---
 
@@ -488,7 +483,7 @@ One JSON model used by the board, rules, and hard filters.
 - Tests: every op; nested any/all; injection attempts in values and field names; NULL handling for `tz` and `gte_or_null`.
 
 ### 12.2 URL encoding
-The board keeps the filter as query params (`?level=senior&level=staff&country=SG&q=react&min_score=60`). `filters.from_query(params)` builds the DSL; `filters.to_query(dsl)` does the reverse for the simple flat case. "Save as rule" sends the DSL.
+The board keeps the filter as query params (`?level=senior,staff&country=SG,TH&q=react&min_score=60`). Values in one key are OR'd. `role` and `industry` are taxonomy slugs filled at ingest. `filters.from_query(params)` builds the DSL; `filters.to_query(dsl)` does the reverse for the simple flat case. "Save as rule" sends the DSL.
 
 ### 12.3 Rules (`rules.py`)
 - `evaluate(job_ids | None)`: for each enabled rule, run its compiled filter restricted to the given job ids (or all open jobs on first enable); upsert `rule_hits (rule_id, job_id)`.
@@ -597,46 +592,46 @@ Validate (pydantic) → evidence check → score → upsert `requirements (job_i
 
 Pre-computed fit scores for every open job, against two sources: the whole brag bank, and the selected resume. Scores are stored in `job_fits` and only ever computed by the fit worker or the CLI, never inside a request ([ADR-0001](docs/adr/0001-single-tenant-postgres-task-pipeline.md)).
 
-**Model interface** (`fit/base.py`). Every strategy (BGE now, Claude or Cursor later) implements:
+**Model interface** (`fit/base.py`). Every strategy (the matrix starter now, an LLM or another encoder later) implements one contract ([ADR-0004](docs/adr/0004-pluggable-fit-interface.md)):
 
 ```python
 class JobFitModel(ABC):
-    model_id: str                 # stored with every score, e.g. "bge-base-en-v1.5/v1"
+    model_id: str                 # stored with every score, e.g. "qwen3-embedding-0.6b/v1"
     sends_data_offsite: bool = False
 
-    def score(self, job_description: str, profile_text: str) -> float: ...   # 0..100
-    def score_many(self, profile_text: str, job_descriptions: Sequence[str]) -> list[float]: ...
+    def fit(self, docs: Sequence[BragDoc], job_description: str) -> FitResult: ...
+    def fit_many(self, docs: Sequence[BragDoc], job_descriptions: Sequence[str]) -> list[FitResult]: ...
 ```
 
-`fit/registry.py` maps `FIT_MODEL` (default `bge`) to a factory. Adding a strategy is one class plus one registry line.
+`BragDoc` is an id and a text. `FitResult` is a 0–100 `score`, the uncalibrated `raw` aggregate, `coverage`, `top_docs` (doc id, the aspect it covers, similarity 0–1), and `gaps`. `fit/registry.py` maps `FIT_MODEL` (default `qwen3`) to a factory. Adding a strategy is one class plus one registry line. A model with `sends_data_offsite = True` does not load unless `FIT_ALLOW_OFFSITE=1`.
 
-**BGE strategy** (`fit/bge.py`). `BgeFitModel` loads `BAAI/bge-base-en-v1.5` once per worker process. Job descriptions are prefixed with `Represent this sentence for searching relevant passages: `. Raw cosine similarity is calibrated with `max(0, min(100, (raw - 0.40) / 0.45 * 100))`. Because the model truncates at 512 tokens and the bank is far longer, the profile is split into one chunk per bank entry (or resume section) and each job description into ~400-token chunks; the raw score is the mean, over the job's chunks, of each chunk's best match among the profile chunks. That is one matrix `cos_sim` per batch, not a Python loop over pairs.
+**Matrix starter** (`fit/matrix.py`, `fit/aspects.py`, `fit/select.py`). `qwen3` loads `Qwen/Qwen3-Embedding-0.6B` once per worker process. Each brag doc is one vector. `split_aspects` keeps Markdown bullets and sentences and drops sections whose heading matches benefits, perks, about us, EEO, or salary. Aspects are encoded with the instruction "Given a job requirement, retrieve resume achievements that demonstrate it." The cosine matrix has one row per doc and one column per aspect. Greedy coverage picks up to 10 docs: each step adds the doc with the largest gain in the sum over aspects of the best similarity so far, and stops when that gain drops below 0.01. The raw score is the mean, over the selected rows, of each row's maximum. `bge` is the same matrix model with `BAAI/bge-base-en-v1.5` and the prefix `Represent this sentence for searching relevant passages: `. Each model has its own calibration floor and span, because the cosine ranges differ. The defaults stretch 0.40–0.85 to 0–100: `max(0, min(100, (raw - floor) / span * 100))`. `jobhunt fit calibrate` prints a replacement floor and span from the stored raw scores and does not edit the constants. `fake` implements the same interface with term overlap, for tests.
 
 **Tiers:** strong ≥ 80, good ≥ 60, fair ≥ 40, low below 40.
 
-**Sources** (`fit/sources.py`). Bank text = profile body plus, per brag doc, title, role at company, "Key: value" metric lines, tag names, and the description. The sha256 of the text is upserted into `fit_sources`. Editing a brag doc or selecting a resume creates a new hash; it does not score anything. The board keeps showing the last source whose `scored_at` is set. The fit mode stays `bank`.
+**Sources** (`fit/sources.py`). Bank mode is one `BragDoc` per brag doc (title, role at company, "Key: value" metric lines, tag names, description) plus the profile summary as id `profile`. Resume mode is one doc per Markdown section, id `resume:<id>#n`. The sha256 covers the ids and texts and is upserted into `fit_sources`. Editing a brag doc or selecting a resume creates a new hash; it does not score anything. The board keeps showing the latest computed row whose source has `scored_at` set. The fit mode stays `bank`.
 
-**Keywords** (`fit/keywords.py`). Canonical terms from `synonyms.yaml` present in both texts are `matched_terms`; terms in the job description but not the profile are `missing_terms`. Both are stored on `job_fits` during the run.
+**Keywords** (`fit/keywords.py`). Canonical terms from `synonyms.yaml` present in both texts are `matched_terms`; terms in the job description but not the joined doc text are `missing_terms`. Both are stored on `job_fits` during the run.
 
-**Runner** (`fit/runner.py`). `run_fit(conn, model, mode, limit=None)` selects open jobs whose `job_hash` (sha256 of title + description) is missing or different in `job_fits` for this model and source, scores them in batches of 64, and upserts. Unchanged jobs are skipped, so a rerun is cheap and a bank edit (new hash) rescores everything.
+**Runner** (`fit/runner.py`). `run_fit(conn, model, mode, limit=None)` selects open jobs whose `job_hash` (sha256 of title + description) is missing or different in `job_fits` for this model and source, calls `fit_many` in batches of 64, and upserts `job_fits` plus `job_fit_matches`. Unchanged jobs are skipped, so a rerun is cheap and a bank edit (new hash) rescores everything.
 
 **Schedule** (`fit/schedule.py`). `validate(cron, tz)` rejects bad cron, unknown timezones, and a gap under 15 minutes between runs. `describe(cron)` and `next_runs(cron, tz, n)` back the schedules page. This is the shared helper §10.1 describes.
 
-**Worker** (`jobhunt fit worker`, its own process and container). Loads the model once. Every 60 seconds, in order: due `fit_schedules`, queued manual runs, then new or changed jobs from the latest scrape (both modes). It claims a run with `FOR UPDATE SKIP LOCKED`, holds `advisory_lock("jobhunt.fit")`, and writes a `fit_run_events` progress row plus `pg_notify('fit_run_<id>', event_id)` after each batch, in the same transaction as that batch's scores. On SIGTERM it finishes the current batch, marks the run `queued`, and exits, so a restart resumes with only the unscored jobs left. It heartbeats `fit_worker` each poll. An idempotency key (sha256 of schedule, mode, source hash, and the cron slot or the current minute) makes a repeated trigger return the existing run.
+**Worker** (`jobhunt fit worker`, its own process and container). Loads the model once. Every 60 seconds, in order: due `fit_schedules`, queued manual runs, then a scrape-triggered run for each mode when open jobs are unscored or changed for the current source and no scrape run for that mode is already queued. It claims a run with `FOR UPDATE SKIP LOCKED`, holds `advisory_lock("jobhunt.fit")`, and writes a `fit_run_events` progress row plus `pg_notify('fit_run_<id>', event_id)` after each batch, in the same transaction as that batch's scores. On SIGTERM it finishes the current batch, marks the run `queued`, and exits, so a restart resumes with only the unscored jobs left. It heartbeats `fit_worker` each poll. An idempotency key (sha256 of schedule, mode, source hash, and the cron slot or the current minute) makes a repeated trigger return the existing run.
 
-**CLI.** `jobhunt profile import` reads the vault read-only into `brag_docs`, `bank_profile`, and `resumes`. `jobhunt brag-docs migrate-vault` (add `--write` to rewrite) converts old vault entries once. `jobhunt fit run --mode bank|resume`, `jobhunt fit download-model` (caches into `./.models`, because the TLS gateway blocks the download inside containers), and `jobhunt fit score --job ID` (prints match %, tier, matched and missing terms for one job).
+**CLI.** `jobhunt profile import` reads the vault read-only into `brag_docs`, `bank_profile`, and `resumes`. `jobhunt brag-docs migrate-vault` (add `--write` to rewrite) converts old vault entries once. `jobhunt fit run --mode bank|resume`, `jobhunt fit download-model` (caches the selected model into `./.models`, because the TLS gateway blocks the download inside containers), `jobhunt fit score --job ID` (prints match %, tier, the selected docs, gaps, and matched and missing terms), `jobhunt fit calibrate` (prints a floor and span from stored raw scores), and `jobhunt fit eval --labels <file>` (Spearman and hit@10 against a private label file).
 
 ---
 
 ## 14. Web UI (Next.js + FastAPI JSON API)
 
-`jobhunt serve` → `uvicorn jobhunt.web.app:create_app --factory --host 127.0.0.1 --port 8765` serves JSON only.
-The UI is a Next.js app in `web/` (`npm --prefix web run dev`, bound to `127.0.0.1:3000`). Next.js rewrites `/api/*` to `JOBHUNT_API_URL` (default `http://127.0.0.1:8765`), so the browser talks to one origin and FastAPI needs no CORS. FastAPI's OpenAPI document is the contract for `web/src/lib/api.ts`.
+`jobhunt serve` → `uvicorn api.app:create_app --factory --host 127.0.0.1 --port 8765` serves JSON only.
+The UI is a Next.js app in `app/` (`npm run dev`, bound to `127.0.0.1:3000`). Next.js rewrites `/api/*` to `JOBHUNT_API_URL` (default `http://127.0.0.1:8765`), so the browser talks to one origin and FastAPI needs no CORS. FastAPI's OpenAPI document is the contract for `lib/api.ts`.
 
 | API route | Purpose | UI page |
 |---|---|---|
 | `GET /api/jobs?q&where&remote&source&posted_within&has_salary&include_closed&fit&min_score&sort&page` | `{jobs, total, page, pages, page_size}`; `fit` is `bank` (default) or `resume`; `sort=match` is the default | Board list |
-| `GET /api/jobs/{id}` | Job with `description_md`, `postings`, `events`, `tailor_prompt` | Board detail pane, mobile sheet |
+| `GET /api/jobs/{id}` | Job with `description_md`, `postings`, `events`, `tailor_prompt`, `top_brags`, `gaps`, `coverage` | Board detail pane, mobile sheet |
 | `POST /api/jobs/{id}/events` | JSON `{status, reason?}`; status ∈ saved, skipped, applied; returns the job | Save / skip (with reason) / applied |
 | `GET /api/facets` | Source ids and remote types for filter controls | Board filters |
 | `GET /api/pipeline` | Jobs with a status, grouped saved / applied / skipped | Pipeline kanban |
@@ -650,6 +645,11 @@ The UI is a Next.js app in `web/` (`npm --prefix web run dev`, bound to `127.0.0
 | `GET /api/fit/runs`, `GET /api/fit/runs/{id}` | Run list, and one run with its latest progress | Schedules |
 | `GET /api/fit/runs/{id}/stream` | SSE: replay `fit_run_events`, then tail `LISTEN/NOTIFY`; `Last-Event-ID` resumes | Schedules |
 | `GET /api/fit/status` | Model id, scored counts per mode, stale flag, worker heartbeat | Board, Schedules |
+| `POST /api/jobs/{id}/resume` | Queues a resume run; 202 `{run_id}`; 409 when the job has no fit matches | Board detail, Generate resume |
+| `GET /api/jobs/{id}/resume-runs` | Resume runs for one job, latest first | Board detail |
+| `GET /api/resume-runs/{id}/stream` | SSE of `resume_run_events`, then `LISTEN/NOTIFY` | Board detail |
+| `GET /api/resume-runs/{id}/pdf` | The generated PDF | Board detail download |
+| `GET /api/admin/usage?days=` | Token and cost totals, not linked from the header | `/admin/usage` |
 | Later: `/api/rules*`, `/api/scopes*`, `/api/companies`, `/api/calibrate` | Same purposes as before (builders, previews, run now, review, labels) | Rules, Scopes, Companies, Calibrate |
 
 Every job carries `score` (0–100) and `fit_tier` (strong / good / fair / low) from `job_fits` for the active model and the latest source of the requested mode whose `scored_at` is set, so the board keeps showing the previous scores while a new run is in progress. Both are `null` until the first fit run, and the card then shows "Not scored yet". `matched_terms` and `missing_terms` come from the same row. Money in API responses is a string so it stays exact. Job description Markdown is rendered in the browser with raw HTML skipped.
@@ -660,7 +660,7 @@ Every job carries `score` (0–100) and `fit_tier` (strong / good / fair / low) 
 
 **Filters panel:** Match group (score against: brag docs or selected resume; minimum score: any, 40+, 60+, 80+), source, remote type, posted within, salary listed, include closed, text search, location, sort (best match by default, date posted, recently found).
 
-**Brag Docs page** (`/brag-docs`): the feed groups brag docs by `quarter`, newest first. A sticky filter bar searches title, description, and metric values, filters by every selected tag, one company, and one metric key. "Log a brag doc" is a dialog: title, date (defaults to today, shows the derived quarter), company (creatable), role, tags (creatable multi-select), metric rows (creatable key plus a value), a growing markdown description, and URL attachments. Typing a new tag or metric key creates it and applies it immediately. Saving on Cmd+Enter.
+**Brag Docs page** (`/brag-docs`): the feed groups brag docs by `quarter`, newest first. A sticky filter bar searches title, description, and metric values, filters by every selected tag, one company, and one metric key. "Log a brag doc" is a dialog: title, date (defaults to today, shows the derived quarter), company (creatable), role, impact (1–5, optional), tags (creatable multi-select), metric rows (creatable key plus a value), a growing markdown description, and URL attachments. Typing a new tag or metric key creates it and applies it immediately. Saving on Cmd+Enter.
 
 **Profile page** (`/profile`): the profile summary, and resumes (upload, select exactly one, preview the extracted text, delete). A link points to `/brag-docs`.
 
@@ -719,7 +719,7 @@ Claude Desktop / Cowork config snippet for README (no secrets inline):
 **Morning digest prompt** (README, for a Cowork scheduled task, weekdays 08:00):
 > Use the jobhunt tools. Call `next_to_score` and assess each job per the returned prompt, then `save_assessment`, until nothing is left or 40 jobs are done. Then call `digest` and give me the top 10 new matches: score, band, company, role, location, one line on the strongest match and the biggest gap, and the job id.
 
-**Tailor handoff:** in Cowork, "Tailor my resume for jobhunt job #123" → Claude calls `get_job` and passes the JD to the `tailor-resume` skill. The app writes to the vault only through `jobhunt brag-docs migrate-vault --write` ([ADR-0002](docs/adr/0002-brag-docs.md)).
+**Resume generation** ([ADR-0005](docs/adr/0005-resume-agent.md)): the job detail pane has **Generate resume**. It queues `resume_runs`. A worker wakes on `NOTIFY resume_runs` (30 second fallback), claims the row, and runs the Claude Agent SDK (`claude-haiku-5-5` by default) with the server skill `tailor-resume-server`. Input is the job description, the fit shortlist, and other brag docs ordered by `impact` (1–5) then similarity. The same fit model then checks that the resume scores at least as high as the shortlist and still covers those requirements. Up to two rewrites get the gaps as feedback. The PDF, `resume.json`, and lint report are stored on the run. Each attempt writes an `agent_usage` row (tokens and USD, no prompt text) shown on `/admin/usage`. A run stops retrying after `RESUME_MAX_COST_USD` (default 5). The worker reads only Postgres, the synced kit, and the environment, so hosting it later does not change the code. The app writes to the vault only through `jobhunt brag-docs migrate-vault --write` ([ADR-0002](docs/adr/0002-brag-docs.md)).
 
 ---
 
@@ -812,7 +812,7 @@ HN / RemoteOK / Remotive adapters (P2-ready interfaces exist), Glassdoor/ZipRecr
 - **Adapter:** respx/CSV fixtures only; live tests opt-in with `-m live`.
 - **Integration:** Docker Postgres from `docker-compose.test.yml`, `TEST_DATABASE_URL` (no secrets; local only). Migrate once per session; each test in a rolled-back transaction.
 - **E2E:** fake adapter → `tick` → match → `save_assessment` with a canned Assessment → rule hit → digest.
-- Coverage target 85% on `jobhunt/` excluding `web/templates`.
+- Coverage target 85% on `jobhunt/` and `api/`.
 
 ---
 
@@ -822,7 +822,7 @@ HN / RemoteOK / Remotive adapters (P2-ready interfaces exist), Glassdoor/ZipRecr
 |---|---|---|
 | Target locations, remote tz band | SG + TH onsite/hybrid; remote overlapping UTC+5..+10 | `config/prefs.yaml` |
 | First 30 companies | none; San fills `companies.seed.yaml` (name + careers URL; detector finds ATS) | `config/companies.seed.yaml` |
-| Initial fetch scopes | ATS tiers A+B daily 07:00; Indeed SG + TH `software engineer` 48 h daily 07:30; LinkedIn guest SG `frontend engineer` 48 h at 08:00 and 20:00 | `config/scopes.seed.yaml` or UI |
+| Initial fetch scopes | ATS tiers A+B daily 07:00; Indeed `software engineer` for SG, TH, TW, JP, AU, NZ, HK, MY, VN, ID, UK, DE, NL, FR daily 07:30; LinkedIn guest SG `frontend engineer` at 08:00 and 20:00, plus one daily software-engineer search per new country from 09:00; Glassdoor SG/AU/NZ; Naukri Bengaluru; Adzuna gb/de/nl/fr/au/nz/sg/in; Reed London; Jooble for those countries except VN; MyCareersFuture SG | `config/scopes.seed.yaml` or UI |
 | Write shortlisted jobs to Obsidian | no (vault stays read-only) | revisit after v1 |
 
 `companies.seed.yaml` format:

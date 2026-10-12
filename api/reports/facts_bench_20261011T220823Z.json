@@ -1,0 +1,1703 @@
+{
+  "jobs": 2169,
+  "gliner_load_seconds": 1.4332996215671301e-05,
+  "peak_rss_kb": 5303456,
+  "thresholds": {
+    "pay": 0.9,
+    "job_type": 0.9,
+    "workplace": 0.3,
+    "locations": 0.9
+  },
+  "timing": {
+    "default": {
+      "p50_seconds": 0.004143125028349459,
+      "p95_seconds": 0.342802416998893,
+      "jobs_per_minute": 784.8510891825861,
+      "total_seconds": 191.11905693629524
+    },
+    "gliner": {
+      "p50_seconds": 3.2258538770256564,
+      "p95_seconds": 10.665737129980698,
+      "jobs_per_minute": 14.029190558769876,
+      "total_seconds": 10691.992483217968
+    },
+    "default+gliner": {
+      "p50_seconds": 3.298773709044326,
+      "p95_seconds": 10.686025545932353,
+      "jobs_per_minute": 13.782822995662675,
+      "total_seconds": 10883.111540154263
+    }
+  },
+  "scores": {
+    "test": {
+      "default": {
+        "pay": {
+          "ashby": {
+            "labeled": 21,
+            "returned": 7,
+            "correct": 6,
+            "precision": 0.8571428571428571,
+            "recall": 0.2857142857142857,
+            "coverage": 0.3333333333333333,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "greenhouse": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "seek": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "indeed": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "lever": {
+            "labeled": 3,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": 0.0,
+            "coverage": 0.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 24,
+            "returned": 7,
+            "correct": 6,
+            "precision": 0.8571428571428571,
+            "recall": 0.25,
+            "coverage": 0.2916666666666667,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "job_type": {
+          "ashby": {
+            "labeled": 250,
+            "returned": 1,
+            "correct": 1,
+            "precision": 1.0,
+            "recall": 0.004,
+            "coverage": 0.004,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "greenhouse": {
+            "labeled": 65,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": 0.0,
+            "coverage": 0.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "seek": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "indeed": {
+            "labeled": 159,
+            "returned": 28,
+            "correct": 24,
+            "precision": 0.8571428571428571,
+            "recall": 0.1509433962264151,
+            "coverage": 0.1761006289308176,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "lever": {
+            "labeled": 214,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": 0.0,
+            "coverage": 0.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 688,
+            "returned": 29,
+            "correct": 25,
+            "precision": 0.8620689655172413,
+            "recall": 0.036337209302325583,
+            "coverage": 0.04215116279069767,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "workplace": {
+          "ashby": {
+            "labeled": 189,
+            "returned": 65,
+            "correct": 53,
+            "precision": 0.8153846153846154,
+            "recall": 0.2804232804232804,
+            "coverage": 0.3439153439153439,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "greenhouse": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "seek": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "indeed": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "lever": {
+            "labeled": 263,
+            "returned": 159,
+            "correct": 102,
+            "precision": 0.6415094339622641,
+            "recall": 0.38783269961977185,
+            "coverage": 0.6045627376425855,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 452,
+            "returned": 224,
+            "correct": 155,
+            "precision": 0.6919642857142857,
+            "recall": 0.34292035398230086,
+            "coverage": 0.49557522123893805,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "locations": {
+          "ashby": {
+            "labeled": 249,
+            "returned": 61,
+            "correct": 14,
+            "precision": 0.22950819672131148,
+            "recall": 0.05622489959839357,
+            "coverage": 0.24497991967871485,
+            "city_labeled": 58,
+            "city_correct": 3,
+            "city_recall": 0.05172413793103448
+          },
+          "greenhouse": {
+            "labeled": 266,
+            "returned": 65,
+            "correct": 24,
+            "precision": 0.36923076923076925,
+            "recall": 0.09022556390977443,
+            "coverage": 0.24436090225563908,
+            "city_labeled": 34,
+            "city_correct": 1,
+            "city_recall": 0.029411764705882353
+          },
+          "seek": {
+            "labeled": 251,
+            "returned": 15,
+            "correct": 11,
+            "precision": 0.7333333333333333,
+            "recall": 0.043824701195219126,
+            "coverage": 0.05976095617529881,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "indeed": {
+            "labeled": 226,
+            "returned": 51,
+            "correct": 20,
+            "precision": 0.39215686274509803,
+            "recall": 0.08849557522123894,
+            "coverage": 0.22566371681415928,
+            "city_labeled": 39,
+            "city_correct": 5,
+            "city_recall": 0.1282051282051282
+          },
+          "lever": {
+            "labeled": 262,
+            "returned": 1,
+            "correct": 1,
+            "precision": 1.0,
+            "recall": 0.003816793893129771,
+            "coverage": 0.003816793893129771,
+            "city_labeled": 1,
+            "city_correct": 0,
+            "city_recall": 0.0
+          },
+          "*": {
+            "labeled": 1254,
+            "returned": 193,
+            "correct": 70,
+            "precision": 0.3626943005181347,
+            "recall": 0.05582137161084529,
+            "coverage": 0.15390749601275916,
+            "city_labeled": 132,
+            "city_correct": 9,
+            "city_recall": 0.06818181818181818
+          }
+        }
+      },
+      "gliner": {
+        "pay": {
+          "ashby": {
+            "labeled": 21,
+            "returned": 4,
+            "correct": 4,
+            "precision": 1.0,
+            "recall": 0.19047619047619047,
+            "coverage": 0.19047619047619047,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "greenhouse": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "seek": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "indeed": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "lever": {
+            "labeled": 3,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": 0.0,
+            "coverage": 0.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 24,
+            "returned": 4,
+            "correct": 4,
+            "precision": 1.0,
+            "recall": 0.16666666666666666,
+            "coverage": 0.16666666666666666,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "job_type": {
+          "ashby": {
+            "labeled": 250,
+            "returned": 227,
+            "correct": 217,
+            "precision": 0.9559471365638766,
+            "recall": 0.868,
+            "coverage": 0.908,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "greenhouse": {
+            "labeled": 65,
+            "returned": 59,
+            "correct": 59,
+            "precision": 1.0,
+            "recall": 0.9076923076923077,
+            "coverage": 0.9076923076923077,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "seek": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "indeed": {
+            "labeled": 159,
+            "returned": 129,
+            "correct": 112,
+            "precision": 0.8682170542635659,
+            "recall": 0.7044025157232704,
+            "coverage": 0.8113207547169812,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "lever": {
+            "labeled": 214,
+            "returned": 199,
+            "correct": 188,
+            "precision": 0.9447236180904522,
+            "recall": 0.8785046728971962,
+            "coverage": 0.9299065420560748,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 688,
+            "returned": 614,
+            "correct": 576,
+            "precision": 0.9381107491856677,
+            "recall": 0.8372093023255814,
+            "coverage": 0.8924418604651163,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "workplace": {
+          "ashby": {
+            "labeled": 189,
+            "returned": 163,
+            "correct": 98,
+            "precision": 0.6012269938650306,
+            "recall": 0.5185185185185185,
+            "coverage": 0.8624338624338624,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "greenhouse": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "seek": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "indeed": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "lever": {
+            "labeled": 263,
+            "returned": 237,
+            "correct": 30,
+            "precision": 0.12658227848101267,
+            "recall": 0.11406844106463879,
+            "coverage": 0.9011406844106464,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 452,
+            "returned": 400,
+            "correct": 128,
+            "precision": 0.32,
+            "recall": 0.2831858407079646,
+            "coverage": 0.8849557522123894,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "locations": {
+          "ashby": {
+            "labeled": 249,
+            "returned": 159,
+            "correct": 117,
+            "precision": 0.7358490566037735,
+            "recall": 0.46987951807228917,
+            "coverage": 0.6385542168674698,
+            "city_labeled": 140,
+            "city_correct": 55,
+            "city_recall": 0.39285714285714285
+          },
+          "greenhouse": {
+            "labeled": 266,
+            "returned": 127,
+            "correct": 88,
+            "precision": 0.6929133858267716,
+            "recall": 0.3308270676691729,
+            "coverage": 0.4774436090225564,
+            "city_labeled": 70,
+            "city_correct": 35,
+            "city_recall": 0.5
+          },
+          "seek": {
+            "labeled": 251,
+            "returned": 72,
+            "correct": 61,
+            "precision": 0.8472222222222222,
+            "recall": 0.24302788844621515,
+            "coverage": 0.2868525896414343,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "indeed": {
+            "labeled": 226,
+            "returned": 120,
+            "correct": 81,
+            "precision": 0.675,
+            "recall": 0.3584070796460177,
+            "coverage": 0.5309734513274337,
+            "city_labeled": 92,
+            "city_correct": 50,
+            "city_recall": 0.5434782608695652
+          },
+          "lever": {
+            "labeled": 262,
+            "returned": 93,
+            "correct": 87,
+            "precision": 0.9354838709677419,
+            "recall": 0.3320610687022901,
+            "coverage": 0.3549618320610687,
+            "city_labeled": 64,
+            "city_correct": 41,
+            "city_recall": 0.640625
+          },
+          "*": {
+            "labeled": 1254,
+            "returned": 571,
+            "correct": 434,
+            "precision": 0.7600700525394045,
+            "recall": 0.34609250398724084,
+            "coverage": 0.45534290271132377,
+            "city_labeled": 366,
+            "city_correct": 181,
+            "city_recall": 0.49453551912568305
+          }
+        }
+      },
+      "default+gliner": {
+        "pay": {
+          "ashby": {
+            "labeled": 21,
+            "returned": 7,
+            "correct": 6,
+            "precision": 0.8571428571428571,
+            "recall": 0.2857142857142857,
+            "coverage": 0.3333333333333333,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "greenhouse": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "seek": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "indeed": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "lever": {
+            "labeled": 3,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": 0.0,
+            "coverage": 0.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 24,
+            "returned": 7,
+            "correct": 6,
+            "precision": 0.8571428571428571,
+            "recall": 0.25,
+            "coverage": 0.2916666666666667,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "job_type": {
+          "ashby": {
+            "labeled": 250,
+            "returned": 227,
+            "correct": 217,
+            "precision": 0.9559471365638766,
+            "recall": 0.868,
+            "coverage": 0.908,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "greenhouse": {
+            "labeled": 65,
+            "returned": 59,
+            "correct": 59,
+            "precision": 1.0,
+            "recall": 0.9076923076923077,
+            "coverage": 0.9076923076923077,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "seek": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "indeed": {
+            "labeled": 159,
+            "returned": 133,
+            "correct": 114,
+            "precision": 0.8571428571428571,
+            "recall": 0.7169811320754716,
+            "coverage": 0.8364779874213837,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "lever": {
+            "labeled": 214,
+            "returned": 199,
+            "correct": 188,
+            "precision": 0.9447236180904522,
+            "recall": 0.8785046728971962,
+            "coverage": 0.9299065420560748,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 688,
+            "returned": 618,
+            "correct": 578,
+            "precision": 0.9352750809061489,
+            "recall": 0.8401162790697675,
+            "coverage": 0.8982558139534884,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "workplace": {
+          "ashby": {
+            "labeled": 189,
+            "returned": 163,
+            "correct": 96,
+            "precision": 0.588957055214724,
+            "recall": 0.5079365079365079,
+            "coverage": 0.8624338624338624,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "greenhouse": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "seek": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "indeed": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "lever": {
+            "labeled": 263,
+            "returned": 237,
+            "correct": 126,
+            "precision": 0.5316455696202531,
+            "recall": 0.4790874524714829,
+            "coverage": 0.9011406844106464,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 452,
+            "returned": 400,
+            "correct": 222,
+            "precision": 0.555,
+            "recall": 0.4911504424778761,
+            "coverage": 0.8849557522123894,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "locations": {
+          "ashby": {
+            "labeled": 249,
+            "returned": 177,
+            "correct": 93,
+            "precision": 0.5254237288135594,
+            "recall": 0.37349397590361444,
+            "coverage": 0.7108433734939759,
+            "city_labeled": 157,
+            "city_correct": 37,
+            "city_recall": 0.2356687898089172
+          },
+          "greenhouse": {
+            "labeled": 266,
+            "returned": 133,
+            "correct": 64,
+            "precision": 0.48120300751879697,
+            "recall": 0.24060150375939848,
+            "coverage": 0.5,
+            "city_labeled": 75,
+            "city_correct": 27,
+            "city_recall": 0.36
+          },
+          "seek": {
+            "labeled": 251,
+            "returned": 77,
+            "correct": 64,
+            "precision": 0.8311688311688312,
+            "recall": 0.2549800796812749,
+            "coverage": 0.30677290836653387,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "indeed": {
+            "labeled": 226,
+            "returned": 127,
+            "correct": 71,
+            "precision": 0.5590551181102362,
+            "recall": 0.3141592920353982,
+            "coverage": 0.5619469026548672,
+            "city_labeled": 98,
+            "city_correct": 36,
+            "city_recall": 0.3673469387755102
+          },
+          "lever": {
+            "labeled": 262,
+            "returned": 94,
+            "correct": 88,
+            "precision": 0.9361702127659575,
+            "recall": 0.33587786259541985,
+            "coverage": 0.35877862595419846,
+            "city_labeled": 65,
+            "city_correct": 41,
+            "city_recall": 0.6307692307692307
+          },
+          "*": {
+            "labeled": 1254,
+            "returned": 608,
+            "correct": 380,
+            "precision": 0.625,
+            "recall": 0.30303030303030304,
+            "coverage": 0.48484848484848486,
+            "city_labeled": 395,
+            "city_correct": 141,
+            "city_recall": 0.3569620253164557
+          }
+        }
+      }
+    },
+    "dev": {
+      "default": {
+        "pay": {
+          "indeed": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "lever": {
+            "labeled": 5,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": 0.0,
+            "coverage": 0.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "ashby": {
+            "labeled": 22,
+            "returned": 4,
+            "correct": 4,
+            "precision": 1.0,
+            "recall": 0.18181818181818182,
+            "coverage": 0.18181818181818182,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "seek": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "greenhouse": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 27,
+            "returned": 4,
+            "correct": 4,
+            "precision": 1.0,
+            "recall": 0.14814814814814814,
+            "coverage": 0.14814814814814814,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "job_type": {
+          "indeed": {
+            "labeled": 194,
+            "returned": 22,
+            "correct": 21,
+            "precision": 0.9545454545454546,
+            "recall": 0.10824742268041238,
+            "coverage": 0.1134020618556701,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "lever": {
+            "labeled": 184,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": 0.0,
+            "coverage": 0.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "ashby": {
+            "labeled": 250,
+            "returned": 1,
+            "correct": 1,
+            "precision": 1.0,
+            "recall": 0.004,
+            "coverage": 0.004,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "seek": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "greenhouse": {
+            "labeled": 59,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": 0.0,
+            "coverage": 0.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 687,
+            "returned": 23,
+            "correct": 22,
+            "precision": 0.9565217391304348,
+            "recall": 0.03202328966521106,
+            "coverage": 0.033478893740902474,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "workplace": {
+          "indeed": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "lever": {
+            "labeled": 237,
+            "returned": 148,
+            "correct": 93,
+            "precision": 0.6283783783783784,
+            "recall": 0.3924050632911392,
+            "coverage": 0.6244725738396625,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "ashby": {
+            "labeled": 196,
+            "returned": 68,
+            "correct": 55,
+            "precision": 0.8088235294117647,
+            "recall": 0.28061224489795916,
+            "coverage": 0.3469387755102041,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "seek": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "greenhouse": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 433,
+            "returned": 216,
+            "correct": 148,
+            "precision": 0.6851851851851852,
+            "recall": 0.3418013856812933,
+            "coverage": 0.49884526558891457,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "locations": {
+          "indeed": {
+            "labeled": 271,
+            "returned": 52,
+            "correct": 23,
+            "precision": 0.4423076923076923,
+            "recall": 0.08487084870848709,
+            "coverage": 0.1918819188191882,
+            "city_labeled": 34,
+            "city_correct": 4,
+            "city_recall": 0.11764705882352941
+          },
+          "lever": {
+            "labeled": 237,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": 0.0,
+            "coverage": 0.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "ashby": {
+            "labeled": 250,
+            "returned": 48,
+            "correct": 16,
+            "precision": 0.3333333333333333,
+            "recall": 0.064,
+            "coverage": 0.192,
+            "city_labeled": 44,
+            "city_correct": 3,
+            "city_recall": 0.06818181818181818
+          },
+          "seek": {
+            "labeled": 249,
+            "returned": 16,
+            "correct": 13,
+            "precision": 0.8125,
+            "recall": 0.05220883534136546,
+            "coverage": 0.0642570281124498,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "greenhouse": {
+            "labeled": 234,
+            "returned": 47,
+            "correct": 23,
+            "precision": 0.48936170212765956,
+            "recall": 0.09829059829059829,
+            "coverage": 0.20085470085470086,
+            "city_labeled": 20,
+            "city_correct": 1,
+            "city_recall": 0.05
+          },
+          "*": {
+            "labeled": 1241,
+            "returned": 163,
+            "correct": 75,
+            "precision": 0.4601226993865031,
+            "recall": 0.060435132957292505,
+            "coverage": 0.1313456889605157,
+            "city_labeled": 98,
+            "city_correct": 8,
+            "city_recall": 0.08163265306122448
+          }
+        }
+      },
+      "gliner": {
+        "pay": {
+          "indeed": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "lever": {
+            "labeled": 5,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": 0.0,
+            "coverage": 0.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "ashby": {
+            "labeled": 22,
+            "returned": 3,
+            "correct": 3,
+            "precision": 1.0,
+            "recall": 0.13636363636363635,
+            "coverage": 0.13636363636363635,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "seek": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "greenhouse": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 27,
+            "returned": 3,
+            "correct": 3,
+            "precision": 1.0,
+            "recall": 0.1111111111111111,
+            "coverage": 0.1111111111111111,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "job_type": {
+          "indeed": {
+            "labeled": 194,
+            "returned": 157,
+            "correct": 128,
+            "precision": 0.8152866242038217,
+            "recall": 0.6597938144329897,
+            "coverage": 0.8092783505154639,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "lever": {
+            "labeled": 184,
+            "returned": 161,
+            "correct": 156,
+            "precision": 0.968944099378882,
+            "recall": 0.8478260869565217,
+            "coverage": 0.875,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "ashby": {
+            "labeled": 250,
+            "returned": 219,
+            "correct": 211,
+            "precision": 0.9634703196347032,
+            "recall": 0.844,
+            "coverage": 0.876,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "seek": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "greenhouse": {
+            "labeled": 59,
+            "returned": 59,
+            "correct": 59,
+            "precision": 1.0,
+            "recall": 1.0,
+            "coverage": 1.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 687,
+            "returned": 596,
+            "correct": 554,
+            "precision": 0.9295302013422819,
+            "recall": 0.8064046579330422,
+            "coverage": 0.8675400291120815,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "workplace": {
+          "indeed": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "lever": {
+            "labeled": 237,
+            "returned": 219,
+            "correct": 18,
+            "precision": 0.0821917808219178,
+            "recall": 0.0759493670886076,
+            "coverage": 0.9240506329113924,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "ashby": {
+            "labeled": 196,
+            "returned": 177,
+            "correct": 108,
+            "precision": 0.6101694915254238,
+            "recall": 0.5510204081632653,
+            "coverage": 0.9030612244897959,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "seek": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "greenhouse": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 433,
+            "returned": 396,
+            "correct": 126,
+            "precision": 0.3181818181818182,
+            "recall": 0.2909930715935335,
+            "coverage": 0.9145496535796767,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "locations": {
+          "indeed": {
+            "labeled": 271,
+            "returned": 146,
+            "correct": 91,
+            "precision": 0.6232876712328768,
+            "recall": 0.33579335793357934,
+            "coverage": 0.5387453874538746,
+            "city_labeled": 101,
+            "city_correct": 52,
+            "city_recall": 0.5148514851485149
+          },
+          "lever": {
+            "labeled": 237,
+            "returned": 77,
+            "correct": 70,
+            "precision": 0.9090909090909091,
+            "recall": 0.29535864978902954,
+            "coverage": 0.32489451476793246,
+            "city_labeled": 44,
+            "city_correct": 25,
+            "city_recall": 0.5681818181818182
+          },
+          "ashby": {
+            "labeled": 250,
+            "returned": 157,
+            "correct": 103,
+            "precision": 0.6560509554140127,
+            "recall": 0.412,
+            "coverage": 0.628,
+            "city_labeled": 129,
+            "city_correct": 41,
+            "city_recall": 0.3178294573643411
+          },
+          "seek": {
+            "labeled": 249,
+            "returned": 77,
+            "correct": 67,
+            "precision": 0.8701298701298701,
+            "recall": 0.26907630522088355,
+            "coverage": 0.3092369477911647,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "greenhouse": {
+            "labeled": 234,
+            "returned": 121,
+            "correct": 85,
+            "precision": 0.7024793388429752,
+            "recall": 0.36324786324786323,
+            "coverage": 0.5170940170940171,
+            "city_labeled": 65,
+            "city_correct": 44,
+            "city_recall": 0.676923076923077
+          },
+          "*": {
+            "labeled": 1241,
+            "returned": 578,
+            "correct": 416,
+            "precision": 0.7197231833910035,
+            "recall": 0.33521353746978244,
+            "coverage": 0.4657534246575342,
+            "city_labeled": 339,
+            "city_correct": 162,
+            "city_recall": 0.4778761061946903
+          }
+        }
+      },
+      "default+gliner": {
+        "pay": {
+          "indeed": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "lever": {
+            "labeled": 5,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": 0.0,
+            "coverage": 0.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "ashby": {
+            "labeled": 22,
+            "returned": 4,
+            "correct": 4,
+            "precision": 1.0,
+            "recall": 0.18181818181818182,
+            "coverage": 0.18181818181818182,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "seek": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "greenhouse": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 27,
+            "returned": 4,
+            "correct": 4,
+            "precision": 1.0,
+            "recall": 0.14814814814814814,
+            "coverage": 0.14814814814814814,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "job_type": {
+          "indeed": {
+            "labeled": 194,
+            "returned": 157,
+            "correct": 127,
+            "precision": 0.8089171974522293,
+            "recall": 0.654639175257732,
+            "coverage": 0.8092783505154639,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "lever": {
+            "labeled": 184,
+            "returned": 161,
+            "correct": 156,
+            "precision": 0.968944099378882,
+            "recall": 0.8478260869565217,
+            "coverage": 0.875,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "ashby": {
+            "labeled": 250,
+            "returned": 219,
+            "correct": 211,
+            "precision": 0.9634703196347032,
+            "recall": 0.844,
+            "coverage": 0.876,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "seek": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "greenhouse": {
+            "labeled": 59,
+            "returned": 59,
+            "correct": 59,
+            "precision": 1.0,
+            "recall": 1.0,
+            "coverage": 1.0,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 687,
+            "returned": 596,
+            "correct": 553,
+            "precision": 0.9278523489932886,
+            "recall": 0.8049490538573508,
+            "coverage": 0.8675400291120815,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "workplace": {
+          "indeed": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "lever": {
+            "labeled": 237,
+            "returned": 220,
+            "correct": 109,
+            "precision": 0.4954545454545455,
+            "recall": 0.459915611814346,
+            "coverage": 0.9282700421940928,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "ashby": {
+            "labeled": 196,
+            "returned": 178,
+            "correct": 108,
+            "precision": 0.6067415730337079,
+            "recall": 0.5510204081632653,
+            "coverage": 0.9081632653061225,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "seek": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "greenhouse": {
+            "labeled": 0,
+            "returned": 0,
+            "correct": 0,
+            "precision": null,
+            "recall": null,
+            "coverage": null,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "*": {
+            "labeled": 433,
+            "returned": 398,
+            "correct": 217,
+            "precision": 0.5452261306532663,
+            "recall": 0.5011547344110855,
+            "coverage": 0.9191685912240185,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          }
+        },
+        "locations": {
+          "indeed": {
+            "labeled": 271,
+            "returned": 150,
+            "correct": 88,
+            "precision": 0.5866666666666667,
+            "recall": 0.3247232472324723,
+            "coverage": 0.5535055350553506,
+            "city_labeled": 102,
+            "city_correct": 40,
+            "city_recall": 0.39215686274509803
+          },
+          "lever": {
+            "labeled": 237,
+            "returned": 77,
+            "correct": 70,
+            "precision": 0.9090909090909091,
+            "recall": 0.29535864978902954,
+            "coverage": 0.32489451476793246,
+            "city_labeled": 44,
+            "city_correct": 25,
+            "city_recall": 0.5681818181818182
+          },
+          "ashby": {
+            "labeled": 250,
+            "returned": 170,
+            "correct": 89,
+            "precision": 0.5235294117647059,
+            "recall": 0.356,
+            "coverage": 0.68,
+            "city_labeled": 140,
+            "city_correct": 26,
+            "city_recall": 0.18571428571428572
+          },
+          "seek": {
+            "labeled": 249,
+            "returned": 85,
+            "correct": 72,
+            "precision": 0.8470588235294118,
+            "recall": 0.2891566265060241,
+            "coverage": 0.3413654618473896,
+            "city_labeled": 0,
+            "city_correct": 0,
+            "city_recall": null
+          },
+          "greenhouse": {
+            "labeled": 234,
+            "returned": 128,
+            "correct": 71,
+            "precision": 0.5546875,
+            "recall": 0.3034188034188034,
+            "coverage": 0.5470085470085471,
+            "city_labeled": 71,
+            "city_correct": 35,
+            "city_recall": 0.49295774647887325
+          },
+          "*": {
+            "labeled": 1241,
+            "returned": 610,
+            "correct": 390,
+            "precision": 0.639344262295082,
+            "recall": 0.314262691377921,
+            "coverage": 0.49153908138597907,
+            "city_labeled": 357,
+            "city_correct": 126,
+            "city_recall": 0.35294117647058826
+          }
+        }
+      }
+    }
+  },
+  "choices": {
+    "pay": {
+      "mode": "gliner",
+      "flagged": false,
+      "reason": "precision>=0.97"
+    },
+    "job_type": {
+      "mode": "gliner",
+      "flagged": true,
+      "reason": "precision>=0.90"
+    },
+    "workplace": {
+      "mode": "api",
+      "flagged": false,
+      "reason": "none reached 0.90"
+    },
+    "locations": {
+      "mode": "api",
+      "flagged": false,
+      "reason": "none reached 0.90"
+    }
+  }
+}

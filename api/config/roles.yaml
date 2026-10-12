@@ -1,0 +1,62 @@
+# Longer phrases are matched before shorter ones. Unknown titles stay null.
+engineering_manager:
+  - engineering manager
+  - eng manager
+fullstack:
+  - full stack
+  - full-stack
+  - fullstack
+frontend:
+  - front end
+  - front-end
+  - frontend
+  - react
+  - ui engineer
+backend:
+  - back end
+  - back-end
+  - backend
+mobile:
+  - ios
+  - android
+  - mobile
+data:
+  - data engineer
+  - data scientist
+  - analytics engineer
+software:
+  - software engineer
+  - software developer
+  - swe
+  - programmer
+ml:
+  - machine learning
+  - ml engineer
+  - ai engineer
+  - ai-augmented
+  - ai augmented
+  - applied ai
+  - llm engineer
+devops:
+  - devops
+  - platform engineer
+  - site reliability
+  - sre
+security:
+  - security engineer
+  - appsec
+  - cybersecurity
+qa:
+  - qa engineer
+  - sdet
+  - quality assurance
+  - test engineer
+product:
+  - product manager
+  - product owner
+design:
+  - product designer
+  - ux designer
+  - ui designer
+other:
+  - generalist
