@@ -8,10 +8,19 @@ import json
 import os
 import re
 from collections.abc import Iterator
+from datetime import timedelta
 from decimal import Decimal
 from typing import Any
 
-from jobhunt.scrape.sources.base import FetchBatch, FetchContext, RawPosting, RunPartial, ScopeView
+from jobhunt.scrape.sources.base import (
+    FetchBatch,
+    FetchContext,
+    RawPosting,
+    RunPartial,
+    ScopeView,
+    SourceDefaults,
+    SourceSpec,
+)
 from jobhunt.scrape.sources.fetch import read_json
 from jobhunt.scrape.sources.parse import as_date
 
@@ -37,9 +46,14 @@ _AMOUNT = re.compile(r"\d[\d,]*")
 _CURRENCY = re.compile(r"\b([A-Z]{3})\b")
 
 
-class JoobleSource:
+class JoobleSource(SourceDefaults):
     id = "jooble"
     kind = "aggregator"
+    spec = SourceSpec(
+        kind="aggregator",
+        min_interval=timedelta(hours=24),
+        close_after=timedelta(days=14),
+    )
     full_board = False
 
     def fetch(self, scope: ScopeView, ctx: FetchContext) -> Iterator[FetchBatch]:

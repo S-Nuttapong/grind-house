@@ -1,28 +1,44 @@
 """Lever public postings API."""
 
 from collections.abc import Iterator
+from datetime import timedelta
 from typing import Any
 
 import httpx
 
 from jobhunt.core.http import SourceBlocked
-from jobhunt.facts.api_fields import from_payload
+from jobhunt.facts.base import JobDetail, Pay, PayFact, Place
+from jobhunt.facts.mapping import (
+    interval_word,
+    location_fact,
+    map_job_type,
+    map_workplace,
+    text_fact,
+)
+from jobhunt.facts.mapping import text as plain
+from jobhunt.facts.places import resolve_places
 from jobhunt.scrape.sources.base import (
     CompanyTarget,
     FetchBatch,
     FetchContext,
     RawPosting,
     ScopeView,
+    SourceDefaults,
+    SourceSpec,
 )
-from jobhunt.scrape.sources.parse import as_date, selected
+from jobhunt.scrape.sources.parse import as_date, as_decimal, selected
 
 BOARD_URL = "https://api.lever.co/v0/postings/{slug}?mode=json"
 
 
-class LeverSource:
+class LeverSource(SourceDefaults):
     id = "lever"
     kind = "ats"
     full_board = True
+    spec = SourceSpec(kind="ats", min_interval=timedelta(hours=6))
+
+    def payload_facts(self, payload: dict[str, Any]) -> JobDetail:
+        return _facts(payload)
 
     def fetch(self, scope: ScopeView, ctx: FetchContext) -> Iterator[FetchBatch]:
         for company in ctx.companies:
@@ -58,7 +74,7 @@ def map_job(item: dict[str, Any], company_name: str, slug: str) -> RawPosting | 
         return None
     categories = item.get("categories") or {}
     location = categories.get("location") if isinstance(categories, dict) else None
-    detail = from_payload("lever", item)
+    detail = _facts(item)
     pay = detail.pay.value if detail.pay is not None else None
     return RawPosting(
         source_id="lever",
@@ -109,5 +125,57 @@ def description_html(item: dict[str, Any]) -> str | None:
 def _text(value: Any) -> str | None:
     if value is None:
         return None
-    text = str(value).strip()
-    return text or None
+    cleaned = str(value).strip()
+    return cleaned or None
+
+
+def _facts(payload: dict[str, Any]) -> JobDetail:
+    categories = payload.get("categories") if isinstance(payload.get("categories"), dict) else {}
+    places: list[Place] = []
+    raw_locations = categories.get("allLocations") if isinstance(categories, dict) else None
+    if isinstance(raw_locations, list):
+        for item in raw_locations:
+            if isinstance(item, str):
+                places.extend(place for place in resolve_places(item) if place not in places)
+    single = categories.get("location") if isinstance(categories, dict) else None
+    if isinstance(single, str):
+        places.extend(place for place in resolve_places(single) if place not in places)
+    country = payload.get("country")
+    if isinstance(country, str) and len(country.strip()) == 2 and not places:
+        places.append(Place(country=country.strip().upper()))
+    commitment = categories.get("commitment") if isinstance(categories, dict) else None
+    return JobDetail(
+        pay=_pay(payload.get("salaryRange")),
+        job_type=text_fact(
+            map_job_type(commitment if isinstance(commitment, str) else None),
+            commitment if isinstance(commitment, str) else None,
+            "api:lever",
+        ),
+        workplace=text_fact(
+            map_workplace(plain(payload.get("workplaceType"))),
+            plain(payload.get("workplaceType")),
+            "api:lever",
+        ),
+        locations=location_fact(places, "api:lever"),
+    )
+
+
+def _pay(raw: object) -> PayFact | None:
+    if not isinstance(raw, dict):
+        return None
+    low = as_decimal(raw.get("min"))
+    high = as_decimal(raw.get("max"))
+    currency = plain(raw.get("currency"))
+    if low is None and high is None or currency is None:
+        return None
+    return PayFact(
+        value=Pay(
+            minimum=low,
+            maximum=high,
+            currency=currency.upper(),
+            interval=interval_word(plain(raw.get("interval"))),
+        ),
+        confidence=1.0,
+        evidence=str(raw),
+        parser_id="api:lever",
+    )

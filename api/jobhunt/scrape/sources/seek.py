@@ -1,13 +1,23 @@
 """SEEK-family search: JobsDB, JobStreet, and Seek share one API."""
 
 from collections.abc import Iterator
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 import httpx
 
 from jobhunt.core.http import HttpClient, SourceBlocked
-from jobhunt.scrape.sources.base import FetchBatch, FetchContext, RawPosting, RunPartial, ScopeView
+from jobhunt.facts.base import JobDetail, Place
+from jobhunt.facts.mapping import location_fact, text
+from jobhunt.scrape.sources.base import (
+    FetchBatch,
+    FetchContext,
+    RawPosting,
+    RunPartial,
+    ScopeView,
+    SourceDefaults,
+    SourceSpec,
+)
 from jobhunt.scrape.sources.fetch import read_json
 from jobhunt.scrape.sources.parse import as_dict
 
@@ -29,10 +39,28 @@ _BROWSER = (
 )
 
 
-class SeekSource:
+class SeekSource(SourceDefaults):
     id = "seek"
     kind = "aggregator"
     full_board = False
+    needs_detail_fetch = True
+    spec = SourceSpec(
+        kind="aggregator",
+        min_interval=timedelta(minutes=15),
+        close_after=timedelta(days=14),
+    )
+
+    def payload_facts(self, payload: dict[str, Any]) -> JobDetail:
+        country = text(payload.get("country"))
+        if country is None or len(country) != 2:
+            return JobDetail()
+        return JobDetail(locations=location_fact([Place(country=country.upper())], "api:seek"))
+
+    def augment_text(self, payload: dict[str, Any], text_value: str) -> str:
+        label = payload.get("salary")
+        if not isinstance(label, str) or not label.strip():
+            return text_value
+        return f"{text_value}\nSalary: {label.strip()}\n"
 
     def fetch(self, scope: ScopeView, ctx: FetchContext) -> Iterator[FetchBatch]:
         params = scope.params

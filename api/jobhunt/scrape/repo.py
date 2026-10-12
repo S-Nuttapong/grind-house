@@ -942,7 +942,6 @@ def pending_sources(conn: Connection[Any]) -> list[str]:
         JOIN jobs j ON j.id = p.job_id
         WHERE p.detail_status = 'pending' AND p.detail_attempts < 3
           AND j.closed_at IS NULL
-          AND p.source_id IN ('linkedin_guest', 'seek')
         """
     ).fetchall()
     return [str(row[0]) for row in rows]

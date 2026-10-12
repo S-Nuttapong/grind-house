@@ -4,6 +4,7 @@ from typing import Protocol
 
 from jobhunt.core.db import tx
 from jobhunt.scrape import repo
+from jobhunt.scrape.sources.base import JobSource
 
 
 class Store(Protocol):
@@ -12,6 +13,8 @@ class Store(Protocol):
     def scrape_targets(
         self, *, scope_id: int | None, source_id: str | None
     ) -> list[tuple[int, str]]: ...
+
+    def upsert_sources(self, sources: list[JobSource]) -> None: ...
 
 
 class PgStore:
@@ -30,3 +33,20 @@ class PgStore:
                 raise ValueError("pass either --scope or --source")
             rows = repo.list_scopes_for_source(conn, source_id)
             return [(int(row[0]), str(row[2])) for row in rows]
+
+    def upsert_sources(self, sources: list[JobSource]) -> None:
+        """Write each source's spec. Leaves enabled alone."""
+        with tx() as conn:
+            for source in sources:
+                spec = source.spec
+                conn.execute(
+                    """
+                    INSERT INTO sources (id, kind, min_interval, close_after)
+                    VALUES (%s, %s, %s, %s)
+                    ON CONFLICT (id) DO UPDATE
+                    SET kind = EXCLUDED.kind,
+                        min_interval = EXCLUDED.min_interval,
+                        close_after = EXCLUDED.close_after
+                    """,
+                    (source.id, spec.kind, spec.min_interval, spec.close_after),
+                )

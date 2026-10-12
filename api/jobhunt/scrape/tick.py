@@ -42,6 +42,7 @@ def adapter_for(source_id: str) -> JobSource:
 
 def tick(search_id: int | None = None) -> int:
     """Poll due markets. Returns 0 when another tick holds the lock or scraping is skipped."""
+    ScrapePipeline(COMPOSITION).open()
     with advisory_lock("jobhunt.tick") as acquired:
         if not acquired:
             log.info("another tick is running")

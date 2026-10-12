@@ -3,11 +3,29 @@
 import hashlib
 import math
 from collections.abc import Iterator
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
-from jobhunt.scrape.sources.base import FetchBatch, FetchContext, RawPosting, RunPartial, ScopeView
+from jobhunt.facts.base import JobDetail, Pay, PayFact, Place
+from jobhunt.facts.mapping import (
+    interval_word,
+    location_fact,
+    map_job_type,
+    map_workplace,
+    text,
+    text_fact,
+)
+from jobhunt.facts.places import resolve_places
+from jobhunt.scrape.sources.base import (
+    FetchBatch,
+    FetchContext,
+    RawPosting,
+    RunPartial,
+    ScopeView,
+    SourceDefaults,
+    SourceSpec,
+)
 from jobhunt.scrape.sources.parse import as_date, as_decimal
 
 _SITE = {
@@ -21,7 +39,27 @@ _CAPS = {"linkedin_guest": 100, "naukri": 50}
 _COUNTRY_REQUIRED = {"indeed", "glassdoor"}
 
 
-class JobSpySource:
+_TWO_WEEKS = timedelta(days=14)
+_SPECS = {
+    "indeed": SourceSpec(
+        kind="aggregator", min_interval=timedelta(minutes=15), close_after=_TWO_WEEKS
+    ),
+    "glassdoor": SourceSpec(
+        kind="aggregator", min_interval=timedelta(minutes=15), close_after=_TWO_WEEKS
+    ),
+    "linkedin_guest": SourceSpec(
+        kind="aggregator", min_interval=timedelta(minutes=15), close_after=_TWO_WEEKS
+    ),
+    "ziprecruiter": SourceSpec(
+        kind="aggregator", min_interval=timedelta(hours=24), close_after=_TWO_WEEKS
+    ),
+    "naukri": SourceSpec(
+        kind="aggregator", min_interval=timedelta(hours=24), close_after=_TWO_WEEKS
+    ),
+}
+
+
+class JobSpySource(SourceDefaults):
     kind = "aggregator"
     full_board = False
 
@@ -29,6 +67,12 @@ class JobSpySource:
         if source_id not in _SITE:
             raise ValueError(f"no JobSpy site for {source_id}")
         self.id = source_id
+        self.spec = _SPECS[source_id]
+
+    def payload_facts(self, payload: dict[str, Any]) -> JobDetail:
+        if self.id == "ziprecruiter":
+            return JobDetail()
+        return jobspy_facts(self.id, payload)
 
     def fetch(self, scope: ScopeView, ctx: FetchContext) -> Iterator[FetchBatch]:
         _ = ctx
@@ -57,8 +101,6 @@ def map_row(source_id: str, row: dict[str, Any]) -> RawPosting | None:
     remote = row.get("is_remote")
     remote_hint = "remote" if remote is True or _text(remote) == "True" else None
     if remote_hint is None:
-        from jobhunt.facts.api_fields import map_workplace
-
         remote_hint = map_workplace(_text(row.get("work_from_home_type")))
     company_url = _text(row.get("company_url"))
     hint: dict[str, Any] = {}
@@ -158,6 +200,48 @@ def _posted(value: Any) -> date | None:
     if isinstance(value, date):
         return value
     return as_date(_text(value))
+
+
+def jobspy_facts(source_id: str, payload: dict[str, Any]) -> JobDetail:
+    parser_id = f"api:{source_id}"
+    origin = payload.get("salary_source")
+    pay: PayFact | None = None
+    low = as_decimal(payload.get("min_amount"))
+    high = as_decimal(payload.get("max_amount"))
+    currency = text(payload.get("currency"))
+    if (low is not None or high is not None) and currency and origin != "description":
+        pay = PayFact(
+            value=Pay(
+                minimum=low,
+                maximum=high,
+                currency=currency.upper(),
+                interval=interval_word(text(payload.get("interval"))),
+            ),
+            confidence=1.0,
+            evidence=f"{low}-{high} {currency}",
+            parser_id=parser_id,
+        )
+    places: list[Place] = []
+    location = text(payload.get("location"))
+    if location:
+        places.extend(resolve_places(location))
+    addresses = payload.get("company_addresses")
+    if isinstance(addresses, str) and not places:
+        places.extend(resolve_places(addresses))
+    return JobDetail(
+        pay=pay,
+        job_type=text_fact(
+            map_job_type(text(payload.get("job_type"))),
+            text(payload.get("job_type")),
+            parser_id,
+        ),
+        workplace=text_fact(
+            map_workplace(text(payload.get("work_from_home_type"))),
+            text(payload.get("work_from_home_type")),
+            parser_id,
+        ),
+        locations=location_fact(places, parser_id),
+    )
 
 
 def _jsonable(value: Any) -> Any:

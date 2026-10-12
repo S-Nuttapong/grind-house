@@ -5,9 +5,18 @@ board calls: ``POST /v2/search``.
 """
 
 from collections.abc import Iterator
+from datetime import timedelta
 from typing import Any
 
-from jobhunt.scrape.sources.base import FetchBatch, FetchContext, RawPosting, RunPartial, ScopeView
+from jobhunt.scrape.sources.base import (
+    FetchBatch,
+    FetchContext,
+    RawPosting,
+    RunPartial,
+    ScopeView,
+    SourceDefaults,
+    SourceSpec,
+)
 from jobhunt.scrape.sources.fetch import read_json
 from jobhunt.scrape.sources.parse import as_date, as_decimal, as_dict
 
@@ -24,10 +33,15 @@ _SALARY_INTERVAL = {
 }
 
 
-class MyCareersFutureSource:
+class MyCareersFutureSource(SourceDefaults):
     id = "mycareersfuture"
     kind = "feed"
     full_board = False
+    spec = SourceSpec(
+        kind="feed",
+        min_interval=timedelta(hours=12),
+        close_after=timedelta(days=21),
+    )
 
     def fetch(self, scope: ScopeView, ctx: FetchContext) -> Iterator[FetchBatch]:
         search = _text(scope.params.get("search_term"))

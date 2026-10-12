@@ -2,14 +2,24 @@
 
 import re
 from collections.abc import Iterator
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Any
 
 import httpx
 from bs4 import BeautifulSoup
 
 from jobhunt.core.http import HttpClient, SourceBlocked
-from jobhunt.scrape.sources.base import FetchBatch, FetchContext, RawPosting, RunPartial, ScopeView
+from jobhunt.facts.base import JobDetail
+from jobhunt.scrape.sources.base import (
+    FetchBatch,
+    FetchContext,
+    RawPosting,
+    RunPartial,
+    ScopeView,
+    SourceDefaults,
+    SourceSpec,
+)
+from jobhunt.scrape.sources.jobspy_src import jobspy_facts
 from jobhunt.scrape.sources.pacing import empty_is_throttle
 
 _SEARCH = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search"
@@ -26,10 +36,19 @@ _ATS = re.compile(
 _MAX_PAGES = 20
 
 
-class LinkedInSource:
+class LinkedInSource(SourceDefaults):
     id = "linkedin_guest"
     kind = "aggregator"
     full_board = False
+    needs_detail_fetch = True
+    spec = SourceSpec(
+        kind="aggregator",
+        min_interval=timedelta(minutes=15),
+        close_after=timedelta(days=14),
+    )
+
+    def payload_facts(self, payload: dict[str, Any]) -> JobDetail:
+        return jobspy_facts(self.id, payload)
 
     def fetch(self, scope: ScopeView, ctx: FetchContext) -> Iterator[FetchBatch]:
         params = scope.params

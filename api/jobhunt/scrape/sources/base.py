@@ -1,13 +1,14 @@
 """Adapter types. Fetch I/O stays at the edge; mapping is pure."""
 
 from collections.abc import Iterator
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, Field
 
 from jobhunt.core.http import HttpClient
+from jobhunt.facts.base import JobDetail
 
 
 class RawPosting(BaseModel):
@@ -62,12 +63,40 @@ class FetchBatch(BaseModel):
     resume_page: int | None = None
 
 
+class SourceSpec(BaseModel):
+    """The sources-table row this adapter owns. enabled is not part of it."""
+
+    kind: Literal["ats", "aggregator", "feed"]
+    min_interval: timedelta
+    close_after: timedelta | None = None
+
+
+class SourceDefaults:
+    """Defaults so a new source only writes what it actually does."""
+
+    needs_detail_fetch: bool = False
+
+    def payload_facts(self, payload: dict[str, Any]) -> JobDetail:
+        _ = payload
+        return JobDetail()
+
+    def augment_text(self, payload: dict[str, Any], text: str) -> str:
+        _ = payload
+        return text
+
+
 class JobSource(Protocol):
     id: str
     kind: str
     full_board: bool
+    spec: SourceSpec
+    needs_detail_fetch: bool
 
     def fetch(self, scope: ScopeView, ctx: FetchContext) -> Iterator[FetchBatch]: ...
+
+    def payload_facts(self, payload: dict[str, Any]) -> JobDetail: ...
+
+    def augment_text(self, payload: dict[str, Any], text: str) -> str: ...
 
 
 class RunPartial(Exception):

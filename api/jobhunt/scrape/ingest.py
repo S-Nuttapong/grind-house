@@ -242,14 +242,23 @@ def _upsert(
         source_url=posting.source_url,
         content_hash=normalized.digest,
         run_id=run_id,
-        detail_status="pending"
-        if posting.source_id in {"linkedin_guest", "seek"} and not posting.description_html
-        else "done",
+        detail_status="pending" if _needs_detail(posting) else "done",
     )
     repo.insert_raw_payload(conn, posting_id=posting_id, run_id=run_id, payload=posting.payload)
     _store_facts(conn, job_id, posting_id, detail)
     _maybe_follow(conn, resolved, posting)
     return outcome
+
+
+def _needs_detail(posting: RawPosting) -> bool:
+    if posting.description_html:
+        return False
+    from jobhunt.composition import COMPOSITION
+
+    try:
+        return COMPOSITION.source(posting.source_id).needs_detail_fetch
+    except ValueError:
+        return False
 
 
 def _role_allowed(posting: RawPosting, allowed: set[str]) -> bool:

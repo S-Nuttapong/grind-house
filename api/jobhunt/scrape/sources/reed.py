@@ -2,10 +2,18 @@
 
 import os
 from collections.abc import Iterator
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Any
 
-from jobhunt.scrape.sources.base import FetchBatch, FetchContext, RawPosting, RunPartial, ScopeView
+from jobhunt.scrape.sources.base import (
+    FetchBatch,
+    FetchContext,
+    RawPosting,
+    RunPartial,
+    ScopeView,
+    SourceDefaults,
+    SourceSpec,
+)
 from jobhunt.scrape.sources.fetch import read_json
 from jobhunt.scrape.sources.parse import as_date, as_decimal
 
@@ -13,10 +21,15 @@ _SEARCH = "https://www.reed.co.uk/api/1.0/search"
 _CAP = 50
 
 
-class ReedSource:
+class ReedSource(SourceDefaults):
     id = "reed"
     kind = "aggregator"
     full_board = False
+    spec = SourceSpec(
+        kind="aggregator",
+        min_interval=timedelta(hours=24),
+        close_after=timedelta(days=14),
+    )
 
     def fetch(self, scope: ScopeView, ctx: FetchContext) -> Iterator[FetchBatch]:
         search = _text(scope.params.get("search_term"))
