@@ -5,15 +5,26 @@ import re
 from markdown_it import MarkdownIt
 
 from jobhunt.facts.base import (
+    DateFact,
     JobDetail,
     LocationFact,
     ParseHints,
+    Pay,
+    PayFact,
+    Place,
+    PostingInput,
     TextFact,
+    as_input,
+    prefer,
     wants,
 )
 from jobhunt.facts.lexicon import cues, phrases
+from jobhunt.facts.mapping import map_job_type
 from jobhunt.facts.pay import pay_from_text
 from jobhunt.facts.places import resolve_places
+from jobhunt.scrape.normalize.level import infer_level
+from jobhunt.scrape.normalize.location import parse_location
+from jobhunt.scrape.normalize.role import infer_role
 
 _FENCE = MarkdownIt()
 _WORKPLACE = {
@@ -30,26 +41,118 @@ _TYPE_LINE = re.compile(
 
 
 class DefaultParser:
-    """Rules over the description. High precision: a guess is left unknown."""
+    """Source facts, then structured fields, then the description. A guess stays empty."""
 
     parser_id = "default"
     sends_data_offsite = False
 
-    def parse(self, text: str, hints: ParseHints | None = None) -> JobDetail:
-        if not text.strip():
-            return JobDetail()
+    def parse(self, posting: PostingInput | str, hints: ParseHints | None = None) -> JobDetail:
+        item = as_input(posting)
         chosen = hints or ParseHints()
-        body = _blank_fences(text)
-        detail = JobDetail()
-        if wants(chosen, "pay"):
-            detail.pay = pay_from_text(body, chosen.country, self.parser_id)
-        if wants(chosen, "locations"):
-            detail.locations = _locations(body)
-        if wants(chosen, "job_type"):
-            detail.job_type = _job_type(body)
-        if wants(chosen, "workplace"):
-            detail.workplace = _workplace(body)
+        detail = prefer(item.source_facts, _from_fields(item, chosen))
+        if item.description_md.strip():
+            detail = prefer(detail, _describe(item.description_md, chosen))
         return detail
+
+
+def _from_fields(item: PostingInput, hints: ParseHints) -> JobDetail:
+    detail = JobDetail()
+    evidence = " ".join(part for part in (item.location_raw, item.remote_hint) if part).strip()
+    country, city, remote, _tz_min, _tz_max = parse_location(item.location_raw, item.remote_hint)
+    if wants(hints, "locations") and evidence and (country or city):
+        detail.locations = LocationFact(
+            value=[Place(city=city, country=country)],
+            confidence=1.0,
+            evidence=evidence,
+            parser_id="default",
+        )
+    if wants(hints, "workplace") and evidence and remote != "unknown":
+        detail.workplace = TextFact(
+            value=remote, confidence=1.0, evidence=evidence, parser_id="default"
+        )
+    if wants(hints, "pay") and (item.salary_min is not None or item.salary_max is not None):
+        detail.pay = PayFact(
+            value=Pay(
+                minimum=item.salary_min,
+                maximum=item.salary_max,
+                currency=item.salary_currency,
+                interval=item.salary_interval,
+            ),
+            confidence=1.0,
+            evidence=_pay_evidence(item),
+            parser_id="default",
+        )
+    if wants(hints, "job_type"):
+        kind = map_job_type(item.employment_type_raw)
+        if kind and item.employment_type_raw:
+            detail.job_type = TextFact(
+                value=kind,
+                confidence=1.0,
+                evidence=item.employment_type_raw,
+                parser_id="default",
+            )
+    if wants(hints, "posted") and item.posted_at is not None:
+        detail.posted = DateFact(
+            value=item.posted_at,
+            confidence=1.0,
+            evidence=item.posted_at.isoformat(),
+            parser_id="default",
+        )
+    if wants(hints, "role"):
+        detail.role = _role_fact(item)
+    if wants(hints, "level"):
+        detail.level = _level_fact(item)
+    return detail
+
+
+def _role_fact(item: PostingInput) -> TextFact | None:
+    slug = infer_role(item.title, item.role_hint)
+    if slug is None:
+        return None
+    if item.role_hint and infer_role(item.role_hint) == slug:
+        evidence = item.role_hint
+    else:
+        evidence = item.title
+    if not evidence:
+        return None
+    return TextFact(value=slug, confidence=1.0, evidence=evidence, parser_id="default")
+
+
+def _level_fact(item: PostingInput) -> TextFact | None:
+    from_title = infer_level(item.title)
+    if from_title != "unknown":
+        if not item.title:
+            return None
+        return TextFact(value=from_title, confidence=1.0, evidence=item.title, parser_id="default")
+    from_hint = infer_level("", item.level_hint)
+    if from_hint == "unknown" or not item.level_hint:
+        return None
+    return TextFact(value=from_hint, confidence=1.0, evidence=item.level_hint, parser_id="default")
+
+
+def _pay_evidence(item: PostingInput) -> str:
+    parts = [
+        "" if item.salary_min is None else str(item.salary_min),
+        "" if item.salary_max is None else str(item.salary_max),
+        item.salary_currency or "",
+        item.salary_interval or "",
+    ]
+    shown = " ".join(part for part in parts if part).strip()
+    return shown or item.title or "salary"
+
+
+def _describe(text: str, hints: ParseHints) -> JobDetail:
+    body = _blank_fences(text)
+    detail = JobDetail()
+    if wants(hints, "pay"):
+        detail.pay = pay_from_text(body, hints.country, "default")
+    if wants(hints, "locations"):
+        detail.locations = _locations(body)
+    if wants(hints, "job_type"):
+        detail.job_type = _job_type(body)
+    if wants(hints, "workplace"):
+        detail.workplace = _workplace(body)
+    return detail
 
 
 def _blank_fences(text: str) -> str:

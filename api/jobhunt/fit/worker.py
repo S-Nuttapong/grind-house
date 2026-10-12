@@ -144,7 +144,6 @@ def poll_once(model: FitScorer, *, now: datetime | None = None) -> None:
         claimed_id = _claim()
         if claimed_id is not None:
             execute_run(model, claimed_id)
-    _drain_facts()
 
 
 class _StopFlag:
@@ -242,18 +241,6 @@ def _fail(conn: Connection[Any], run_id: int, message: str) -> None:
         conn, run_id, "status", {"status": "failed", "error": message}
     )
     fit_repo.notify_run(conn, run_id, event_id)
-
-
-def _drain_facts() -> None:
-    """GLiNER runs here, not in the API process. A failure does not stop scoring."""
-    try:
-        from jobhunt.facts.queue import drain_once
-
-        drain_once()
-    except Exception:
-        from jobhunt.core.log import get_logger
-
-        get_logger("facts").exception("facts drain failed")
 
 
 def _percent(done: int, total: int) -> int:

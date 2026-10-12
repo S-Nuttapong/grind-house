@@ -6,11 +6,10 @@ from typing import Any
 
 from psycopg import Connection
 
+from jobhunt.composition import COMPOSITION
 from jobhunt.core.paths import API_ROOT
 from jobhunt.facts.api_fields import augment_text, from_payload
-from jobhunt.facts.apply import _country
-from jobhunt.facts.base import ParseHints, prefer
-from jobhunt.facts.chain import configured_chain
+from jobhunt.facts.base import PostingInput
 from jobhunt.facts.coverage import coverage_table
 from jobhunt.facts.merge import merge_facts, save_facts
 
@@ -77,7 +76,7 @@ def _restore(conn: Connection[Any]) -> None:
 
 
 def _fill(conn: Connection[Any], *, dry_run: bool) -> None:
-    chain = configured_chain()
+    parser = COMPOSITION.parser
     last = 0 if dry_run else _read_checkpoint()
     total = conn.execute("SELECT count(*) FROM jobs WHERE closed_at IS NULL").fetchone()
     job_total = int(total[0]) if total else 0
@@ -99,7 +98,7 @@ def _fill(conn: Connection[Any], *, dry_run: bool) -> None:
         if not jobs:
             break
         for job_id, description in jobs:
-            _one(conn, chain, int(job_id), description if isinstance(description, str) else "")
+            _one(conn, parser, int(job_id), description if isinstance(description, str) else "")
             last = int(job_id)
             finished += 1
         if dry_run:
@@ -117,7 +116,7 @@ def _fill(conn: Connection[Any], *, dry_run: bool) -> None:
         started = time.perf_counter()
 
 
-def _one(conn: Connection[Any], chain: Any, job_id: int, description: str) -> None:
+def _one(conn: Connection[Any], parser: Any, job_id: int, description: str) -> None:
     rows = conn.execute(
         """
         SELECT p.id, p.source_id, rp.payload
@@ -134,13 +133,14 @@ def _one(conn: Connection[Any], chain: Any, job_id: int, description: str) -> No
     ).fetchall()
     for posting_id, source_id, payload in rows:
         body = payload if isinstance(payload, dict) else {}
-        api = from_payload(str(source_id), body)
-        text = augment_text(str(source_id), body, description)
-        parsed = chain.parse(
-            text,
-            ParseHints(format="markdown", country=_country(api), source_id=str(source_id)),
+        parsed = parser.parse(
+            PostingInput(
+                source_id=str(source_id),
+                description_md=augment_text(str(source_id), body, description),
+                source_facts=from_payload(str(source_id), body),
+            )
         )
-        save_facts(conn, int(posting_id), prefer(api, parsed), "done")
+        save_facts(conn, int(posting_id), parsed, "done")
     merge_facts(conn, job_id)
 
 

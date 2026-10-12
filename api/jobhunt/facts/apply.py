@@ -4,46 +4,37 @@ from typing import Any
 
 from psycopg import Connection
 
+from jobhunt.composition import COMPOSITION, require_on_machine
 from jobhunt.facts.api_fields import augment_text, from_payload
-from jobhunt.facts.base import FIELDS, FieldName, JobDetail, ParseHints, prefer
-from jobhunt.facts.config import chains
-from jobhunt.facts.default import DefaultParser
+from jobhunt.facts.base import JobDetail, PostingInput
 from jobhunt.facts.merge import merge_facts, save_facts
 from jobhunt.scrape.sources.base import RawPosting
 
-_default = DefaultParser()
-_WORK = {"onsite", "hybrid", "remote"}
-_TYPES = {"fulltime", "parttime", "contract", "internship", "temporary"}
+
+def posting_input(posting: RawPosting, description: str | None) -> PostingInput:
+    payload = posting.payload if isinstance(posting.payload, dict) else {}
+    return PostingInput(
+        source_id=posting.source_id,
+        title=posting.title,
+        location_raw=posting.location_raw,
+        remote_hint=posting.remote_hint,
+        employment_type_raw=posting.employment_type_raw,
+        salary_min=posting.salary_min,
+        salary_max=posting.salary_max,
+        salary_currency=posting.salary_currency,
+        salary_interval=posting.salary_interval_raw,
+        posted_at=posting.posted_at,
+        description_md=augment_text(posting.source_id, payload, description or ""),
+        source_facts=from_payload(posting.source_id, payload),
+        role_hint=posting.role_hint,
+        level_hint=posting.level_hint,
+    )
 
 
 def build_detail(posting: RawPosting, description: str | None) -> tuple[JobDetail, str]:
-    """Api fields win. The description parser runs only for fields whose chain names it."""
-    payload = posting.payload if isinstance(posting.payload, dict) else {}
-    api = from_payload(posting.source_id, payload)
-    text_fields = {field for field in FIELDS if "default" in chains()[field]}
-    if not text_fields:
-        return api, "done"
-    country = _country(api)
-    text = augment_text(posting.source_id, payload, description or "")
-    parsed = _default.parse(
-        text,
-        ParseHints(
-            format="markdown",
-            country=country,
-            source_id=posting.source_id,
-            wanted=text_fields,
-        ),
-    )
-    combined = prefer(api, parsed)
-    return combined, "pending" if needs_gliner(combined) else "done"
-
-
-def needs_gliner(detail: JobDetail) -> bool:
-    order = chains()
-    for field in FIELDS:
-        if "gliner" in order[field] and _empty(detail, field):
-            return True
-    return False
+    """Run the composed parser. A parser error is the caller's to handle."""
+    require_on_machine(COMPOSITION.parser, "parser")
+    return COMPOSITION.parser.parse(posting_input(posting, description)), "done"
 
 
 def record(
@@ -51,21 +42,3 @@ def record(
 ) -> None:
     save_facts(conn, posting_id, detail, status)
     merge_facts(conn, job_id)
-
-
-def _country(detail: JobDetail) -> str | None:
-    if detail.locations is None or not detail.locations.value:
-        return None
-    return detail.locations.value[0].country
-
-
-def _empty(detail: JobDetail, field: FieldName) -> bool:
-    if field == "pay":
-        return detail.pay is None
-    if field == "job_type":
-        return detail.job_type is None or detail.job_type.value not in _TYPES
-    if field == "workplace":
-        return detail.workplace is None or detail.workplace.value not in _WORK
-    if field == "locations":
-        return detail.locations is None or not detail.locations.value
-    return detail.posted is None

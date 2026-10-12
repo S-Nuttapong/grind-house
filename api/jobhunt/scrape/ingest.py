@@ -13,7 +13,6 @@ from jobhunt.core.log import get_logger, redact
 from jobhunt.core.settings import load_settings
 from jobhunt.scrape import repo
 from jobhunt.scrape.normalize.company import norm_company
-from jobhunt.scrape.normalize.level import infer_level
 from jobhunt.scrape.normalize.location import parse_location
 from jobhunt.scrape.normalize.role import infer_industry, infer_role
 from jobhunt.scrape.normalize.salary import normalize_salary
@@ -176,7 +175,7 @@ def _upsert(
     company_id: int | None,
     similarity: float,
 ) -> str:
-    normalized, detail = _normalize(posting)
+    title_norm, description, digest = _preview(posting)
     existing = repo.get_posting(conn, posting.source_id, posting.source_job_id)
     if existing is not None:
         posting_id = int(existing[0])
@@ -186,19 +185,21 @@ def _upsert(
             conn,
             posting_id,
             run_id=run_id,
-            content_hash=normalized.digest,
+            content_hash=digest,
             source_url=posting.source_url,
         )
         repo.touch_job(conn, job_id)
-        if previous_hash == normalized.digest:
+        if previous_hash == digest:
             _maybe_follow(conn, _company_id(conn, job_id), posting)
             return "seen"
+        normalized, detail = _normalize(posting, title_norm, description, digest)
         _write_job(conn, job_id, posting, normalized, company_id or _company_id(conn, job_id))
         repo.insert_raw_payload(conn, posting_id=posting_id, run_id=run_id, payload=posting.payload)
         _store_facts(conn, job_id, posting_id, detail)
         _maybe_follow(conn, _company_id(conn, job_id), posting)
         return "updated"
 
+    normalized, detail = _normalize(posting, title_norm, description, digest)
     resolved = company_id if company_id is not None else _resolve_company(conn, posting)
     dedupe_key = f"{resolved}|{normalized.title_norm}|{normalized.country or '??'}"
     duplicate = repo.find_open_duplicate(
@@ -298,56 +299,57 @@ def _resolve_company(conn: Connection[Any], posting: RawPosting) -> int:
     return repo.insert_company(conn, name=posting.company_name, name_norm=name_norm)
 
 
-def _normalize(posting: RawPosting) -> tuple[_Normalized, Any]:
+def _preview(posting: RawPosting) -> tuple[str, str | None, str]:
     title_norm = norm_title(posting.title)
-    country, city, remote, tz_min, tz_max = parse_location(
-        posting.location_raw, posting.remote_hint
-    )
-    hinted = posting.payload.get("country")
-    if country is None and isinstance(hinted, str) and len(hinted.strip()) == 2:
-        country = hinted.strip().upper()
-    low, high, currency, interval, usd = normalize_salary(
-        posting.salary_min,
-        posting.salary_max,
-        posting.salary_currency,
-        posting.salary_interval_raw,
-    )
     description: str | None
     if posting.description_html:
         description = html_to_md(posting.description_html)
     else:
         description = (posting.description_text or "").strip() or None
+    return title_norm, description, content_hash(title_norm, description)
+
+
+def _normalize(
+    posting: RawPosting, title_norm: str, description: str | None, digest: str
+) -> tuple[_Normalized, Any]:
+    # Timezone is not a parsed fact. Country, pay, role, and level come from the parser.
+    _country, _city, _remote, tz_min, tz_max = parse_location(
+        posting.location_raw, posting.remote_hint
+    )
     normalized = _Normalized(
         title_norm=title_norm,
-        level=infer_level(posting.title, posting.level_hint),
-        country=country,
-        city=city,
-        remote=remote,
+        level="unknown",
+        country=None,
+        city=None,
+        remote="unknown",
         tz_min=tz_min,
         tz_max=tz_max,
-        employment_type=_employment(posting.employment_type_raw),
-        salary_min=low,
-        salary_max=high,
-        salary_currency=currency,
-        salary_interval=interval,
-        salary_usd_year_min=usd,
+        employment_type=None,
+        salary_min=None,
+        salary_max=None,
+        salary_currency=None,
+        salary_interval=None,
+        salary_usd_year_min=None,
         description_md=description,
-        digest=content_hash(title_norm, description),
+        digest=digest,
         apply_url=posting.apply_url or posting.source_url,
-        role=infer_role(posting.title, posting.role_hint),
+        role=None,
         industry=infer_industry(posting.industry_hint, posting.company_name),
     )
     from jobhunt.facts.apply import build_detail
 
     detail, _status = build_detail(posting, description)
     _fill_from_detail(normalized, detail)
+    hinted = posting.payload.get("country")
+    if normalized.country is None and isinstance(hinted, str) and len(hinted.strip()) == 2:
+        normalized.country = hinted.strip().upper()
     return normalized, detail
 
 
 def _store_facts(conn: Connection[Any], job_id: int, posting_id: int, detail: Any) -> None:
-    from jobhunt.facts.apply import needs_gliner, record
+    from jobhunt.facts.apply import record
 
-    record(conn, job_id, posting_id, detail, "pending" if needs_gliner(detail) else "done")
+    record(conn, job_id, posting_id, detail, "done")
 
 
 def _fill_from_detail(normalized: _Normalized, detail: Any) -> None:
@@ -373,6 +375,12 @@ def _fill_from_detail(normalized: _Normalized, detail: Any) -> None:
     job_type = getattr(detail, "job_type", None)
     if normalized.employment_type is None and job_type is not None:
         normalized.employment_type = _employment(job_type.value)
+    role = getattr(detail, "role", None)
+    if normalized.role is None and role is not None:
+        normalized.role = role.value
+    level = getattr(detail, "level", None)
+    if normalized.level == "unknown" and level is not None:
+        normalized.level = level.value
     pay = getattr(detail, "pay", None)
     if normalized.salary_min is None and normalized.salary_max is None and pay is not None:
         low, high, currency, interval, usd = normalize_salary(

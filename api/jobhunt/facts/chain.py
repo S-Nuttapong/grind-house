@@ -6,32 +6,10 @@ from jobhunt.facts.base import (
     FieldName,
     JobDetail,
     ParseHints,
+    PostingInput,
+    as_input,
     prefer,
 )
-
-
-def configured_chain() -> "ChainParser":
-    """Parsers named in facts.yaml. The api step is not a text parser."""
-    from jobhunt.facts.config import chains
-    from jobhunt.facts.default import DefaultParser
-
-    order = chains()
-    wanted: list[str] = []
-    for field_order in order.values():
-        for name in field_order:
-            if name != "api" and name not in wanted:
-                wanted.append(name)
-    parsers: list[DetailParser] = []
-    for name in wanted:
-        if name == "default":
-            parsers.append(DefaultParser())
-        elif name == "gliner":
-            from jobhunt.facts.gliner import GlinerParser
-
-            parsers.append(GlinerParser())
-        else:
-            raise ValueError(f"unknown facts parser {name!r}")
-    return ChainParser(parsers, order)
 
 
 class ChainParser:
@@ -47,7 +25,8 @@ class ChainParser:
         self.order = order or {field: [parser.parser_id for parser in parsers] for field in FIELDS}
         self.sends_data_offsite = any(parser.sends_data_offsite for parser in parsers)
 
-    def parse(self, text: str, hints: ParseHints | None = None) -> JobDetail:
+    def parse(self, posting: PostingInput | str, hints: ParseHints | None = None) -> JobDetail:
+        item = as_input(posting)
         chosen = hints or ParseHints()
         remaining = set(chosen.wanted)
         result = JobDetail()
@@ -64,7 +43,7 @@ class ChainParser:
             if not batches:
                 break
             for parser_id, fields in batches.items():
-                partial = by_id[parser_id].parse(text, chosen.model_copy(update={"wanted": fields}))
+                partial = by_id[parser_id].parse(item, chosen.model_copy(update={"wanted": fields}))
                 for field in fields:
                     tried[field].add(parser_id)
                     filled = _take(partial, field)
@@ -94,4 +73,8 @@ def _take(detail: JobDetail, field: FieldName) -> JobDetail | None:
         return JobDetail(locations=detail.locations)
     if field == "posted" and detail.posted is not None:
         return JobDetail(posted=detail.posted)
+    if field == "role" and detail.role is not None:
+        return JobDetail(role=detail.role)
+    if field == "level" and detail.level is not None:
+        return JobDetail(level=detail.level)
     return None

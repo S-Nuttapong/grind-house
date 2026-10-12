@@ -1,4 +1,4 @@
-"""facts.yaml: which parser runs for each field, and GLiNER thresholds."""
+"""facts.yaml: GLiNER thresholds. Parser choice lives in composition.py."""
 
 from functools import cache
 
@@ -16,20 +16,6 @@ def load_config() -> dict[str, object]:
     return loaded
 
 
-def chains() -> dict[FieldName, list[str]]:
-    raw = load_config().get("chains")
-    if not isinstance(raw, dict):
-        return {field: ["api", "default"] for field in FIELDS}
-    result: dict[FieldName, list[str]] = {}
-    for field in FIELDS:
-        order = raw.get(field)
-        if isinstance(order, list) and all(isinstance(item, str) for item in order):
-            result[field] = [str(item) for item in order]
-        else:
-            result[field] = ["api", "default"]
-    return result
-
-
 def gliner_thresholds() -> dict[FieldName, float]:
     raw = load_config().get("gliner")
     result: dict[FieldName, float] = {field: 0.5 for field in FIELDS}
@@ -40,10 +26,6 @@ def gliner_thresholds() -> dict[FieldName, float]:
         if isinstance(value, (int, float)):
             result[field] = float(value)
     return result
-
-
-def gliner_enabled() -> bool:
-    return any("gliner" in order for order in chains().values())
 
 
 def reload_config() -> None:

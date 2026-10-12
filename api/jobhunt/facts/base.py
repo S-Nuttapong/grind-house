@@ -1,4 +1,4 @@
-"""Parser contract. Every parser takes text and returns a JobDetail."""
+"""Parser contract. Every parser takes a PostingInput and returns a JobDetail."""
 
 from datetime import date
 from decimal import Decimal
@@ -6,8 +6,26 @@ from typing import Literal, Protocol
 
 from pydantic import BaseModel, Field
 
-FieldName = Literal["pay", "job_type", "workplace", "locations", "posted"]
-FIELDS: tuple[FieldName, ...] = ("pay", "job_type", "workplace", "locations", "posted")
+FieldName = Literal["pay", "job_type", "workplace", "locations", "posted", "role", "level"]
+FIELDS: tuple[FieldName, ...] = (
+    "pay",
+    "job_type",
+    "workplace",
+    "locations",
+    "posted",
+    "role",
+    "level",
+)
+LEVELS: tuple[str, ...] = (
+    "intern",
+    "junior",
+    "mid",
+    "senior",
+    "staff",
+    "principal",
+    "lead",
+    "manager",
+)
 JobTypeName = Literal["fulltime", "parttime", "contract", "internship", "temporary"]
 WorkplaceName = Literal["onsite", "hybrid", "remote"]
 TextFormat = Literal["text", "markdown", "html"]
@@ -59,13 +77,15 @@ class DateFact(BaseModel):
 
 
 class JobDetail(BaseModel):
-    """The five parsed Job details fields. Sources come from postings, not text."""
+    """Parsed job fields. A missing field is None, including level (stored as unknown)."""
 
     pay: PayFact | None = None
     job_type: TextFact | None = None
     workplace: TextFact | None = None
     locations: LocationFact | None = None
     posted: DateFact | None = None
+    role: TextFact | None = None
+    level: TextFact | None = None
 
     def missing(self, wanted: set[FieldName]) -> set[FieldName]:
         gaps: set[FieldName] = set()
@@ -82,11 +102,36 @@ class ParseHints(BaseModel):
     wanted: set[FieldName] = Field(default_factory=lambda: set(FIELDS))
 
 
+class PostingInput(BaseModel):
+    """Everything a parser may see. It does not look up the source itself."""
+
+    source_id: str | None = None
+    title: str = ""
+    location_raw: str | None = None
+    remote_hint: str | None = None
+    employment_type_raw: str | None = None
+    salary_min: Decimal | None = None
+    salary_max: Decimal | None = None
+    salary_currency: str | None = None
+    salary_interval: str | None = None
+    posted_at: date | None = None
+    description_md: str = ""
+    source_facts: JobDetail = Field(default_factory=JobDetail)
+    role_hint: str | None = None
+    level_hint: str | None = None
+
+
 class DetailParser(Protocol):
     parser_id: str
     sends_data_offsite: bool
 
-    def parse(self, text: str, hints: ParseHints | None = None) -> JobDetail: ...
+    def parse(self, posting: PostingInput, hints: ParseHints | None = None) -> JobDetail: ...
+
+
+def as_input(posting: PostingInput | str) -> PostingInput:
+    if isinstance(posting, str):
+        return PostingInput(description_md=posting)
+    return posting
 
 
 def _get(
@@ -100,7 +145,11 @@ def _get(
         return detail.workplace
     if field == "locations":
         return detail.locations
-    return detail.posted
+    if field == "posted":
+        return detail.posted
+    if field == "role":
+        return detail.role
+    return detail.level
 
 
 def wants(hints: ParseHints | None, field: FieldName) -> bool:
@@ -117,4 +166,6 @@ def prefer(primary: JobDetail, fallback: JobDetail) -> JobDetail:
         workplace=primary.workplace or fallback.workplace,
         locations=primary.locations or fallback.locations,
         posted=primary.posted or fallback.posted,
+        role=primary.role or fallback.role,
+        level=primary.level or fallback.level,
     )

@@ -5,8 +5,7 @@ from typing import Any
 from psycopg import Connection
 from psycopg.types.json import Json
 
-from jobhunt.facts.base import FieldName, JobDetail, LocationFact, PayFact, TextFact
-from jobhunt.facts.config import chains
+from jobhunt.facts.base import LEVELS, FieldName, JobDetail, LocationFact, PayFact, TextFact
 from jobhunt.scrape.normalize.salary import normalize_salary
 
 _JOB_TYPES = {"fulltime", "parttime", "contract", "internship", "temporary"}
@@ -30,19 +29,21 @@ def merge_facts(conn: Connection[Any], job_id: int) -> None:
     current = conn.execute(
         """
         SELECT country, city, remote, employment_type, salary_min, salary_max,
-               salary_currency, salary_interval, posted_at, locations, countries
+               salary_currency, salary_interval, posted_at, locations, countries,
+               role, level
         FROM jobs WHERE id = %s
         """,
         (job_id,),
     ).fetchone()
     if current is None:
         return
-    order = chains()
     origins: dict[str, str] = {}
-    locations = _best_locations(details, order["locations"])
-    pay = _best_pay(details, order["pay"])
-    job_type = _best_text(details, "job_type", order["job_type"])
-    workplace = _best_text(details, "workplace", order["workplace"])
+    locations = _best_locations(details)
+    pay = _best_pay(details)
+    job_type = _best_text(details, "job_type")
+    workplace = _best_text(details, "workplace")
+    role_fact = _best_text(details, "role")
+    level_fact = _best_text(details, "level")
     primary = locations.value[0] if locations is not None and locations.value else None
     country = current[0] or (None if primary is None else primary.country)
     city = current[1] or (None if primary is None else primary.city)
@@ -68,10 +69,18 @@ def merge_facts(conn: Connection[Any], job_id: int) -> None:
     else:
         usd = None
     if posted_at is None:
-        posted = _best_posted(details, order["posted"])
+        posted = _best_posted(details)
         if posted is not None:
             posted_at = posted.value
             origins["posted"] = posted.parser_id
+    role = current[11]
+    if role is None and role_fact is not None:
+        role = role_fact.value
+        origins["role"] = role_fact.parser_id
+    level = current[12]
+    if level in (None, "unknown") and level_fact is not None and level_fact.value in LEVELS:
+        level = level_fact.value
+        origins["level"] = level_fact.parser_id
     if primary is not None and (current[0] is None or current[1] is None):
         origins["locations"] = locations.parser_id if locations is not None else ""
     stored_locations = current[9]
@@ -103,6 +112,9 @@ def merge_facts(conn: Connection[Any], job_id: int) -> None:
           locations = CASE WHEN locations = '[]'::jsonb
             THEN COALESCE(%s::jsonb, locations) ELSE locations END,
           countries = CASE WHEN countries = '{}' THEN COALESCE(%s, countries) ELSE countries END,
+          role = CASE WHEN role IS NULL THEN COALESCE(%s, role) ELSE role END,
+          level = CASE WHEN level IS NULL OR level = 'unknown'
+            THEN COALESCE(%s, level) ELSE level END,
           fact_origins = fact_origins || %s::jsonb
         WHERE id = %s
         """,
@@ -119,6 +131,8 @@ def merge_facts(conn: Connection[Any], job_id: int) -> None:
             posted_at,
             Json(location_json) if location_json is not None else None,
             countries,
+            role if origins.get("role") else None,
+            level if origins.get("level") else None,
             Json(origins),
             job_id,
         ),
@@ -131,38 +145,37 @@ def _load(payload: object) -> JobDetail:
     return JobDetail.model_validate(payload)
 
 
-def _best_pay(details: list[JobDetail], order: list[str]) -> PayFact | None:
+def _best_pay(details: list[JobDetail]) -> PayFact | None:
     facts = [detail.pay for detail in details if detail.pay is not None]
-    return _best(facts, order)
+    return _best(facts)
 
 
-def _best_text(details: list[JobDetail], field: FieldName, order: list[str]) -> TextFact | None:
-    facts = []
+def _best_text(details: list[JobDetail], field: FieldName) -> TextFact | None:
+    facts: list[TextFact] = []
     for detail in details:
-        fact = detail.job_type if field == "job_type" else detail.workplace
-        if fact is not None:
+        fact = getattr(detail, field)
+        if isinstance(fact, TextFact):
             facts.append(fact)
-    return _best(facts, order)
+    return _best(facts)
 
 
-def _best_locations(details: list[JobDetail], order: list[str]) -> LocationFact | None:
+def _best_locations(details: list[JobDetail]) -> LocationFact | None:
     facts = [detail.locations for detail in details if detail.locations is not None]
-    return _best(facts, order)
+    return _best(facts)
 
 
-def _best_posted(details: list[JobDetail], order: list[str]) -> Any:
+def _best_posted(details: list[JobDetail]) -> Any:
     facts = [detail.posted for detail in details if detail.posted is not None]
-    return _best(facts, order)
+    return _best(facts)
 
 
-def _best[T](facts: list[T], order: list[str]) -> T | None:
+def _best[T](facts: list[T]) -> T | None:
     if not facts:
         return None
 
     def sort_key(fact: T) -> tuple[int, float]:
         parser_id = str(getattr(fact, "parser_id", ""))
-        key = parser_id.split(":", 1)[0]
-        rank = order.index(key) if key in order else len(order) + 1
+        rank = 0 if parser_id.startswith("api:") else 1
         confidence = float(getattr(fact, "confidence", 0))
         return (rank, -confidence)
 

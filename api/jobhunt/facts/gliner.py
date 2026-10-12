@@ -7,7 +7,9 @@ from jobhunt.facts.base import (
     JobDetail,
     LocationFact,
     ParseHints,
+    PostingInput,
     TextFact,
+    as_input,
     wants,
 )
 from jobhunt.facts.config import gliner_thresholds
@@ -35,7 +37,8 @@ class GlinerParser:
         self.thresholds = thresholds or gliner_thresholds()
         self.model_id = model_id
 
-    def parse(self, text: str, hints: ParseHints | None = None) -> JobDetail:
+    def parse(self, posting: PostingInput | str, hints: ParseHints | None = None) -> JobDetail:
+        text = as_input(posting).description_md
         if not text.strip():
             return JobDetail()
         chosen = hints or ParseHints()
