@@ -95,9 +95,9 @@ class ClaudeSdkWriter(ResumeWriter):
         lint_path = workdir / "lint.txt"
         usage = _usage(captured, self.model)
         return ResumeDraft(
-            resume_json=json.loads(resume_path.read_text()),
+            resume_json=json.loads(resume_path.read_text(encoding="utf-8")),
             pdf=pdf_path.read_bytes(),
-            lint_report=lint_path.read_text() if lint_path.is_file() else "",
+            lint_report=lint_path.read_text(encoding="utf-8") if lint_path.is_file() else "",
             usage=usage,
         )
 
@@ -119,8 +119,10 @@ def _matcher(hook: Any) -> Any:
 
 def _stage(workdir: Path, request: ResumeRequest, kit: Path) -> None:
     workdir.mkdir(parents=True, exist_ok=True)
-    (workdir / "JD.md").write_text(request.job_description)
-    (workdir / "profile.md").write_text(request.profile)
+    from jobhunt.core.prompt_fence import fence
+
+    (workdir / "JD.md").write_text(fence(request.job_description, "JOB POSTING"), encoding="utf-8")
+    (workdir / "profile.md").write_text(request.profile, encoding="utf-8")
     (workdir / "shortlist.json").write_text(
         json.dumps(
             [
@@ -128,16 +130,20 @@ def _stage(workdir: Path, request: ResumeRequest, kit: Path) -> None:
                 for doc in request.shortlist
             ],
             separators=(",", ":"),
-        )
+        ),
+        encoding="utf-8",
     )
     (workdir / "filler.json").write_text(
         json.dumps(
             [{"id": doc.id, "text": doc.text} for doc in request.filler[:_FILLER_LIMIT]],
             separators=(",", ":"),
-        )
+        ),
+        encoding="utf-8",
     )
     if request.feedback:
-        (workdir / "feedback.md").write_text("\n".join(f"- {line}" for line in request.feedback))
+        (workdir / "feedback.md").write_text(
+            "\n".join(f"- {line}" for line in request.feedback), encoding="utf-8"
+        )
     skill_src = kit / "skills" / "tailor-resume-server" / "SKILL.md"
     if not skill_src.is_file():
         raise FileNotFoundError(

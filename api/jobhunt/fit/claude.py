@@ -372,9 +372,10 @@ def _blank(aspects: list[str]) -> FitResult:
 
 
 def _user(aspects: list[str], errors: Sequence[str] = ()) -> str:
-    lines = ["Aspects:"]
-    for index, aspect in enumerate(aspects):
-        lines.append(f"{index}. {aspect}")
+    from jobhunt.core.prompt_fence import fence
+
+    numbered = "\n".join(f"{index}. {aspect}" for index, aspect in enumerate(aspects))
+    lines = [fence(numbered, "JOB POSTING")]
     if errors:
         lines.append("")
         lines.append("Fix these errors:")

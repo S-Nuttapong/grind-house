@@ -68,8 +68,10 @@ class ExtractionSpec:
 
 
 def render_user(item: PostingInput) -> str:
+    from jobhunt.core.prompt_fence import fence
+
     description = item.description_md[:_DESCRIPTION_CAP]
-    return "\n".join(
+    body = "\n".join(
         (
             f"Title: {item.title}",
             f"Location: {item.location_raw or ''}",
@@ -78,6 +80,7 @@ def render_user(item: PostingInput) -> str:
             description,
         )
     )
+    return fence(body, "JOB POSTING")
 
 
 def detail_from_parsed(parsed: ParsedFields, parser_id: str) -> JobDetail:
