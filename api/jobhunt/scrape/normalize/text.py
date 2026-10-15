@@ -6,6 +6,14 @@ import re
 from markdownify import markdownify
 
 
+_CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
+
+
+def strip_control_chars(value: str) -> str:
+    """Remove NUL and other C0 controls. Newlines and tabs stay."""
+    return _CONTROL_CHARS.sub("", value)
+
+
 def html_to_md(html: str) -> str:
     cleaned = re.sub(
         r"<(script|style)\b[^>]*>.*?</\1>",

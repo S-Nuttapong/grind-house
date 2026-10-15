@@ -5,7 +5,8 @@ from jobhunt.scrape.normalize.company import norm_company
 from jobhunt.scrape.normalize.level import EXCLUDED_LEVELS, infer_level
 from jobhunt.scrape.normalize.location import parse_location
 from jobhunt.scrape.normalize.salary import normalize_salary
-from jobhunt.scrape.normalize.text import content_hash, html_to_md
+from jobhunt.scrape.normalize.text import content_hash, html_to_md, strip_control_chars
+from jobhunt.scrape.sources.base import RawPosting
 from jobhunt.scrape.normalize.title import norm_title
 
 
@@ -144,6 +145,22 @@ def test_html_to_md_strips_script_and_collapses_blanks() -> None:
     assert "alert" not in rendered
     assert "Role" in rendered
     assert "Build things" in rendered
+
+
+def test_nul_in_title_and_description_is_stripped() -> None:
+    posting = RawPosting(
+        source_id="manual",
+        source_job_id="1",
+        source_url="https://example.com/job",
+        company_name="Acme",
+        title="Staff\x00 Engineer",
+        description_text="Ships\x00 the platform.\nKeeps the newline.",
+        payload={},
+    )
+    assert posting.title == "Staff Engineer"
+    assert posting.description_text == "Ships the platform.\nKeeps the newline."
+    assert "\x00" not in strip_control_chars("a\x00b\tb")
+    assert "\t" in strip_control_chars("a\x00b\tb")
 
 
 def test_content_hash_changes_when_description_changes() -> None:

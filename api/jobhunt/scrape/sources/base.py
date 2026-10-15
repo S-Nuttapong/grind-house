@@ -5,10 +5,11 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any, Literal, Protocol
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from jobhunt.core.http import HttpClient
 from jobhunt.facts.base import JobDetail
+from jobhunt.scrape.normalize.text import strip_control_chars
 
 
 class RawPosting(BaseModel):
@@ -33,6 +34,31 @@ class RawPosting(BaseModel):
     role_hint: str | None = None
     industry_hint: str | None = None
     payload: dict[str, Any]
+
+    @field_validator(
+        "source_id",
+        "source_job_id",
+        "source_url",
+        "apply_url",
+        "company_name",
+        "title",
+        "location_raw",
+        "remote_hint",
+        "description_html",
+        "description_text",
+        "employment_type_raw",
+        "salary_currency",
+        "salary_interval_raw",
+        "level_hint",
+        "role_hint",
+        "industry_hint",
+        mode="before",
+    )
+    @classmethod
+    def _drop_control_chars(cls, value: object) -> object:
+        if isinstance(value, str):
+            return strip_control_chars(value)
+        return value
 
 
 class CompanyTarget(BaseModel):
