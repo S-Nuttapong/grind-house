@@ -1,4 +1,4 @@
-import { request } from "@/lib/api-client";
+import { request } from "@/lib/apiClient";
 import type { ScheduleInput } from "@/features/fit/types";
 
 export function createSchedule(input: ScheduleInput): Promise<Record<string, unknown>> {

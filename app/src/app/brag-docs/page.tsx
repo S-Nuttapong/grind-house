@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 
-import { BragDocsView } from "@/features/brag/components/brag-docs-view";
+import { BragDocsView } from "@/features/brag/components/BragDocsView";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchBragDocs, fetchCompanies, fetchMetricKeys, fetchTags } from "@/features/brag/api";
 

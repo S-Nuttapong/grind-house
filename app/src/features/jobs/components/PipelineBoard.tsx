@@ -21,13 +21,13 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { toast } from "sonner";
 
-import { CompanyLogo } from "@/components/company-logo";
-import { ScoreRing } from "@/components/score-ring";
+import { CompanyLogo } from "@/components/CompanyLogo";
+import { ScoreRing } from "@/components/ScoreRing";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { moveJobs, queueResumes, restoreJobs } from "@/features/jobs/actions";
-import { MoveMenu } from "@/features/jobs/components/move-menu";
+import { MoveMenu } from "@/features/jobs/components/MoveMenu";
 import type { JobStatus, JobSummary, Pipeline } from "@/features/jobs/types";
 import { cn } from "@/lib/utils";
 

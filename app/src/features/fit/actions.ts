@@ -1,6 +1,6 @@
 "use server";
 
-import { ApiError } from "@/lib/api-client";
+import { ApiError } from "@/lib/apiClient";
 import { createSchedule, removeSchedule, runSchedule, updateSchedule } from "@/features/fit/api";
 import type { FitMode, ScheduleInput } from "@/features/fit/types";
 

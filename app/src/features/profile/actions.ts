@@ -2,7 +2,7 @@
 
 import { refresh } from "next/cache";
 
-import { ApiError } from "@/lib/api-client";
+import { ApiError } from "@/lib/apiClient";
 import { removeResume, saveSummary as storeSummary, selectResumeFile, uploadResumeFile } from "@/features/profile/api";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };

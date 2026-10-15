@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { fetchResumeRuns, startResume } from "@/features/resume/client";
-import { useResumeRun } from "@/features/resume/components/use-resume-run";
+import { useResumeRun } from "@/features/resume/useResumeRun";
 
 export function GenerateResume({ jobId, enabled }: { jobId: number; enabled: boolean }) {
   const [runId, setRunId] = useState<number | null>(null);

@@ -8,8 +8,8 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
-import { useBoard } from "@/features/jobs/components/board-provider";
-import { CheckGroup, MultiSelect } from "@/features/jobs/components/multi-select";
+import { useBoard } from "@/features/jobs/components/BoardProvider";
+import { CheckGroup, MultiSelect } from "@/features/jobs/components/MultiSelect";
 import {
   FIT_SOURCES,
   hasActiveFilters,

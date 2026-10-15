@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 
 import { fetchFitRun, fetchFitRuns } from "@/features/fit/client";
-import { useHydrated } from "@/lib/use-hydrated";
+import { useHydrated } from "@/lib/useHydrated";
 
 export function ScoringPill() {
   const hydrated = useHydrated();

@@ -5,9 +5,9 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 import { deleteBragDoc } from "@/features/brag/actions";
-import { BragDocCard } from "@/features/brag/components/brag-doc-card";
-import { BragDocForm } from "@/features/brag/components/brag-doc-form";
-import { FilterBar } from "@/features/brag/components/filter-bar";
+import { BragDocCard } from "@/features/brag/components/BragDocCard";
+import { BragDocForm } from "@/features/brag/components/BragDocForm";
+import { FilterBar } from "@/features/brag/components/FilterBar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

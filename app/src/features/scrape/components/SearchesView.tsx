@@ -17,7 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { MultiSelect } from "@/features/jobs/components/multi-select";
+import { MultiSelect } from "@/features/jobs/components/MultiSelect";
 import { sourceLabel } from "@/features/jobs/filters";
 import {
   fetchHooks,

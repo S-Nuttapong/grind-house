@@ -1,4 +1,4 @@
-import { request } from "@/lib/api-client";
+import { request } from "@/lib/apiClient";
 import type { HooksView, Run } from "@/features/scrape/types";
 
 export function fetchRuns(): Promise<Run[]> {

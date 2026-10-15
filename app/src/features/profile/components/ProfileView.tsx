@@ -1,8 +1,8 @@
 import Link from "next/link";
 
 import { fetchResumes, fetchSummary } from "@/features/profile/api";
-import { ResumePanel } from "@/features/profile/components/resume-panel";
-import { SummaryForm } from "@/features/profile/components/summary-form";
+import { ResumePanel } from "@/features/profile/components/ResumePanel";
+import { SummaryForm } from "@/features/profile/components/SummaryForm";
 import { cn } from "@/lib/utils";
 
 export async function ProfileView({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {

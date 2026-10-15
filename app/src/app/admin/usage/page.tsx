@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { UsageTable } from "@/features/resume/components/usage-table";
+import { UsageTable } from "@/features/resume/components/UsageTable";
 
 export const metadata = { title: "Usage · Job Hunt" };
 

@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { deleteSchedule, runScheduleNow, saveSchedule } from "@/features/fit/actions";
-import { useFitRun } from "@/features/fit/components/use-fit-run";
+import { useFitRun } from "@/features/fit/useFitRun";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { fetchFitRuns, fetchFitSchedules, fetchFitStatus } from "@/features/fit/client";
-import { useHydrated } from "@/lib/use-hydrated";
+import { useHydrated } from "@/lib/useHydrated";
 import type { FitMode, FitRun, FitSchedule, FitStreamEvent, ScheduleInput } from "@/features/fit/types";
 import { cn } from "@/lib/utils";
 

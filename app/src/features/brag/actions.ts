@@ -2,7 +2,7 @@
 
 import { refresh } from "next/cache";
 
-import { ApiError } from "@/lib/api-client";
+import { ApiError } from "@/lib/apiClient";
 import { createBragDoc, createMetricKey as storeMetricKey, createTag as storeTag, removeBragDoc, updateBragDoc } from "@/features/brag/api";
 import type { BragDocInput, MetricKey, Tag } from "@/features/brag/types";
 

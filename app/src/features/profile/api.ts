@@ -1,4 +1,4 @@
-import { request } from "@/lib/api-client";
+import { request } from "@/lib/apiClient";
 import type { ResumeFile } from "@/features/profile/types";
 
 export function fetchSummary(): Promise<{ body_md: string }> {

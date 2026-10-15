@@ -1,6 +1,6 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchPipeline } from "@/features/jobs/api";
-import { PipelineBoard } from "@/features/jobs/components/pipeline-board-client";
+import { PipelineBoard } from "@/features/jobs/components/PipelineBoard";
 
 const COLUMNS = ["saved", "applied", "skipped"];
 

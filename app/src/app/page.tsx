@@ -1,9 +1,9 @@
 import { Suspense } from "react";
 
-import { BoardProvider } from "@/features/jobs/components/board-provider";
-import { BoardSkeleton } from "@/features/jobs/components/board-skeleton";
-import { BoardView } from "@/features/jobs/components/board-view";
-import { SearchBar } from "@/features/jobs/components/search-bar";
+import { BoardProvider } from "@/features/jobs/components/BoardProvider";
+import { BoardSkeleton } from "@/features/jobs/components/BoardSkeleton";
+import { BoardView } from "@/features/jobs/components/BoardView";
+import { SearchBar } from "@/features/jobs/components/SearchBar";
 import { fetchFacets, fetchJob, fetchJobs } from "@/features/jobs/api";
 import { apiQuery, readFilters } from "@/features/jobs/filters";
 

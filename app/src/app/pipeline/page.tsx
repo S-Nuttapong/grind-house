@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 
-import { PipelineColumns, PipelineSkeleton } from "@/features/jobs/components/pipeline-board";
+import { PipelineColumns, PipelineSkeleton } from "@/features/jobs/components/PipelineSkeleton";
 
 export const metadata = { title: "Pipeline · Job Hunt" };
 

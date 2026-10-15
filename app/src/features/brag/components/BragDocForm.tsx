@@ -5,7 +5,7 @@ import { useState, useTransition, type Dispatch, type ReactNode, type SetStateAc
 import { toast } from "sonner";
 
 import { createMetricKey, createTag, saveBragDoc } from "@/features/brag/actions";
-import { CreatableCombobox, type ComboOption } from "@/features/brag/components/creatable-combobox";
+import { CreatableCombobox, type ComboOption } from "@/features/brag/components/CreatableCombobox";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

@@ -1,4 +1,4 @@
-import { SchedulesView } from "@/features/fit/components/schedules-view";
+import { SchedulesView } from "@/features/fit/components/SchedulesView";
 
 export const metadata = { title: "Schedules · Job Hunt" };
 

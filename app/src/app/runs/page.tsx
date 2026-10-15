@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { RunsTable } from "@/features/scrape/components/runs-table";
+import { RunsTable } from "@/features/scrape/components/RunsTable";
 import { fetchTickHooks } from "@/features/scrape/api";
 
 export const metadata = { title: "Runs · Job Hunt" };

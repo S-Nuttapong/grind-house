@@ -2,7 +2,7 @@
 
 import { MoreHorizontalIcon } from "lucide-react";
 
-import { useJobEvent } from "@/features/jobs/components/job-actions";
+import { useJobEvent } from "@/features/jobs/useJobEvent";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,

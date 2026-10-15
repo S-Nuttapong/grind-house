@@ -3,10 +3,10 @@
 import { BanknoteIcon, MapPinIcon } from "lucide-react";
 import Link from "next/link";
 
-import { useBoard } from "@/features/jobs/components/board-provider";
-import { NotInterestedButton, SaveButton } from "@/features/jobs/components/job-actions";
-import { CompanyLogo } from "@/components/company-logo";
-import { ScoreRing } from "@/components/score-ring";
+import { useBoard } from "@/features/jobs/components/BoardProvider";
+import { NotInterestedButton, SaveButton } from "@/features/jobs/components/JobActions";
+import { CompanyLogo } from "@/components/CompanyLogo";
+import { ScoreRing } from "@/components/ScoreRing";
 import { Badge } from "@/components/ui/badge";
 import { sourceLabel, TIER_LABELS } from "@/features/jobs/filters";
 import type { JobSummary } from "@/features/jobs/types";

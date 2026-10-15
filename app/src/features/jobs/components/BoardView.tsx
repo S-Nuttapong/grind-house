@@ -4,10 +4,10 @@ import { MousePointerClickIcon, SearchXIcon, SlidersHorizontalIcon } from "lucid
 import Link from "next/link";
 import { useSyncExternalStore } from "react";
 
-import { useBoard } from "@/features/jobs/components/board-provider";
-import { FilterSidebar } from "@/features/jobs/components/filter-sidebar";
-import { JobCard } from "@/features/jobs/components/job-card";
-import { JobDetail } from "@/features/jobs/components/job-detail";
+import { useBoard } from "@/features/jobs/components/BoardProvider";
+import { FilterSidebar } from "@/features/jobs/components/FilterSidebar";
+import { JobCard } from "@/features/jobs/components/JobCard";
+import { JobDetail } from "@/features/jobs/components/JobDetail";
 import { Button } from "@/components/ui/button";
 import {
   Select,

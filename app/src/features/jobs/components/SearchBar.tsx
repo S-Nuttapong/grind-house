@@ -3,7 +3,7 @@
 import { MapPinIcon, SearchIcon } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
-import { useBoard } from "@/features/jobs/components/board-provider";
+import { useBoard } from "@/features/jobs/components/BoardProvider";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 

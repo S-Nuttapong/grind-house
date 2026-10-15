@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 
-import { FitQueryProvider } from "@/features/shell/fit-query-provider";
-import { SiteHeader } from "@/features/shell/site-header";
-import { ThemeProvider } from "@/features/shell/theme-provider";
+import { FitQueryProvider } from "@/features/shell/FitQueryProvider";
+import { SiteHeader } from "@/features/shell/SiteHeader";
+import { ThemeProvider } from "@/features/shell/ThemeProvider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 

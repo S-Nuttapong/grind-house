@@ -1,6 +1,6 @@
 "use client";
 
-import { CreatableCombobox } from "@/features/brag/components/creatable-combobox";
+import { CreatableCombobox } from "@/features/brag/components/CreatableCombobox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { BragFilters } from "@/features/brag/filters";

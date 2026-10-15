@@ -1,4 +1,4 @@
-import { SearchesView } from "@/features/scrape/components/searches-view";
+import { SearchesView } from "@/features/scrape/components/SearchesView";
 
 export const metadata = { title: "Searches · Job Hunt" };
 

@@ -1,4 +1,4 @@
-import { ApiError, request } from "@/lib/api-client";
+import { ApiError, request } from "@/lib/apiClient";
 import type { JobDetail, JobPage, Facets, Pipeline } from "@/features/jobs/types";
 
 export function fetchJobs(query: string): Promise<JobPage> {

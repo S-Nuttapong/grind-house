@@ -14,11 +14,11 @@ import {
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 
-import { AppliedButton, NotInterestedButton, SaveButton } from "@/features/jobs/components/job-actions";
-import { GenerateResume } from "@/features/resume/components/generate-resume";
-import { CompanyLogo } from "@/components/company-logo";
-import { Markdown } from "@/components/markdown";
-import { ScoreRing } from "@/components/score-ring";
+import { AppliedButton, NotInterestedButton, SaveButton } from "@/features/jobs/components/JobActions";
+import { GenerateResume } from "@/features/resume/components/GenerateResume";
+import { CompanyLogo } from "@/components/CompanyLogo";
+import { Markdown } from "@/components/Markdown";
+import { ScoreRing } from "@/components/ScoreRing";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";

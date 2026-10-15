@@ -1,4 +1,4 @@
-import { Markdown } from "@/components/markdown";
+import { Markdown } from "@/components/Markdown";
 import { Button } from "@/components/ui/button";
 import type { BragDoc } from "@/features/brag/types";
 

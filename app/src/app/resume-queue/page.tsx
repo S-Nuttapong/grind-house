@@ -1,4 +1,4 @@
-import { ResumeQueue } from "@/features/resume/components/resume-queue";
+import { ResumeQueue } from "@/features/resume/components/ResumeQueue";
 
 export const metadata = { title: "Resume queue · Job Hunt" };
 

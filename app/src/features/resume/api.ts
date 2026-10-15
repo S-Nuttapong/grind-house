@@ -1,4 +1,4 @@
-import { request } from "@/lib/api-client";
+import { request } from "@/lib/apiClient";
 import type { UsageSummary } from "@/features/resume/types";
 
 export function fetchUsage(days = 30): Promise<UsageSummary> {

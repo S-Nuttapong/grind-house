@@ -1,10 +1,8 @@
 "use client";
 
 import { BookmarkIcon, CheckIcon, ThumbsDownIcon } from "lucide-react";
-import { useState, useTransition } from "react";
-import { toast } from "sonner";
+import { useState } from "react";
 
-import { recordJobEvent } from "@/features/jobs/actions";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,28 +15,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import type { MoveStatus } from "@/features/jobs/types";
-
+import { useJobEvent } from "@/features/jobs/useJobEvent";
 import { cn } from "@/lib/utils";
-
-const MESSAGES: Record<MoveStatus, string> = {
-  saved: "Saved to your pipeline",
-  applied: "Marked as applied",
-  skipped: "Hidden as not interested",
-  removed: "Removed from your pipeline",
-};
-
-export function useJobEvent(jobId: number) {
-  const [isPending, startTransition] = useTransition();
-  function send(status: MoveStatus, reason?: string) {
-    startTransition(async () => {
-      const result = await recordJobEvent(jobId, status, reason);
-      if (result.ok) toast.success(MESSAGES[result.status]);
-      else toast.error(result.error);
-    });
-  }
-  return { send, isPending };
-}
 
 export function SaveButton({ jobId, saved, compact = false }: { jobId: number; saved: boolean; compact?: boolean }) {
   const { send, isPending } = useJobEvent(jobId);

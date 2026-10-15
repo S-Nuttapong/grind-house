@@ -5,13 +5,13 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { CommandMenu } from "@/features/shell/command-menu";
+import { CommandMenu } from "@/features/shell/CommandMenu";
 
 const ScoringPill = dynamic(
-  () => import("@/features/fit/components/scoring-pill").then((mod) => mod.ScoringPill),
+  () => import("@/features/fit/components/ScoringPill").then((mod) => mod.ScoringPill),
   { ssr: false },
 );
-import { ThemeToggle } from "@/features/shell/theme-toggle";
+import { ThemeToggle } from "@/features/shell/ThemeToggle";
 import { cn } from "@/lib/utils";
 
 const NAV = [

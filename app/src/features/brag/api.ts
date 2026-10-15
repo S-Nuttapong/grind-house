@@ -1,4 +1,4 @@
-import { request } from "@/lib/api-client";
+import { request } from "@/lib/apiClient";
 import type { Tag, MetricKey, BragDoc, BragDocInput } from "@/features/brag/types";
 
 export function fetchBragDocs(): Promise<BragDoc[]> {
