@@ -138,6 +138,7 @@ def _location(parsed: ParsedFields, parser_id: str) -> LocationFact | None:
 def _pay(parsed: ParsedFields, parser_id: str) -> PayFact | None:
     minimum = _decimal(parsed.minimum)
     maximum = _decimal(parsed.maximum)
+    minimum, maximum = _close_single_amount(minimum, maximum, parsed.evidence_pay)
     if minimum is None and maximum is None:
         return None
     currency = None if parsed.currency in {"", "unknown"} else parsed.currency.upper()
@@ -160,6 +161,22 @@ def _posted(parsed: ParsedFields, parser_id: str) -> DateFact | None:
     return DateFact(
         value=value, confidence=1.0, evidence=parsed.evidence_posted, parser_id=parser_id
     )
+
+
+def _close_single_amount(
+    minimum: Decimal | None, maximum: Decimal | None, evidence: str
+) -> tuple[Decimal | None, Decimal | None]:
+    """A bare amount is a point. Only "up to" or "from" leaves one side open."""
+    folded = evidence.casefold()
+    ceiling = any(phrase in folded for phrase in ("up to", "up-to", "at most", "maximum of"))
+    floor = folded.rstrip().endswith("+") or any(
+        phrase in folded for phrase in ("from ", "at least", "minimum of")
+    )
+    if minimum is not None and maximum is None and not floor:
+        return minimum, minimum
+    if maximum is not None and minimum is None and not ceiling:
+        return maximum, maximum
+    return minimum, maximum
 
 
 def _decimal(text: str) -> Decimal | None:

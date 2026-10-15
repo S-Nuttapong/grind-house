@@ -17,6 +17,59 @@ def test_level_is_not_taken_from_years_alone() -> None:
     assert "When in doubt, unknown" in JOB_FACTS.system
 
 
+def test_a_single_amount_fills_both_bounds() -> None:
+    parsed = ParsedFields(
+        role="unknown",
+        level="unknown",
+        workplace="unknown",
+        job_type="unknown",
+        country="TH",
+        city="",
+        currency="THB",
+        interval="monthly",
+        minimum="40000",
+        maximum="",
+        posted="unknown",
+        evidence_role="",
+        evidence_level="",
+        evidence_workplace="",
+        evidence_job_type="",
+        evidence_location="",
+        evidence_pay="฿40,000 per month",
+        evidence_posted="",
+    )
+    detail = detail_from_parsed(parsed, "claude-haiku-5-5/v2")
+    assert detail.pay is not None
+    assert detail.pay.value.minimum == detail.pay.value.maximum
+
+
+def test_up_to_leaves_the_minimum_open() -> None:
+    parsed = ParsedFields(
+        role="unknown",
+        level="unknown",
+        workplace="unknown",
+        job_type="unknown",
+        country="TH",
+        city="",
+        currency="THB",
+        interval="monthly",
+        minimum="",
+        maximum="80000",
+        posted="unknown",
+        evidence_role="",
+        evidence_level="",
+        evidence_workplace="",
+        evidence_job_type="",
+        evidence_location="",
+        evidence_pay="up to ฿80,000 per month",
+        evidence_posted="",
+    )
+    detail = detail_from_parsed(parsed, "claude-haiku-5-5/v2")
+    assert detail.pay is not None
+    assert detail.pay.value.minimum is None
+    assert detail.pay.value.maximum is not None
+
+
 def test_unknown_fields_stay_empty() -> None:
     parsed = ParsedFields(
         role="unknown",
