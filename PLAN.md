@@ -19,26 +19,21 @@ Companion files: `api/db/schema.sql` (database, tested on Postgres 16) · design
 
 ## 1. Goal and scope
 
-A personal system that collects software-engineering jobs from many sources into one Postgres database, removes duplicates, ranks each job against San's brag bank with an explainable score, and shows them in a local filter UI. Claude drives scoring and daily digests through an MCP server.
+A personal system that collects software-engineering jobs from many sources into one Postgres database, removes duplicates, ranks each job against San's brag bank with an explainable score, and shows them in a local filter UI.
 
-**In scope (v1):** source adapters, normalization, dedupe, closure detection, fetch scopes with schedules, rules (saved filters + notify), profile builder from the brag bank, hard filters, prefilter, LLM rubric with evidence check, deterministic scoring, calibration, filter UI, MCP server, hourly tick, retention.
+**In scope (v1):** source adapters, normalization, dedupe, closure detection, fetch scopes with schedules, profile and brag docs, job fit scoring (`fit_tier`), filter UI, resume generation, hourly tick, retention.
 
-**Out of scope (v1):** auto-applying, cover letters, Gmail status updates, hosted UI, multi-user, logged-in scraping of any site.
+**Out of scope (v1):** auto-applying, cover letters, Gmail status updates, hosted UI, multi-user, logged-in scraping of any site. The unused rubric path (hard filters, prefilter, saved rules) is dropped ([ADR-0011](docs/adr/0011-fit-replaces-rubric.md)).
 
 **Pipeline**
 
 ```
 fetch scope due ─► adapter.fetch() ─► normalize ─► dedupe/upsert ─► close missing
                                                           │
-                     profile.json (from brag bank) ──┐    ▼
-                                                     ├─► hard filters ─► prefilter ─► shortlist
-                                                     │                                   │
-                                     Claude via MCP ◄┴───────── next_to_score ◄──────────┘
-                                          │
-                                          └─► save_assessment ─► evidence check ─► score ─► rules ─► digest
+                     brag docs + selected resume ─────────┴─► fit worker ─► job_fits ─► board
 ```
 
-Note: LLM extraction and the rubric run **only on the shortlist**, in one step per job. Hard filters and the prefilter are deterministic and run on every new job.
+Fit scores are computed by the fit worker, never inside a request. The board reads the stored `fit_tier`.
 
 ---
 
@@ -449,153 +444,11 @@ Searches are edited on `/searches`. Off-topic titles are dropped at ingest and c
 
 ---
 
-## 12. Filter DSL (`filters.py`)
+## 12. Scoring
 
-One JSON model used by the board, rules, and hard filters.
-
-```json
-{"all": [
-  {"field": "level", "op": "in", "value": ["senior", "staff"]},
-  {"any": [
-    {"field": "country", "op": "in", "value": ["SG", "TH"]},
-    {"all": [{"field": "remote", "op": "eq", "value": "remote"},
-             {"field": "tz", "op": "overlaps", "value": [5, 10]}]}
-  ]},
-  {"field": "text", "op": "matches", "value": "react OR \"web platform\""},
-  {"field": "salary_usd_year_min", "op": "gte_or_null", "value": 60000},
-  {"field": "posted_at", "op": "within_days", "value": 21}
-]}
-```
-
-### 12.1 Whitelist
-
-| field | SQL | ops |
-|---|---|---|
-| level, remote, country, employment_type | `j.<col>` | eq, in, not_in, is_null |
-| city | `j.city` | eq, in, contains |
-| company | `c.name_norm` | in, not_in |
-| company_tier | `c.tier` | in, is_null |
-| source | `EXISTS (SELECT 1 FROM postings p WHERE p.job_id=j.id AND p.source_id = ANY(%s))` | in |
-| text | `j.search @@ websearch_to_tsquery('english', %s)` | matches |
-| title | `j.title_norm` | contains, not_contains |
-| salary_usd_year_min | `j.salary_usd_year_min` | gte, gte_or_null |
-| posted_at | `j.posted_at` | within_days, within_days_or_null |
-| first_seen_at | `j.first_seen_at` | within_days |
-| tz | `j.tz_min, j.tz_max` | overlaps (NULLs pass) |
-| score | `m.score` | gte, lte |
-| band | `m.band` | in |
-| status | `s.status` | in, is_null |
-| open | `j.closed_at IS NULL` | eq true |
-
-- `compile(filter) -> (sql_where: str, params: list)`. Unknown field/op → `ValueError`. Max depth 4, max 30 conditions.
-- `board_query(filter, sort, limit, offset)` joins `jobs j`, `companies c`, and LEFT JOINs `prefilter pf`, `matches m` (current profile hash and prompt version), `job_status s`.
-- Tests: every op; nested any/all; injection attempts in values and field names; NULL handling for `tz` and `gte_or_null`.
-
-### 12.2 URL encoding
-The board keeps the filter as query params (`?level=senior,staff&country=SG,TH&q=react&min_score=60`). Values in one key are OR'd. `role` and `industry` are taxonomy slugs filled at ingest. `filters.from_query(params)` builds the DSL; `filters.to_query(dsl)` does the reverse for the simple flat case. "Save as rule" sends the DSL.
-
-### 12.3 Rules (`rules.py`)
-- `evaluate(job_ids | None)`: for each enabled rule, run its compiled filter restricted to the given job ids (or all open jobs on first enable); upsert `rule_hits (rule_id, job_id)`.
-- `digest(since) -> list`: hits with `notified_at IS NULL` and (`notify_min_score IS NULL` or score ≥ it), joined with job + match; `mark_notified(ids)`.
-
----
+The filter DSL, hard filters, keyword prefilter, LLM rubric, and saved rules in the old §12–§13.7 were never built. Those tables are dropped. Scoring is job fit (§13.8) and `fit_tier` (strong, good, fair, low). See [ADR-0011](docs/adr/0011-fit-replaces-rubric.md).
 
 ## 13. Matching
-
-### 13.1 Hard filters (`match/hard.py`)
-`prefs.yaml` → filter DSL (§12). Applied to new/changed open jobs and to all open jobs when the profile hash changes. Writes `prefilter (job_id, profile_hash, passed_hard, filter_reason)`; `filter_reason` = first failing condition (e.g. `level:junior`, `location:US-onsite`, `title_term:intern`).
-
-### 13.2 Prefilter (`match/prefilter.py`)
-Deterministic, no LLM:
-
-```
-terms_in_title = canonical terms found in title
-terms_in_jd    = canonical terms found in description
-profile_terms  = keys of profile.skills ∪ profile.domains
-
-score = 3.0 * |terms_in_title ∩ profile_terms|
-      + 1.0 * |terms_in_jd ∩ profile_terms|
-      + 1.5 * |domain terms in jd ∩ profile.domains|
-      + 2.0 if level ∈ {senior, staff}
-      - 0.5 * |stack terms in jd − profile_terms|   (capped at -5)
-```
-Store it in `prefilter.score` for jobs that passed hard filters. Once per tick, mark up to `shortlist_per_day` of today's unassessed passing jobs as `shortlisted = true` (highest score first, then most recent `posted_at`), counting jobs already shortlisted today against the cap. A job is "waiting for assessment" when `shortlisted` and it has no `matches` row for the current profile hash and prompt version. `matches` rows exist only for assessed jobs.
-
-### 13.3 Assessment via Claude (`match/assess.py`, `prompts/assess_v1.md`)
-`next_to_score(limit)` returns for each shortlisted job: `job_id, title, company, location, salary, posted_at, description_md (≤ 12k chars), prompt_version`, plus once per call the **BankView summary** `[{id, title, terms}]` read live from the vault (not stored) and `prompts/assess_v1.md`.
-
-Claude returns an `Assessment`:
-
-```json
-{
-  "job_id": 123,
-  "prompt_version": "assess_v1",
-  "model": "claude-…",
-  "requirements": {
-    "level": "senior",
-    "must": [{"text": "...", "jd_quote": "..."}],
-    "nice": [{"text": "...", "jd_quote": "..."}],
-    "stack": ["react", "typescript"],
-    "domain": ["fintech"],
-    "logistics": {"country": "SG", "remote": "hybrid", "tz": null,
-                  "visa_sponsorship": "unknown", "salary": null}
-  },
-  "criteria": [
-    {"criterion": "must_have", "requirement": "...", "jd_quote": "...",
-     "label": "met", "evidence": ["BB-012"], "note": "..."},
-    {"criterion": "level", "requirement": "Senior IC owning a platform", "label": "met", "evidence": ["BB-003"]},
-    {"criterion": "stack", "requirement": "GraphQL", "label": "gap", "evidence": []},
-    {"criterion": "domain", "requirement": "payments", "label": "adjacent", "evidence": ["BB-020"]},
-    {"criterion": "logistics", "requirement": "Hybrid in Singapore", "label": "unknown", "evidence": []}
-  ]
-}
-```
-
-`prompts/assess_v1.md` must instruct Claude to:
-- Extract at most 5 must-haves from the JD's required/minimum qualifications, each with a verbatim `jd_quote`.
-- Label each criterion `met | adjacent | gap | unknown`.
-- Cite only bank ids from the provided list; `met`/`adjacent` require at least one id whose terms support the requirement.
-- Never infer skills that no bank entry shows. When unsure, use `gap` (skills) or `unknown` (logistics).
-- Return JSON only, matching the schema.
-
-### 13.4 Evidence check (`match/evidence.py`)
-For each `met`/`adjacent` line: every cited id must exist in BankView, and the requirement's canonical terms (via `synonyms.yaml`) must intersect the union of the cited entries' terms. If the requirement has no recognizable term, accept when ids exist but set `note += " (unverified term)"`. On failure: label → `gap`, `evidence_ok = false`, `note += " evidence rejected: <reason>"`. Otherwise `evidence_ok = true`.
-
-### 13.5 Score (`match/score.py`)
-
-```python
-WEIGHTS = {"must_have": 40, "level": 20, "stack": 15, "domain": 10, "logistics": 15}
-VAL = {"met": 1.0, "adjacent": 0.5, "gap": 0.0, "unknown": 0.0}
-
-def criterion_value(kind, lines):
-    if not lines:
-        return 0.5                                  # no info → neutral
-    if kind == "logistics":
-        if any(l.label == "gap" for l in lines): return 0.0
-        if all(l.label == "met" for l in lines): return 1.0
-        return 0.5                                  # some unknown
-    return sum(VAL[l.label] for l in lines) / len(lines)
-
-def score(lines, posted_at, today):
-    by = group_by_criterion(lines)
-    s = sum(w * criterion_value(k, by.get(k, [])) for k, w in WEIGHTS.items())
-    must_gaps = sum(1 for l in by.get("must_have", []) if l.label == "gap")
-    if must_gaps >= 2: s = min(s, 49)
-    if posted_at and (today - posted_at).days > 30: s -= 10
-    s = max(0, min(100, round(s)))
-    band = "apply" if s >= 80 else "maybe" if s >= 60 else "skip"
-    return s, band
-```
-Table-driven unit tests: all met → 100; two must gaps → ≤ 49; stale → −10; logistics conflict → logistics 0; empty criterion → neutral.
-
-### 13.6 `save_assessment` transaction
-Validate (pydantic) → evidence check → score → upsert `requirements (job_id, prompt_version)` → upsert `matches` on `(job_id, profile_hash, prompt_version)` (on conflict: delete its old `match_criteria`, update score/band/model) → insert `match_criteria` rows → `rules.evaluate([job_id])`. Return `{score, band, rejected: [...]}`.
-
-### 13.7 Calibration (`calibrate.py`, `/calibrate`)
-- `jobhunt calibrate sample --n 40`: stratified sample of scored jobs (≈ 1/3 per band), shown in `/calibrate` for San to label `apply | maybe | skip` → `labels (origin='calibration')`.
-- UI skip/save/apply actions also write `labels (origin='ui_action')` (skip → skip, save → maybe, applied → apply).
-- `jobhunt calibrate report`: band agreement %, precision@10 (of the top 10 scored, share labeled apply), confusion matrix, per `prompt_version`. Shown on `/calibrate`.
-- Changing `prompt_version` or weights: re-score the calibration set; the report compares versions.
 
 ### 13.8 Job fit (`fit/`)
 
@@ -699,9 +552,6 @@ WHERE j.closed_at < now() - interval '90 days'
   AND NOT EXISTS (SELECT 1 FROM job_events e WHERE e.job_id = j.id)
   AND NOT EXISTS (SELECT 1 FROM labels l WHERE l.job_id = j.id);
 
-DELETE FROM requirements r USING jobs j
-WHERE r.job_id = j.id AND j.description_md IS NULL;
-
 DELETE FROM runs WHERE started_at < now() - interval '180 days';
 ```
 Then record `pg_database_size(current_database())` for `/runs`. Warn in tick output and on `/runs` at ≥ 70% of 1 GB.
@@ -714,16 +564,14 @@ Then record `pg_database_size(current_database())` for `/runs`. Warn in tick out
 
 | Tool | Args | Returns |
 |---|---|---|
-| `search_jobs` | `filter` (DSL) or simple args, `limit≤50` | compact rows: id, title, company, location, score, band, status, url |
-| `get_job` | `job_id` | full job, postings, requirements, criteria, status history |
-| `next_to_score` | `limit≤10` | shortlisted jobs + bank summary + assess prompt (§13.3) |
-| `save_assessment` | `Assessment` | `{score, band, rejected}` |
+| `search_jobs` | simple filters, `limit≤50` | compact rows: id, title, company, location, score, fit_tier, status, url |
+| `get_job` | `job_id` | full job, postings, fit, status history |
 | `run_scope` | `scope_id` | run summary (respects lock + guardrail) |
 | `list_scopes` / `save_scope` | scope (saved **paused**) | |
-| `list_rules` / `save_rule` | rule (saved **paused**) | |
 | `set_status` | `job_id, status, note?` | event row (origin `claude`) |
-| `digest` | `since?` | unnotified rule hits with score ≥ threshold; marks them notified |
-| `stats` | — | counts per source/stage/band, DB size, last runs |
+| `stats` | — | counts per source, stage, and fit tier; DB size; last runs |
+
+`next_to_score`, `save_assessment`, `list_rules`, `save_rule`, and `digest` belonged to the dropped rubric. They are not tools.
 
 Claude Desktop / Cowork config snippet for README (no secrets inline):
 
@@ -735,7 +583,7 @@ Claude Desktop / Cowork config snippet for README (no secrets inline):
 ```
 
 **Morning digest prompt** (README, for a Cowork scheduled task, weekdays 08:00):
-> Use the jobhunt tools. Call `next_to_score` and assess each job per the returned prompt, then `save_assessment`, until nothing is left or 40 jobs are done. Then call `digest` and give me the top 10 new matches: score, band, company, role, location, one line on the strongest match and the biggest gap, and the job id.
+> Use the jobhunt tools. Call `search_jobs` for open jobs scored strong or good that are not saved yet. Give me the top 10: score, fit tier, company, role, location, and the job id.
 
 **Resume generation** ([ADR-0005](docs/adr/0005-resume-agent.md), [ADR-0010](docs/adr/0010-resume-worker-processes.md)): the job detail pane has **Generate resume**. It queues `resume_runs`. The button stays enabled on other jobs while one run is in progress; a job that is already queued or running stays grey. `/resume-queue` lists the queue and recent finished runs. Resume generation is its own process, `jobhunt resume worker`, not a thread inside `jobhunt serve`. Docker Compose and `make api` start `RESUME_WORKERS` of them (default 3). Each process wakes on `NOTIFY resume_runs` (30 second fallback), claims one row, and runs the Claude Agent SDK (`claude-haiku-5-5` by default) with the server skill `tailor-resume-server`. A run whose worker dies is claimed again until `claims` reaches 3, then it is marked failed. Input is the job description, the fit shortlist, and other brag docs ordered by `impact` (1–5) then similarity. The same fit model then checks that the resume scores at least as high as the shortlist and still covers those requirements. Up to two rewrites get the gaps as feedback. The PDF, `resume.json`, and lint report are stored on the run. Each attempt writes an `agent_usage` row (tokens and USD, no prompt text) shown on `/admin/usage`. A run stops retrying after `RESUME_MAX_COST_USD` (default 5). The worker reads only Postgres, the synced kit, and the environment, so hosting it later does not change the code. The app writes to the vault only through `jobhunt brag-docs migrate-vault --write` ([ADR-0002](docs/adr/0002-brag-docs.md)).
 
@@ -783,16 +631,7 @@ Claude Desktop / Cowork config snippet for README (no secrets inline):
 
 - **T2.1 Profile builder** (§11) with synthetic bank fixture.
   *Accept:* sanitized profile contains no brag doc titles/metrics/description (test asserts); hash stable across runs.
-- **T2.2 Filter DSL** (§12) incl. whitelist and injection tests.
-  *Accept:* all §12.1 ops tested; malicious field/value rejected or safely parameterized.
-- **T2.3 Hard filters + prefilter** (§13.1, §13.2).
-  *Accept:* `jobhunt match` writes `prefilter` rows (reasons for failures, scores for passes) and shortlists ≤ 40 per day.
-- **T2.4 Assessment schema, evidence check, score** (§13.3–13.6) + `prompts/assess_v1.md`.
-  *Accept:* §13.5 tests; evidence rejection test (cited id lacks the term → gap, `evidence_ok=false`); DB CHECK still holds.
-- **T2.5 MCP server** tools `next_to_score`, `save_assessment`, `get_job`, `search_jobs`, `stats`.
-  *Accept:* in-process MCP tests call each tool; manual: Claude assesses 5 jobs end to end.
-- **T2.6 Calibration** CLI (§13.7).
-  *Accept:* report prints agreement and precision@10. Target before P3 sign-off: precision@10 ≥ 0.7 on San's 40 labels.
+- **T2.2–T2.6** The filter DSL, prefilter, rubric, and rules tasks were not built. Dropped in [ADR-0011](docs/adr/0011-fit-replaces-rubric.md).
 - **T2.7 Job fit schema + model** (§13.8). Tables, `JobFitModel`, BGE strategy, fake strategy, registry, keyword matching.
   *Accept:* calibration clamps to 0–100; a second `run_fit` scores nothing; editing the bank changes the source hash and the next run rescores.
 - **T2.8 Fit worker** (§13.8). Claim with `SKIP LOCKED`, idempotency key, per-batch progress plus `pg_notify`, resume after a crash, SIGTERM, heartbeat.
@@ -809,24 +648,23 @@ Claude Desktop / Cowork config snippet for README (no secrets inline):
 - **T3.1 Web skeleton** (app factory, base template, static, 127.0.0.1 bind).
 - **T3.2 Board + detail + events** (§14).
   *Accept:* filter changes update results without full reload; URL reflects filters; save/skip writes `job_events` and `labels`.
-- **T3.3 Rules builder + preview + evaluate** (§12.3, §14).
-  *Accept:* "Save as rule" from a board view reproduces the same result count in preview.
+- **T3.3** Saved rules are dropped with the rubric ([ADR-0011](docs/adr/0011-fit-replaces-rubric.md)).
 - **T3.4 Scopes builder + schedule preview + run now.**
   *Accept:* guardrail error shown inline; run now respects lock.
 - **T3.5 Runs, companies review, calibrate pages.**
-- **T3.6 MCP remaining tools** (`run_scope`, scopes/rules tools saved paused, `set_status`, `digest`) + README for Cowork config, digest prompt, tailor handoff.
-  *Accept:* digest returns only unnotified hits above threshold and marks them.
+- **T3.6 MCP remaining tools** (`run_scope`, scopes saved paused, `set_status`) + README for Cowork config.
+  *Accept:* `set_status` writes a `job_events` row with origin `claude`.
 - **T3.7 Retention** (§15) in tick + size warning.
   *Accept:* integration test with backdated rows.
 
 ### Later (not v1)
-HN / RemoteOK / Remotive adapters (P2-ready interfaces exist), Glassdoor/ZipRecruiter, cover letters from the bank, Gmail status updates as `job_events (origin='gmail')`, embeddings with pgvector for the prefilter, hosted UI behind login.
+HN / RemoteOK / Remotive adapters (P2-ready interfaces exist), Glassdoor/ZipRecruiter, cover letters from the bank, hosted UI behind login.
 
 ---
 
 ## 18. Testing strategy
 
-- **Unit:** normalizers, schedule, filters compiler, prefilter, evidence, score. Pure, fast, table-driven.
+- **Unit:** normalizers, schedule, fit score. Pure, fast, table-driven.
 - **Adapter:** respx/CSV fixtures only; live tests opt-in with `-m live`.
 - **Integration:** Docker Postgres from `docker-compose.test.yml`, `TEST_DATABASE_URL` (no secrets; local only). Migrate once per session; each test in a rolled-back transaction.
 - **E2E:** fake adapter → `tick` → match → `save_assessment` with a canned Assessment → rule hit → digest.

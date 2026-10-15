@@ -391,7 +391,7 @@ function CardBody({
       <div className="flex shrink-0 flex-col items-end gap-1" onPointerDown={(event) => event.stopPropagation()}>
         <MoveMenu jobId={job.id} current={job.status ?? ""} />
         <div className="relative z-10">
-          <ScoreRing score={job.score} band={job.fit_tier} stage={job.stage} />
+          <ScoreRing score={job.score} tier={job.fit_tier} stage={job.stage} />
         </div>
       </div>
     </div>

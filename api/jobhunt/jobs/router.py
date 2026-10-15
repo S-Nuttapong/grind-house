@@ -38,7 +38,6 @@ class JobSummary(BaseModel):
     apply_url: str
     status: str | None
     score: float | None
-    band: str | None
     fit_tier: str | None
     matched_terms: list[str]
     missing_terms: list[str]

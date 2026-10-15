@@ -13,18 +13,18 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 export function ScoreRing({
   score,
-  band,
+  tier,
   stage,
   size = "md",
 }: {
   score: number | null;
-  band: string | null;
+  tier: string | null;
   stage: string;
   size?: "md" | "lg";
 }) {
   const scored = score !== null;
   const shown = scored ? Math.round(score) : null;
-  const label = scored ? `Match score ${shown} of 100${band ? `, ${band}` : ""}` : `Not scored yet${stage && stage !== "not scored" ? `, ${stage}` : ""}`;
+  const label = scored ? `Match score ${shown} of 100${tier ? `, ${tier}` : ""}` : `Not scored yet${stage && stage !== "not scored" ? `, ${stage}` : ""}`;
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -53,7 +53,7 @@ export function ScoreRing({
                 strokeWidth="4"
                 strokeLinecap="round"
                 stroke="currentColor"
-                className={TIER_COLORS[band ?? ""] ?? "text-primary"}
+                className={TIER_COLORS[tier ?? ""] ?? "text-primary"}
                 strokeDasharray={CIRCUMFERENCE}
                 strokeDashoffset={CIRCUMFERENCE * (1 - (shown ?? 0) / 100)}
               />

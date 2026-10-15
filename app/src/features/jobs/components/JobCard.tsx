@@ -31,7 +31,7 @@ export function JobCard({ job, selected }: { job: JobSummary; selected: boolean 
       )}
     >
       <div className="flex gap-4">
-        <ScoreRing score={job.score} band={job.fit_tier} stage={job.stage} />
+        <ScoreRing score={job.score} tier={job.fit_tier} stage={job.stage} />
         <div className="min-w-0 flex-1 space-y-2">
           <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1">

@@ -84,7 +84,7 @@ export function JobDetail({ job, source }: { job: Job; source: string }) {
               </Badge>
             )}
           </div>
-          <ScoreRing score={job.score} band={job.fit_tier} stage={job.stage} size="lg" />
+          <ScoreRing score={job.score} tier={job.fit_tier} stage={job.stage} size="lg" />
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild size="lg" className="px-5">

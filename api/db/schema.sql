@@ -261,82 +261,9 @@ CREATE TABLE raw_payloads (                             -- kept only when conten
 );
 CREATE INDEX raw_payloads_fetched ON raw_payloads (fetched_at);
 
--- ───────────── Matching ─────────────
-
-CREATE TABLE profiles (                                 -- versions of profile.json from the brag bank
-  hash        text PRIMARY KEY,                         -- sha256 of the file
-  profile     jsonb NOT NULL,
-  created_at  timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE TABLE requirements (                             -- LLM extraction of the JD
-  job_id          bigint NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
-  prompt_version  text NOT NULL,
-  model           text NOT NULL,
-  extracted       jsonb NOT NULL,                       -- {level, must[], nice[], stack[], domain[], logistics{}}
-  created_at      timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY (job_id, prompt_version)
-);
-
-CREATE TABLE prefilter (                                -- deterministic stage: hard filters + keyword score
-  job_id         bigint PRIMARY KEY REFERENCES jobs(id) ON DELETE CASCADE,
-  profile_hash   text NOT NULL REFERENCES profiles(hash),
-  passed_hard    boolean NOT NULL,
-  filter_reason  text,                                  -- first failing hard filter, e.g. 'level:junior'
-  score          real,                                  -- null when passed_hard is false
-  shortlisted    boolean NOT NULL DEFAULT false,        -- picked for LLM assessment
-  computed_at    timestamptz NOT NULL DEFAULT now(),
-  CHECK (passed_hard OR (score IS NULL AND NOT shortlisted)),
-  CHECK (passed_hard OR filter_reason IS NOT NULL)
-);
-CREATE INDEX prefilter_shortlist ON prefilter (score DESC) WHERE shortlisted;
-
-CREATE TABLE matches (                                  -- LLM-assessed, code-scored
-  id               bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  job_id           bigint NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
-  profile_hash     text NOT NULL REFERENCES profiles(hash),
-  prompt_version   text NOT NULL,
-  model            text NOT NULL,
-  score            smallint NOT NULL CHECK (score BETWEEN 0 AND 100),
-  band             text NOT NULL CHECK (band IN ('apply','maybe','skip')),
-  created_at       timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (job_id, profile_hash, prompt_version)
-);
-CREATE INDEX matches_band ON matches (band, score DESC);
-
-CREATE TABLE match_criteria (                           -- one row per rubric line, so gaps are queryable
-  match_id     bigint NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
-  ordinal      smallint NOT NULL,
-  criterion    text NOT NULL CHECK (criterion IN ('must_have','level','stack','domain','logistics')),
-  requirement  text NOT NULL,
-  jd_quote     text,
-  label        text NOT NULL CHECK (label IN ('met','adjacent','gap','unknown')),
-  evidence     text[] NOT NULL DEFAULT '{}',            -- brag bank ids, e.g. {BB-012}
-  evidence_ok  boolean NOT NULL DEFAULT false,          -- set by code after checking the bank
-  note         text,
-  PRIMARY KEY (match_id, ordinal),
-  CHECK (label NOT IN ('met','adjacent') OR cardinality(evidence) > 0)
-);
-CREATE INDEX match_criteria_gaps ON match_criteria (criterion, requirement) WHERE label = 'gap';
-
 -- ───────────── You ─────────────
-
-CREATE TABLE rules (                                    -- saved board filters + notification
-  id                bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  name              text NOT NULL,
-  filters           jsonb NOT NULL,                     -- same filter model as the board
-  notify_min_score  smallint CHECK (notify_min_score BETWEEN 0 AND 100),
-  enabled           boolean NOT NULL DEFAULT true,
-  created_at        timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE TABLE rule_hits (
-  rule_id      bigint NOT NULL REFERENCES rules(id) ON DELETE CASCADE,
-  job_id       bigint NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
-  matched_at   timestamptz NOT NULL DEFAULT now(),
-  notified_at  timestamptz,
-  PRIMARY KEY (rule_id, job_id)
-);
+-- The unused rubric tables (profiles, requirements, prefilter, matches,
+-- match_criteria, rules, rule_hits) were dropped. See ADR-0011.
 
 CREATE TABLE job_events (                               -- append-only status history
   id       bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

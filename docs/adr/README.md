@@ -11,3 +11,4 @@
 | [0007](0007-claude-adapters.md) | Claude parser and fit scorer, contract checks, evals | accepted | 2026-10-12 |
 | [0008](0008-linkedin-detail-retry.md) | LinkedIn detail fetch retries a soft 429 | accepted | 2026-10-14 |
 | [0009](0009-compensation-schema.md) | Compensation table and experience in months | accepted | 2026-10-15 |
+| [0011](0011-fit-replaces-rubric.md) | Job fit replaces the unused rubric tables | accepted | 2026-10-15 |
