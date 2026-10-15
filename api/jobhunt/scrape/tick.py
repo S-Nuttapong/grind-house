@@ -19,6 +19,7 @@ from jobhunt.scrape.details import drain_details
 from jobhunt.scrape.hooks import run_phase, vpn_state_path
 from jobhunt.scrape.ingest import ingest_batch
 from jobhunt.scrape.network import corporate_network
+from jobhunt.scrape.normalize.fx import refresh_fx
 from jobhunt.scrape.pipeline import ScrapePipeline
 from jobhunt.scrape.searches import expand
 from jobhunt.scrape.sources.base import FetchContext, JobSource, RunPartial, ScopeView
@@ -48,6 +49,7 @@ def tick(search_id: int | None = None) -> int:
             log.info("another tick is running")
             return 0
         try:
+            _refresh_fx()
             if vpn_state_path().exists():
                 run_phase("after")
             before = run_phase("before_start")
@@ -64,6 +66,15 @@ def tick(search_id: int | None = None) -> int:
             return ran
         finally:
             run_phase("after")
+
+
+def _refresh_fx() -> None:
+    """At most one FX fetch a day. A failure leaves the stored rates in place."""
+    try:
+        with tx() as conn:
+            refresh_fx(conn)
+    except Exception:
+        log.warning("fx sync failed", exc_info=True)
 
 
 def _work(search_id: int | None) -> int:

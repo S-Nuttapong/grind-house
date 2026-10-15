@@ -119,6 +119,10 @@ CREATE TABLE tick_hooks (
 
 -- ───────────── Jobs ─────────────
 
+CREATE DOMAIN currency_code AS text CHECK (VALUE ~ '^[A-Z]{3}$');  -- ISO 4217
+CREATE DOMAIN money_amount AS numeric CHECK (VALUE > 0);           -- exact; never the money type
+CREATE DOMAIN months AS smallint CHECK (VALUE BETWEEN 0 AND 600);  -- 0 = none required
+
 CREATE TABLE jobs (                                     -- one row per real job (canonical)
   id               bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   company_id       bigint NOT NULL REFERENCES companies(id),
@@ -141,6 +145,8 @@ CREATE TABLE jobs (                                     -- one row per real job 
   salary_usd_year_min numeric(12,0),                    -- normalized by the app for filtering
   experience_min_years smallint CHECK (experience_min_years BETWEEN 0 AND 20),
   experience_max_years smallint CHECK (experience_max_years BETWEEN 0 AND 20),
+  experience_min_months months,                         -- 0 = none required, NULL = not stated
+  experience_max_months months,                         -- NULL = no stated upper bound
   posted_at        date,
   first_seen_at    timestamptz NOT NULL DEFAULT now(),
   last_seen_at     timestamptz NOT NULL DEFAULT now(),
@@ -160,6 +166,10 @@ CREATE TABLE jobs (                                     -- one row per real job 
     experience_max_years IS NULL
     OR experience_min_years IS NULL
     OR experience_max_years >= experience_min_years
+  ),
+  CONSTRAINT jobs_experience_months_order CHECK (experience_max_months >= experience_min_months),
+  CONSTRAINT jobs_experience_months_has_min CHECK (
+    experience_max_months IS NULL OR experience_min_months IS NOT NULL
   )
 );
 CREATE INDEX jobs_open       ON jobs (posted_at DESC) WHERE closed_at IS NULL;
@@ -171,6 +181,53 @@ CREATE INDEX jobs_title_trgm ON jobs USING gin (title_norm gin_trgm_ops);
 CREATE INDEX jobs_role       ON jobs (role) WHERE closed_at IS NULL AND role IS NOT NULL;
 CREATE INDEX jobs_experience_min ON jobs (experience_min_years)
   WHERE closed_at IS NULL AND experience_min_years IS NOT NULL;
+CREATE INDEX jobs_experience_months_min ON jobs (experience_min_months)
+  WHERE closed_at IS NULL;
+
+-- Pay components. At most one base row per job. Annual amounts are generated.
+-- USD is not stored: job_base_pay joins fx_rates at read time.
+CREATE TABLE fx_rates (
+  currency     currency_code PRIMARY KEY,
+  usd_per_unit numeric NOT NULL CHECK (usd_per_unit > 0),  -- USD for 1 unit of currency
+  as_of        date NOT NULL,                              -- provider rate date
+  source       text NOT NULL CHECK (source IN ('frankfurter', 'open_er_api')),
+  fetched_at   timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE job_compensation (
+  id             bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  job_id         bigint NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+  type           text NOT NULL CHECK (type IN (
+                   'base', 'bonus', 'signing_bonus', 'equity',
+                   'profit_sharing', 'commission', 'tips', 'other')),
+  unit           text CHECK (unit IN ('hourly', 'daily', 'weekly', 'monthly', 'yearly', 'one_time')),
+  currency       currency_code NOT NULL,
+  min_amount     money_amount,                          -- inclusive; NULL = open
+  max_amount     money_amount,
+  units_per_year numeric CHECK (units_per_year > 0),    -- hourly 2080, daily 260, weekly 52, monthly 12, yearly 1
+  annual_min     numeric GENERATED ALWAYS AS (COALESCE(min_amount, max_amount) * units_per_year) STORED,
+  annual_max     numeric GENERATED ALWAYS AS (COALESCE(max_amount, min_amount) * units_per_year) STORED,
+  evidence       text CHECK (evidence <> ''),           -- NULL only when parser_id is api:%
+  parser_id      text NOT NULL,
+  updated_at     timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT job_compensation_has_amount CHECK (min_amount IS NOT NULL OR max_amount IS NOT NULL),
+  CONSTRAINT job_compensation_order CHECK (max_amount >= min_amount),
+  CONSTRAINT job_compensation_unit_year CHECK ((unit IS NULL) = (units_per_year IS NULL)),
+  CONSTRAINT job_compensation_base_unit CHECK (type <> 'base' OR unit <> 'one_time'),
+  CONSTRAINT job_compensation_evidence CHECK (evidence IS NOT NULL OR parser_id LIKE 'api:%')
+);
+CREATE UNIQUE INDEX job_compensation_one_base ON job_compensation (job_id) WHERE type = 'base';
+
+CREATE VIEW job_base_pay AS
+SELECT c.job_id, c.currency, c.unit, c.min_amount, c.max_amount, c.units_per_year,
+       c.annual_min, c.annual_max,
+       round(c.annual_min * fx.usd_per_unit) AS usd_annual_min,
+       round(c.annual_max * fx.usd_per_unit) AS usd_annual_max,
+       fx.as_of AS fx_as_of,
+       c.evidence, c.parser_id
+FROM job_compensation c
+LEFT JOIN fx_rates fx ON fx.currency = c.currency
+WHERE c.type = 'base';
 CREATE INDEX jobs_industry   ON jobs (industry) WHERE closed_at IS NULL AND industry IS NOT NULL;
 CREATE INDEX jobs_countries  ON jobs USING gin (countries);
 

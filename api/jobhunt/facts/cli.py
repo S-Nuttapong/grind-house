@@ -42,6 +42,21 @@ def decide(report: Path = _REPORT) -> None:
     typer.echo(write_config(report))
 
 
+@facts_app.command("fx-sync")
+def fx_sync() -> None:
+    """Upsert fx_rates from Frankfurter, then open.er-api for the rest."""
+    from jobhunt.core.db import tx
+    from jobhunt.scrape.normalize.fx import sync_fx
+
+    try:
+        with tx() as conn:
+            count = sync_fx(conn)
+    except Exception as exc:
+        typer.echo(f"fx sync failed: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"fx rates upserted: {count}")
+
+
 @facts_app.command("backfill")
 def backfill(
     dry_run: bool = typer.Option(False, "--dry-run"),
