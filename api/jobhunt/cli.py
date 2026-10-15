@@ -87,7 +87,7 @@ _LABEL = "com.san.jobhunt.tick"
 def _plist() -> str:
     root = Path(__file__).resolve().parents[2]
     log_dir = Path.home() / "Library" / "Logs" / "jobhunt"
-    command = f"cd {root}/api && op run --env-file=../.env.tpl -- uv run jobhunt tick"
+    command = f"cd {root}/api && set -a && . ../.env && set +a && uv run jobhunt tick"
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">

@@ -12,13 +12,14 @@ The governing spec is [PLAN.md](PLAN.md). The database shape is [api/db/schema.s
 
 ## Run
 
-Secrets stay in 1Password. `.env.tpl` holds `op://` references only.
+Copy `.env.tpl` to `.env` and fill in the values. `.env` is gitignored. The template has names only, no secrets.
 
 ```bash
+cp .env.tpl .env
 make jh ARGS="--help"
 ```
 
-That runs `op run --env-file=.env.tpl -- uv run jobhunt` from `api/`.
+`make jh` loads `.env`, then runs `uv run jobhunt` from `api/`.
 
 ## Tests
 
@@ -110,14 +111,14 @@ The default scorer is `MatrixFitScorer("qwen3")`, a local embedding model. Swap 
 
 A **Generate resume** button on a scored job queues a run. The `resume-worker` claims it, runs the Claude Agent SDK on Haiku 5.5, and stores the PDF. See [ADR-0005](docs/adr/0005-resume-agent.md).
 
-Copy the vault kit into the gitignored directory the worker reads. `ANTHROPIC_API_KEY` lives in gitignored `.env`, not in `.env.tpl`.
+Copy the vault kit into the gitignored directory the worker reads. `ANTHROPIC_API_KEY` goes in `.env`.
 
 ```bash
 make jh ARGS="resume sync-kit"
 make up
 ```
 
-`make up` is `op run --env-file=.env.tpl --env-file=.env -- docker compose up -d --build`. To run the worker on the host against the compose database:
+`make up` is `docker compose up -d --build`. Compose reads `.env` from the repo root. To run the worker on the host against the compose database:
 
 ```bash
 make resume-worker
@@ -159,4 +160,4 @@ cd api && uv run jobhunt ops install-launchd
 
 `--dry-run` prints the plist. `ops uninstall-launchd` removes it. Logs go to `~/Library/Logs/jobhunt/tick.log`.
 
-Each tick turns Cloudflare WARP off, scrapes, then turns it back on if it was connected (`api/config/scrape.yaml`, `scripts/vpn.sh`). If 1Password is locked, `op run` fails and that tick is skipped. The next one tries again. A corporate TLS intercept skips scraping and still restores the VPN.
+Each tick turns Cloudflare WARP off, scrapes, then turns it back on if it was connected (`api/config/scrape.yaml`, `scripts/vpn.sh`). The launchd job loads `.env`. A corporate TLS intercept skips scraping and still restores the VPN.

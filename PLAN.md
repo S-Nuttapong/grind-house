@@ -47,7 +47,7 @@ Fit scores are computed by the fit worker, never inside a request. The board rea
 - On HTTP 429 or 403: stop that source for the rest of the run, mark the run `partial`, log it. Do not retry in a loop.
 
 **Secrets**
-- No secrets in code, tests, fixtures, logs, or commits. `DATABASE_URL` and any later API keys are injected at runtime with 1Password CLI (`op run --env-file=.env.tpl -- …`). `.env.tpl` holds only `op://` references. Any real `.env` is gitignored.
+- No secrets in code, tests, fixtures, logs, or commits. Copy `.env.tpl` to `.env` and fill in `DATABASE_URL` and any API keys. `.env.tpl` has names only. `.env` is gitignored.
 - Never print or log `DATABASE_URL`. Redact connection strings in error messages.
 - Use a personal GitHub repo and personal accounts, separate from work tools.
 
@@ -94,7 +94,7 @@ plan/
   README.md  PLAN.md  docs/adr/   # spec, decisions, runbook
   docker-compose.yml             # postgres, api, fit-worker, ui
   Makefile                       # check, check-app, api, app, jh
-  .env.tpl                       # op:// references only
+  .env.tpl                       # names only; copy to gitignored .env
   api/                           # Python project (uv, FastAPI, Typer)
     pyproject.toml  uv.lock  Dockerfile  docker-compose.test.yml
     db/migrations/               # dbmate; db/schema.sql is the reference shape
@@ -126,15 +126,15 @@ plan/
 
 ## 5. Configuration and secrets
 
-`.env.tpl` (committed, contains no secrets):
+`.env.tpl` (committed, contains no secrets). Copy it to `.env` and fill in the values:
 
 ```
-DATABASE_URL=op://Personal/jobhunt-neon/direct_url
-VAULT_BANK_PATH=/Users/Nuttapong_1/vaults/San Personal Space/San Life Engineering - 2026-2027/Brag Banks 2026-2027
-JOBHUNT_TZ=Asia/Bangkok
+DATABASE_URL=postgresql://jobhunt:jobhunt@127.0.0.1:54330/jobhunt?sslmode=disable
+VAULT_BANK_PATH=/path/to/brag-banks
+ANTHROPIC_API_KEY=
 ```
 
-- Run everything as `op run --env-file=.env.tpl -- uv run jobhunt <cmd>`. Add a `Makefile` or `just` alias `jh` for this.
+- `make jh` loads `.env`, then runs `uv run jobhunt <cmd>`.
 - Use Neon's **direct** (non-pooler) connection string. The tick uses a session-level advisory lock, which doesn't work through a transaction-mode pooler.
 - `settings.py` loads via `pydantic-settings`; `DATABASE_URL` is a `SecretStr`.
 
@@ -423,8 +423,8 @@ Searches are edited on `/searches`. Off-topic titles are dropped at ingest and c
 
 ### 10.3 launchd (`ops/com.san.jobhunt.tick.plist`)
 - `StartInterval` 900, `RunAtLoad` false, `StandardOutPath`/`StandardErrorPath` to `~/Library/Logs/jobhunt/tick.log`.
-- `ProgramArguments`: `/bin/zsh -lc "cd <repo>/api && op run --env-file=../.env.tpl -- uv run jobhunt tick"`.
-- If 1Password is locked, `op run` fails; the tick is skipped and the next interval retries.
+- `ProgramArguments`: `/bin/zsh -lc "cd <repo>/api && set -a && . ../.env && set +a && uv run jobhunt tick"`.
+- If `.env` is missing, the tick fails and the next interval retries.
 - `jobhunt ops install-launchd` writes the plist to `~/Library/LaunchAgents/` and runs `launchctl bootstrap gui/$UID …`; `ops uninstall-launchd` reverses it. `--dry-run` prints the plist.
 
 ---
@@ -578,7 +578,7 @@ Claude Desktop / Cowork config snippet for README (no secrets inline):
 ```json
 {"mcpServers": {"jobhunt": {
   "command": "/bin/zsh",
-  "args": ["-lc", "cd ~/code/jobhunt && op run --env-file=.env.tpl -- uv run jobhunt mcp"]
+  "args": ["-lc", "cd ~/code/jobhunt && set -a && . .env && set +a && uv run jobhunt mcp"]
 }}}
 ```
 

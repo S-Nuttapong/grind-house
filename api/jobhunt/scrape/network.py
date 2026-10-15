@@ -8,7 +8,7 @@ import ssl
 def corporate_network(host: str = "www.linkedin.com") -> bool:
     """True when the certificate is not one certifi trusts.
 
-    ``JOBHUNT_ALLOW_CORP_NETWORK=1`` is for tests. It is not set in ``.env.tpl``.
+    ``JOBHUNT_ALLOW_CORP_NETWORK=1`` is for tests. It is not set in ``.env``.
     """
     if os.environ.get("JOBHUNT_ALLOW_CORP_NETWORK") == "1":
         return False

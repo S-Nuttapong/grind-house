@@ -49,20 +49,20 @@ dev: kill-ports
 	$(MAKE) -j2 api app
 
 # Usage: make jh ARGS="doctor"
-# .env.tpl holds op:// references. .env holds local values (API key, vault path).
+# Copy .env.tpl to .env and fill it in. .env is gitignored.
 jh:
-	cd api && op run --env-file=../.env.tpl --env-file=../.env -- uv run jobhunt $(ARGS)
+	set -a; . ./.env; set +a; cd api && uv run jobhunt $(ARGS)
 
-# Local stack. op run injects secrets from .env.tpl and .env.
+# Local stack. Docker Compose reads .env from this directory.
 up:
-	op run --env-file=.env.tpl --env-file=.env -- docker compose up -d --build
+	docker compose up -d --build
 
 # Dump this project's database. Does not overwrite ~/jobhunt-backup.dump.
 pg-dump:
 	PGPASSWORD=jobhunt $(PG_BIN)/pg_dump -h 127.0.0.1 -p 54330 -U jobhunt -Fc jobhunt \
 		> $(HOME)/jobhunt-$$(date +%Y%m%d%H%M).dump
 
-# Resume worker on the host, against the Postgres.app database. Uses the same key injection.
+# Resume worker on the host, against the Postgres.app database. Loads .env.
 resume-worker:
-	cd api && op run --env-file=../.env.tpl --env-file=../.env -- env JOBHUNT_ALLOW_OFFSITE=1 \
+	set -a; . ./.env; set +a; cd api && env JOBHUNT_ALLOW_OFFSITE=1 \
 		DATABASE_URL='$(APP_DATABASE_URL)' uv run jobhunt resume worker
