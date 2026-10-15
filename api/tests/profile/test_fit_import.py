@@ -47,6 +47,7 @@ def test_run_fit_is_incremental_and_rescored_after_an_edit(conn, bank_dir: Path)
         apply_url="https://example.com/a",
         dedupe_key=f"{company_id}|go|SG",
         description_md="We use Go and Kafka for fintech payments.",
+        role="software",
     )
     second = repo.insert_job(
         conn,
@@ -56,6 +57,7 @@ def test_run_fit_is_incremental_and_rescored_after_an_edit(conn, bank_dir: Path)
         apply_url="https://example.com/b",
         dedupe_key=f"{company_id}|designer|SG",
         description_md="Brand design, no overlap with the bank.",
+        role="software",
     )
 
     model = FakeFitScorer()

@@ -85,6 +85,7 @@ def run_scope(scope_id: int, adapter: JobSource, http: HttpClient | None = None)
         ]
         params = scope_row[3] if isinstance(scope_row[3], dict) else {}
         scope = ScopeView(id=int(scope_row[0]), source_id=str(scope_row[2]), params=params)
+        roles = set(repo.allowed_roles(conn))
     ctx = FetchContext(http=http or HttpClient(), companies=companies)
     result = RunResult(run_id=run_id, status="ok")
     try:
@@ -96,6 +97,7 @@ def run_scope(scope_id: int, adapter: JobSource, http: HttpClient | None = None)
                     source_id=adapter.id,
                     batch=batch,
                     full_board=adapter.full_board,
+                    allowed_roles=roles,
                 )
             result.fetched += counts[0]
             result.new_jobs += counts[1]
@@ -146,7 +148,9 @@ def ingest_batch(
     threshold = load_settings().title_similarity if similarity is None else similarity
     fetched = new_jobs = updated = skipped = 0
     for posting in batch.postings:
-        if allowed_roles is not None and not _role_allowed(posting, allowed_roles):
+        if not _level_allowed(posting) or (
+            allowed_roles is not None and not _role_allowed(posting, allowed_roles)
+        ):
             skipped += 1
             continue
         outcome = _upsert(
@@ -264,6 +268,12 @@ def _needs_detail(posting: RawPosting) -> bool:
 
 def _role_allowed(posting: RawPosting, allowed: set[str]) -> bool:
     return infer_role(posting.title, posting.role_hint) in allowed
+
+
+def _level_allowed(posting: RawPosting) -> bool:
+    from jobhunt.scrape.normalize.level import EXCLUDED_LEVELS, infer_level
+
+    return infer_level(posting.title, posting.level_hint) not in EXCLUDED_LEVELS
 
 
 def _maybe_follow(conn: Connection[Any], company_id: int, posting: RawPosting) -> None:

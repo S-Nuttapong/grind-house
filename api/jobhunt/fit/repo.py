@@ -37,6 +37,12 @@ def latest_scored_source(conn: Connection[Any], kind: str) -> str | None:
     return None if row is None else str(row[0])
 
 
+def _target_params(conn: Connection[Any]) -> tuple[list[str], list[str]]:
+    from jobhunt.scrape.repo import target_job_params
+
+    return target_job_params(conn)
+
+
 def has_unscored_jobs(conn: Connection[Any], model_id: str, source_hash: str) -> bool:
     """True when an open job has no score for this source, or its text changed.
 
@@ -50,6 +56,7 @@ def has_unscored_jobs(conn: Connection[Any], model_id: str, source_hash: str) ->
             LEFT JOIN job_fits f
               ON f.job_id = j.id AND f.model_id = %s AND f.source_hash = %s
             WHERE j.closed_at IS NULL
+              AND j.role = ANY(%s) AND j.level <> ALL(%s)
               AND (
                 f.job_id IS NULL
                 OR f.job_hash <> encode(digest(convert_to(
@@ -58,7 +65,7 @@ def has_unscored_jobs(conn: Connection[Any], model_id: str, source_hash: str) ->
               )
         )
         """,
-        (model_id, source_hash),
+        (model_id, source_hash, *_target_params(conn)),
     ).fetchone()
     return bool(row and row[0])
 

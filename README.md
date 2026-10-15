@@ -22,13 +22,15 @@ That runs `op run --env-file=.env.tpl -- uv run jobhunt` from `api/`.
 
 ## Tests
 
-Postgres for tests:
+`make check` uses the Postgres.app database `jobhunt_test` on `127.0.0.1:54330`. That server is named `jobhunt-16` and is for this project only. Start it before `make check`.
+
+The code default for `TEST_DATABASE_URL` stays `postgresql://jobhunt:jobhunt@127.0.0.1:54329/jobhunt_test?sslmode=disable`, so the Docker test database still works:
 
 ```bash
 docker compose -f api/docker-compose.test.yml up -d
 ```
 
-`TEST_DATABASE_URL` defaults to `postgresql://jobhunt:jobhunt@127.0.0.1:54329/jobhunt_test?sslmode=disable`. That password is only for the local Docker database.
+That password is only for these local databases.
 
 ```bash
 make check
@@ -48,7 +50,7 @@ docker compose up -d --build
 
 The board is on `http://127.0.0.1:3000` and the API on `http://127.0.0.1:8765`. Inside the containers the processes listen on `0.0.0.0` so Docker can publish them; the host ports are bound to `127.0.0.1` only.
 
-For local development, start Postgres with `docker compose up -d postgres`, then run these in two terminals:
+For local development on this project, start the Postgres.app server named `jobhunt-16` (PostgreSQL 16 on `127.0.0.1:54330`). The app is in `~/Applications` because `/Applications` is not writable on this Mac. Do not add a Postgres.app server on port 5432: EarnIn projects keep Docker Postgres on 5432 and 5433. Stop `jobhunt-16` before `make up`, because both want port 54330. Then run these in two terminals:
 
 ```bash
 make api   # FastAPI JSON API on 127.0.0.1:8765
@@ -65,7 +67,7 @@ VAULT_BANK_PATH=/tmp/jobhunt-bank \
 uv run jobhunt scrape --source greenhouse
 ```
 
-The same local password is only for this Docker database. This network intercepts TLS with a Cloudflare Gateway CA, so Python will not trust the public boards until you point it at a bundle that includes that CA:
+The same local password is only for this project's database. This network intercepts TLS with a Cloudflare Gateway CA, so Python will not trust the public boards until you point it at a bundle that includes that CA:
 
 ```bash
 export SSL_CERT_FILE="$PWD/../.certs/ca-bundle.pem"
@@ -115,7 +117,7 @@ make jh ARGS="resume sync-kit"
 make up
 ```
 
-`make up` is `op run --env-file=.env.tpl -- docker compose up -d --build`. To run the worker on the host against the compose database:
+`make up` is `op run --env-file=.env.tpl --env-file=.env -- docker compose up -d --build`. To run the worker on the host against the compose database:
 
 ```bash
 make resume-worker

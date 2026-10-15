@@ -27,7 +27,11 @@ def client(database_url: str, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestC
     monkeypatch.setattr(
         composition,
         "COMPOSITION",
-        replace(composition.COMPOSITION, writer=FakeResumeWriter()),
+        replace(
+            composition.COMPOSITION,
+            scorer=FakeFitScorer(),
+            writer=FakeResumeWriter(),
+        ),
     )
     close_pool()
     with TestClient(create_app()) as test_client:

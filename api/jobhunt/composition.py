@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from jobhunt.facts.base import DetailParser
 from jobhunt.facts.default import DefaultParser
 from jobhunt.fit.base import FitScorer
-from jobhunt.fit.matrix import MatrixFitScorer
+from jobhunt.fit.claude import ClaudeFitScorer
 from jobhunt.resume.base import ResumeWriter
 from jobhunt.resume.sdk import ClaudeSdkWriter
 from jobhunt.scrape.sources.adzuna import AdzunaSource
@@ -65,7 +65,7 @@ COMPOSITION = Composition(
         MyCareersFutureSource(),
     ],
     parser=DefaultParser(),
-    scorer=MatrixFitScorer("qwen3"),
+    scorer=ClaudeFitScorer(),
     writer=ClaudeSdkWriter(),
     store=PgStore(),
 )

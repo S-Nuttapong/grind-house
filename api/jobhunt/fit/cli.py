@@ -41,6 +41,30 @@ def calibrate_sample(
     typer.echo(f"raw_sha256 {digest}")
 
 
+@calibrate_app.command("rescore")
+def calibrate_rescore(
+    run: str = typer.Option(..., "--run"),
+    dest: str = typer.Option(..., "--dest"),
+) -> None:
+    """Score a frozen sample again and print the replay against its judge files."""
+    import json
+    from pathlib import Path
+
+    from jobhunt.fit.benchmark import BenchmarkError, replay_report, rescore_frozen
+
+    source = Path(run)
+    destination = Path(dest)
+    try:
+        digest = rescore_frozen(source, destination)
+        report = replay_report(destination, reviews=source)
+    except BenchmarkError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"froze {destination}")
+    typer.echo(f"raw_sha256 {digest}")
+    typer.echo(json.dumps(report, indent=2))
+
+
 @calibrate_app.command("report")
 def calibrate_report(run: str = typer.Option(..., "--run")) -> None:
     """Print the frozen sample and each judge. Does not combine their recommendations."""
@@ -339,6 +363,177 @@ def _label_rows(payload: object) -> list[dict[str, Any]]:
             }
         )
     return rows
+
+
+@fit_app.command("gold-sample")
+def gold_sample(
+    out: str = typer.Option("evals/cache/fit-benchmark/roles-100", "--out"),
+    n: int = typer.Option(100, "--n"),
+    seed: int = typer.Option(20261012, "--seed"),
+    exclude: str | None = typer.Option(None, "--exclude"),
+) -> None:
+    """Draw role-grid jobs into a frozen sample. Reads the database, writes no fits."""
+    import os
+    from pathlib import Path
+
+    from jobhunt.core.db import close_pool, tx
+    from jobhunt.fit.benchmark import BenchmarkError
+    from jobhunt.fit.roles import prepare_sample
+
+    os.environ["DATABASE_URL"] = (
+        "postgresql://jobhunt:jobhunt@127.0.0.1:54330/jobhunt?sslmode=disable"
+    )
+    _load_env_value("VAULT_BANK_PATH")
+    close_pool()
+    destination = Path(out)
+    try:
+        with tx() as conn:
+            path = prepare_sample(conn, destination, n=n, seed=seed, exclude=_exclude_ids(exclude))
+    except BenchmarkError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"wrote {path}")
+
+
+@fit_app.command("gold-label")
+def gold_label(
+    sample: str = typer.Option("evals/cache/fit-benchmark/roles-100/sample.json", "--sample"),
+    dest: str = typer.Option("evals/gold/fit-roles-100.yaml", "--dest"),
+) -> None:
+    """Label the frozen sample with the teacher model. Resumes a partial file."""
+    from pathlib import Path
+
+    from jobhunt.fit.optimize import TeacherModelRejected
+    from jobhunt.fit.roles import GoldBudget, GoldError, label_fit_gold
+
+    _prepare_offsite()
+    try:
+        path = label_fit_gold(Path(sample), Path(dest))
+    except (GoldError, GoldBudget, TeacherModelRejected) as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"wrote {path}")
+
+
+@fit_app.command("gold-check")
+def gold_check(
+    sample: str = typer.Option("evals/cache/fit-benchmark/roles-100/sample.json", "--sample"),
+    gold: str = typer.Option("evals/gold/fit-roles-100.yaml", "--gold"),
+    dest: str = typer.Option("evals/cache/fit-benchmark/roles-100", "--dest"),
+) -> None:
+    """Relabel 10 jobs. Exit 2 when the teacher does not agree with itself."""
+    from pathlib import Path
+
+    from jobhunt.fit.roles import GoldError, GoldUnstable, check_label_stability
+
+    _prepare_offsite()
+    try:
+        summary = check_label_stability(Path(sample), Path(gold), Path(dest))
+    except GoldUnstable as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=2) from exc
+    except GoldError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(
+        f"stable within_1={summary['within_1']}/{summary['jobs']} "
+        f"jaccard={summary['mean_jaccard']:.3f} spent_usd={summary['spent_usd']}"
+    )
+
+
+@fit_app.command("prompt-optimize")
+def prompt_optimize(
+    sample: str = typer.Option("evals/cache/fit-benchmark/roles-100/sample.json", "--sample"),
+    gold: str = typer.Option("evals/gold/fit-roles-100.yaml", "--gold"),
+    dest: str = typer.Option("evals/cache/fit-benchmark/roles-100/optimize", "--dest"),
+    loop_only: bool = typer.Option(False, "--loop-only"),
+    decide_only: bool = typer.Option(False, "--decide-only"),
+    test_sample: str | None = typer.Option(None, "--test-sample"),
+    test_gold: str | None = typer.Option(None, "--test-gold"),
+) -> None:
+    """Revise the Haiku rubric on the dev half, then test it once."""
+    from pathlib import Path
+
+    from jobhunt.fit.optimize import TeacherModelRejected, decide_prompt, optimize_prompt
+    from jobhunt.fit.roles import GoldError
+
+    _prepare_offsite()
+    sample_path = Path(sample)
+    gold_path = Path(gold)
+    out = Path(dest)
+    fresh_sample = None if test_sample is None else Path(test_sample)
+    fresh_gold = None if test_gold is None else Path(test_gold)
+    try:
+        if not decide_only:
+            loop = optimize_prompt(sample_path, gold_path, out)
+            typer.echo(
+                f"loop stopped={loop['stopped']} best={loop['best']} "
+                f"spent_usd={loop['spent_usd']} scored_rounds={loop['scored_rounds']}"
+            )
+        if loop_only:
+            return
+        decision = decide_prompt(
+            sample_path,
+            gold_path,
+            out,
+            test_sample=fresh_sample,
+            test_gold=fresh_gold,
+        )
+    except (GoldError, TeacherModelRejected, ValueError) as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"shipped={decision['shipped']} report={decision['report']}")
+    if decision["gates"]:
+        typer.echo("gates: " + "; ".join(decision["gates"]))
+
+
+def _exclude_ids(path: str | None) -> set[int]:
+    import json
+    from pathlib import Path
+
+    if path is None:
+        return set()
+    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    return {int(job["job_id"]) for job in payload["jobs"]}
+
+
+def _prepare_offsite() -> None:
+    """Allow the teacher and student calls. Load the API key without printing it."""
+    import os
+    from pathlib import Path
+
+    os.environ["JOBHUNT_ALLOW_OFFSITE"] = "1"
+    root = Path(__file__).resolve().parents[3]
+    cert = root / ".certs" / "ca-bundle.pem"
+    os.environ.setdefault("SSL_CERT_FILE", str(cert))
+    os.environ.setdefault("REQUESTS_CA_BUNDLE", str(cert))
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        return
+    if _load_env_value("ANTHROPIC_API_KEY"):
+        return
+    typer.echo("ANTHROPIC_API_KEY is not set", err=True)
+    raise typer.Exit(code=1)
+
+
+def _load_env_value(name: str) -> bool:
+    """Set one variable from the repo .env when it is missing. Never prints the value."""
+    import os
+    from pathlib import Path
+
+    if os.environ.get(name):
+        return True
+    env_path = Path(__file__).resolve().parents[3] / ".env"
+    if not env_path.is_file():
+        return False
+    prefix = f"{name}="
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        if not line.startswith(prefix):
+            continue
+        value = line.split("=", 1)[1].strip().strip('"').strip("'")
+        if value:
+            os.environ[name] = value
+            return True
+    return False
 
 
 def _job_texts(conn: Connection[Any], job_ids: list[int]) -> dict[int, str]:

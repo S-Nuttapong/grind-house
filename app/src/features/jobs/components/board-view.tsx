@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { SORTS } from "@/features/jobs/filters";
+import { SORTS, sortValue } from "@/features/jobs/filters";
 import type { Facets, JobDetail as Job, JobPage } from "@/features/jobs/types";
 import { cn } from "@/lib/utils";
 
@@ -109,7 +109,7 @@ function DetailPlaceholder() {
 export function BoardView({ data, facets, selected }: { data: JobPage; facets: Facets; selected: Job | null }) {
   const { filters, navigate, isPending } = useBoard();
   const isDesktop = useIsDesktop();
-  const sort = filters.sort ?? "match";
+  const sort = sortValue(filters.sort);
   const fitSource = filters.fit === "resume" ? "selected resume" : "brag docs";
   const showing = data.total === 0 ? 0 : (data.page - 1) * data.page_size + 1;
   const upTo = Math.min(data.total, data.page * data.page_size);
@@ -150,8 +150,8 @@ export function BoardView({ data, facets, selected }: { data: JobPage; facets: F
                 <FilterSidebar facets={facets} />
               </SheetContent>
             </Sheet>
-            <Select value={sort} onValueChange={(value) => navigate({ sort: value === "match" ? "" : value })}>
-              <SelectTrigger size="sm" aria-label="Sort by" className="w-40">
+            <Select value={sort} onValueChange={(value) => navigate({ sort: value === "newest" ? "" : value })}>
+              <SelectTrigger size="sm" aria-label="Sort by" className="w-52">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent position="popper" align="end">

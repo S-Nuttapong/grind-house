@@ -1,4 +1,4 @@
-"""Scrape commands: seed, fetch, tick, and company review."""
+"""Scrape commands: seed, fetch, tick, details, and company review."""
 
 import typer
 
@@ -7,6 +7,7 @@ from jobhunt.core.cli import not_yet
 commands = typer.Typer()
 
 companies_app = typer.Typer(no_args_is_help=True, help="Company review.")
+details_app = typer.Typer(no_args_is_help=True, help="Job description queue.")
 
 
 @commands.command("seed")
@@ -52,6 +53,22 @@ def tick() -> None:
 
     ran = run_tick()
     typer.echo(f"tick finished, {ran} sources")
+
+
+@details_app.command("backfill")
+def details_backfill(source: str = typer.Option(..., "--source")) -> None:
+    """Fill descriptions for open jobs that are still missing one."""
+    from jobhunt.scrape.details import backfill_details
+
+    try:
+        result = backfill_details(source)
+    except (RuntimeError, ValueError) as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(
+        f"requeued {result.requeued}, filled {result.filled}, "
+        f"gone {result.gone}, still pending {result.pending}"
+    )
 
 
 @companies_app.command("detect")

@@ -14,7 +14,7 @@ from jobhunt.jobs.cli import jobs_app
 from jobhunt.profile.cli import profile_app
 from jobhunt.resume.cli import resume_app
 from jobhunt.scrape.cli import commands as scrape_commands
-from jobhunt.scrape.cli import companies_app
+from jobhunt.scrape.cli import companies_app, details_app
 
 app = typer.Typer(no_args_is_help=True, help="Collect, rank, and review software-engineering jobs.")
 ops_app = typer.Typer(no_args_is_help=True, help="Local scheduling.")
@@ -30,6 +30,7 @@ app.add_typer(resume_app, name="resume")
 app.add_typer(jobs_app, name="jobs")
 app.add_typer(facts_app, name="facts")
 app.add_typer(scrape_commands)
+app.add_typer(details_app, name="details")
 
 
 @app.command("doctor")

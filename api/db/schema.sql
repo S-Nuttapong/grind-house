@@ -176,7 +176,7 @@ CREATE TABLE postings (                                 -- each place a job was 
   last_seen_at   timestamptz NOT NULL DEFAULT now(),
   first_run_id   bigint REFERENCES runs(id) ON DELETE SET NULL,
   last_run_id    bigint REFERENCES runs(id) ON DELETE SET NULL,
-  detail_status  text NOT NULL DEFAULT 'done' CHECK (detail_status IN ('pending','done','failed')),
+  detail_status  text NOT NULL DEFAULT 'done' CHECK (detail_status IN ('pending','done','failed','gone')),
   detail_attempts int NOT NULL DEFAULT 0,
   facts          jsonb,                                 -- JobDetail from api + parsers
   facts_status   text NOT NULL DEFAULT 'done' CHECK (facts_status IN ('pending','done','failed')),

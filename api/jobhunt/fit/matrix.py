@@ -176,7 +176,7 @@ def load_matrix(name: str, cache_dir: str | None = None) -> MatrixFitScorer:
 def load_encoder(config: EncoderConfig, cache_dir: str | None = None) -> Encoder:
     from sentence_transformers import SentenceTransformer
 
-    model = SentenceTransformer(config.hf_name, cache_folder=cache_dir)
+    model = SentenceTransformer(config.hf_name, cache_folder=cache_dir, device="cpu")
     tokenizer = getattr(model, "tokenizer", None)
     if config.left_pad and tokenizer is not None and hasattr(tokenizer, "padding_side"):
         tokenizer.padding_side = "left"
@@ -198,7 +198,12 @@ class _TransformerEncoder:
         normalize_embeddings: bool,
         prompt: str | None = None,
     ) -> np.ndarray[tuple[int, int], np.dtype[np.float64]]:
-        kwargs: dict[str, object] = {"normalize_embeddings": normalize_embeddings}
+        kwargs: dict[str, object] = {
+            "normalize_embeddings": normalize_embeddings,
+            # fp32 forwards of the default batch exhaust a laptop; each text is
+            # normalized on its own, so a smaller batch does not change the vectors.
+            "batch_size": 4,
+        }
         if prompt:
             kwargs["prompt"] = prompt
         encoded = self._model.encode(texts, **kwargs)

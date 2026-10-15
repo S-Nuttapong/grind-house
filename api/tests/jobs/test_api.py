@@ -7,7 +7,9 @@ import psycopg
 import pytest
 from fastapi.testclient import TestClient
 from jobhunt.app import create_app
+from jobhunt.composition import COMPOSITION
 from jobhunt.core.db import close_pool
+from jobhunt.fit import repo as fit_repo
 from jobhunt.scrape import repo
 
 
@@ -72,6 +74,8 @@ def test_list_filters_and_shape(seeded: dict[str, int]) -> None:
     assert newest["title"] == "ZzApi Board Engineer"
     assert newest["salary_min"] == "120000"
     assert newest["is_new"] is True
+    assert newest["age"] == "0d"
+    assert _titles(client, posted_within="30") == ["ZzApi Board Engineer"]
     assert newest["score"] is None
     assert newest["stage"] == "not scored"
 
@@ -88,6 +92,109 @@ def test_list_filters_and_shape(seeded: dict[str, int]) -> None:
     assert _titles(client, role="backend,frontend") == ["ZzApi Board Engineer"]
     assert _titles(client, role="not-a-role") == ["ZzApi Board Engineer", "ZzApi Old Role"]
     assert _titles(client, industry="fintech") == ["ZzApi Board Engineer"]
+
+
+def test_query_filters_before_every_sort(database_url: str) -> None:
+    """A newer unrelated job stays out. Sort only reorders the matches."""
+    close_pool()
+    today = date.today()
+    source = "sort-relevance-test"
+    with psycopg.connect(database_url) as conn:
+        company_id = repo.insert_company(conn, name="Sort Co", name_norm="sort co zz")
+        high = repo.insert_job(
+            conn,
+            company_id=company_id,
+            title="ZzSortRel Senior",
+            title_norm="zzsortrel senior",
+            apply_url="https://example.com/sort-high",
+            dedupe_key=f"{company_id}|zzsortrel senior|SG",
+            posted_at=today - timedelta(days=2),
+            description_md="ZzSortRel payments.",
+        )
+        low = repo.insert_job(
+            conn,
+            company_id=company_id,
+            title="ZzSortRel Junior",
+            title_norm="zzsortrel junior",
+            apply_url="https://example.com/sort-low",
+            dedupe_key=f"{company_id}|zzsortrel junior|SG",
+            posted_at=today - timedelta(days=10),
+            description_md="ZzSortRel support.",
+        )
+        unscored = repo.insert_job(
+            conn,
+            company_id=company_id,
+            title="ZzSortRel Intern",
+            title_norm="zzsortrel intern",
+            apply_url="https://example.com/sort-open",
+            dedupe_key=f"{company_id}|zzsortrel intern|SG",
+            posted_at=today - timedelta(days=5),
+            description_md="ZzSortRel internship.",
+        )
+        noise = repo.insert_job(
+            conn,
+            company_id=company_id,
+            title="Night Cashier",
+            title_norm="night cashier",
+            apply_url="https://example.com/sort-noise",
+            dedupe_key=f"{company_id}|night cashier|SG",
+            posted_at=today,
+            description_md="Register and floor.",
+        )
+        fit_repo.upsert_fit_source(conn, source_hash=source, kind="bank", resume_id=None)
+        fit_repo.mark_source_scored(conn, source)
+        for job_id, score in ((high, 90.0), (low, 20.0), (noise, 99.0)):
+            fit_repo.upsert_job_fit(
+                conn,
+                {
+                    "job_id": job_id,
+                    "model_id": COMPOSITION.scorer.model_id,
+                    "source_hash": source,
+                    "job_hash": f"job-{job_id}",
+                    "score": score,
+                    "raw": score / 100,
+                    "matched_terms": [],
+                    "missing_terms": [],
+                },
+            )
+        conn.commit()
+    client = TestClient(create_app())
+    try:
+        assert _titles(client, q="ZzSortRel") == [
+            "ZzSortRel Senior",
+            "ZzSortRel Intern",
+            "ZzSortRel Junior",
+        ]
+        assert _titles(client, q="ZzSortRel", sort="oldest") == [
+            "ZzSortRel Junior",
+            "ZzSortRel Intern",
+            "ZzSortRel Senior",
+        ]
+        assert _titles(client, q="ZzSortRel", sort="fit_desc") == [
+            "ZzSortRel Senior",
+            "ZzSortRel Junior",
+            "ZzSortRel Intern",
+        ]
+        assert _titles(client, q="ZzSortRel", sort="match") == [
+            "ZzSortRel Senior",
+            "ZzSortRel Junior",
+            "ZzSortRel Intern",
+        ]
+        assert _titles(client, q="ZzSortRel", sort="fit_asc") == [
+            "ZzSortRel Junior",
+            "ZzSortRel Senior",
+            "ZzSortRel Intern",
+        ]
+    finally:
+        close_pool()
+        with psycopg.connect(database_url) as conn:
+            conn.execute(
+                "DELETE FROM jobs WHERE id = ANY(%s)",
+                ([high, low, unscored, noise],),
+            )
+            conn.execute("DELETE FROM companies WHERE id = %s", (company_id,))
+            conn.execute("DELETE FROM fit_sources WHERE hash = %s", (source,))
+            conn.commit()
 
 
 def test_detail_returns_markdown_as_data(seeded: dict[str, int]) -> None:

@@ -1,5 +1,48 @@
 react: {kind: stack, syn: [react.js, reactjs]}
+react native: {kind: stack}
 typescript: {kind: stack, syn: [ts]}
-nextjs: {kind: stack, syn: [next.js, next]}
+javascript: {kind: stack, syn: [js, ecmascript]}
+nextjs: {kind: stack, syn: [next.js]}
+vue: {kind: stack, syn: [vue.js, vuejs]}
+angular: {kind: stack, syn: [angularjs]}
+svelte: {kind: stack, syn: [sveltekit]}
+node.js: {kind: stack, syn: [nodejs]}
+python: {kind: stack}
+django: {kind: stack}
+flask: {kind: stack}
+fastapi: {kind: stack}
+java: {kind: stack}
+spring boot: {kind: stack}
+kotlin: {kind: stack}
+swift: {kind: stack, syn: [swiftui]}
+golang: {kind: stack, syn: [go lang]}
+rust: {kind: stack}
+ruby: {kind: stack}
+ruby on rails: {kind: stack, syn: [rails]}
+php: {kind: stack, syn: [laravel]}
+c#: {kind: stack, syn: [.net, dotnet]}
+c++: {kind: stack}
+scala: {kind: stack}
+elixir: {kind: stack}
+flutter: {kind: stack, syn: [dart]}
+graphql: {kind: stack}
+postgresql: {kind: stack, syn: [postgres]}
+mysql: {kind: stack}
+mongodb: {kind: stack, syn: [mongo]}
+redis: {kind: stack}
+kafka: {kind: stack}
+elasticsearch: {kind: stack, syn: [opensearch]}
+kubernetes: {kind: stack, syn: [k8s]}
+docker: {kind: stack}
+terraform: {kind: stack}
+aws: {kind: stack, syn: [amazon web services]}
+gcp: {kind: stack, syn: [google cloud]}
+azure: {kind: stack}
+spark: {kind: stack, syn: [pyspark]}
+airflow: {kind: stack}
+snowflake: {kind: stack}
+pytorch: {kind: stack}
+tensorflow: {kind: stack}
+tailwind: {kind: stack, syn: [tailwindcss]}
 web performance: {kind: concept, syn: [core web vitals, lighthouse, page speed]}
 fintech: {kind: domain, syn: [payments, banking, lending, earned wage access]}

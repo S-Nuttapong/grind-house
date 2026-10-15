@@ -13,13 +13,22 @@ from jobhunt.jobs.geo import countries_for, region_ids
 from jobhunt.scrape.normalize.role import industry_ids, role_ids
 
 PAGE_SIZE = 40
+# Same date the card shows as age. The query is a filter, never a sort key.
+_RECENCY = "coalesce(j.posted_at, j.first_seen_at::date)"
+_NEWEST = f"{_RECENCY} DESC, j.id DESC"
 _SORTS = {
-    "match": "fit.score DESC NULLS LAST, j.posted_at DESC NULLS LAST, j.id DESC",
-    "posted": "j.posted_at DESC NULLS LAST, j.id DESC",
-    "first_seen": "j.first_seen_at DESC, j.id DESC",
+    "newest": _NEWEST,
+    "oldest": f"{_RECENCY} ASC NULLS LAST, j.id ASC",
+    "fit_desc": f"fit.score DESC NULLS LAST, {_NEWEST}",
+    "fit_asc": f"fit.score ASC NULLS LAST, {_NEWEST}",
+}
+_SORT_ALIASES = {
+    "match": "fit_desc",
+    "posted": "newest",
+    "first_seen": "newest",
 }
 _FIT_MODES = {"bank", "resume"}
-_POSTED_WITHIN = {1, 3, 7, 14}
+_POSTED_WITHIN = {1, 3, 7, 14, 30}
 _STATUSES = {"saved", "skipped", "applied"}
 _LABELS = {"saved": "maybe", "skipped": "skip", "applied": "apply"}
 _REMOTE_LABELS = {
@@ -43,24 +52,31 @@ _LEVELS = (
 _SOURCE_ID = re.compile(r"^[a-z][a-z0-9_]{0,40}$")
 _SCORE_COLUMNS = """fit.score, fit.matched_terms, fit.missing_terms, fit.source_hash AS fit_source,
             fit.model_id AS fit_model_id, fit.coverage, fit.gaps"""
-# The latest computed row for a finished source, so a new run never blanks the board
-# and a model switch shows the score that was just written.
+# The latest row for the live scorer and a finished source. Other models stay hidden.
 _SCORE_JOINS = """
             LEFT JOIN LATERAL (
               SELECT jf.score, jf.matched_terms, jf.missing_terms, jf.source_hash,
                      jf.model_id, jf.coverage, jf.gaps
               FROM job_fits jf
               JOIN fit_sources fs ON fs.hash = jf.source_hash
-              WHERE jf.job_id = j.id AND fs.kind = %s AND fs.scored_at IS NOT NULL
+              WHERE jf.job_id = j.id AND fs.kind = %s AND jf.model_id = %s
+                AND fs.scored_at IS NOT NULL
               ORDER BY jf.computed_at DESC, fs.scored_at DESC
               LIMIT 1
             ) fit ON TRUE"""
 
 
+def _fit_model_id() -> str:
+    from jobhunt.composition import COMPOSITION
+
+    return COMPOSITION.scorer.model_id
+
+
 def parse_filters(params: dict[str, str]) -> dict[str, Any]:
-    sort = params.get("sort") or "match"
+    raw_sort = params.get("sort") or "newest"
+    sort = _SORT_ALIASES.get(raw_sort, raw_sort)
     if sort not in _SORTS:
-        sort = "match"
+        sort = "newest"
     try:
         page = max(1, int(params.get("page") or "1"))
     except ValueError:
@@ -104,7 +120,7 @@ def list_jobs(conn: Connection[Any], filters: dict[str, Any]) -> tuple[list[dict
             {_SCORE_JOINS}
             {where}
             """,
-            (fit_mode, *values),
+            (fit_mode, _fit_model_id(), *values),
         )
         total_row = cursor.fetchone()
         total = int(total_row["n"]) if total_row else 0
@@ -130,7 +146,7 @@ def list_jobs(conn: Connection[Any], filters: dict[str, Any]) -> tuple[list[dict
             ORDER BY {order}
             LIMIT %s OFFSET %s
             """,
-            (fit_mode, *values, PAGE_SIZE, offset),
+            (fit_mode, _fit_model_id(), *values, PAGE_SIZE, offset),
         )
         rows = [_present(dict(row)) for row in cursor.fetchall()]
     return rows, total
@@ -154,7 +170,7 @@ def get_job(conn: Connection[Any], job_id: int, fit_mode: str = "bank") -> dict[
             {_SCORE_JOINS}
             WHERE j.id = %s
             """,
-            (fit_mode, job_id),
+            (fit_mode, _fit_model_id(), job_id),
         )
         row = cursor.fetchone()
         if row is None:
@@ -211,7 +227,7 @@ def list_pipeline(conn: Connection[Any]) -> dict[str, list[dict[str, Any]]]:
             ORDER BY s.at DESC
             LIMIT 300
             """,
-            ("bank", list(PIPELINE_STATUSES)),
+            ("bank", _fit_model_id(), list(PIPELINE_STATUSES)),
         )
         rows = [_present(dict(row)) for row in cursor.fetchall()]
     columns: dict[str, list[dict[str, Any]]] = {status: [] for status in PIPELINE_STATUSES}
@@ -364,7 +380,7 @@ def _present(row: dict[str, Any]) -> dict[str, Any]:
     days = _age_days(row.get("posted_at"), row.get("first_seen_at"))
     row["age_days"] = days
     row["is_new"] = days is not None and days < 3
-    row["age"] = "New" if row["is_new"] else _age_label(days)
+    row["age"] = _age_label(days)
     row["remote_label"] = _REMOTE_LABELS.get(str(row.get("remote") or ""), "Workplace unknown")
     sources = str(row.get("sources") or "")
     row["source_list"] = [part.strip() for part in sources.split(",") if part.strip()]
@@ -435,9 +451,7 @@ def _age_days(posted: object, first_seen: object) -> int | None:
 def _age_label(days: int | None) -> str:
     if days is None:
         return ""
-    if days <= 0:
-        return "Today"
-    return f"{days}d"
+    return f"{max(days, 0)}d"
 
 
 def _blank(value: str | None) -> str | None:

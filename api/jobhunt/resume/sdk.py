@@ -12,12 +12,12 @@ from jobhunt.resume.hooks import deny_reason
 from jobhunt.resume.kit import kit_dir
 from jobhunt.resume.pricing import estimate
 
-_DEFAULT_MODEL = "claude-haiku-5-5"
+_DEFAULT_MODEL = "claude-opus-5-5"
 # One page needs a handful of extra stories. The rest of the bank only adds turns.
 _FILLER_LIMIT = 6
 # Enough for one schema fix after the first render. A 34-turn run missed the 5-minute check.
 _MAX_TURNS = 24
-_ATTEMPT_BUDGET_USD = 0.80
+_ATTEMPT_BUDGET_USD = 8
 
 
 class ClaudeSdkWriter(ResumeWriter):

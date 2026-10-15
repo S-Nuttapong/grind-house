@@ -20,7 +20,7 @@ The resume still has to be truthful, one page, and at least as good a match as t
 
 We will generate resumes through a `ResumeAgent` interface. `generate(request, workdir)` takes the job description, the fit shortlist, filler brag docs, and the profile, and returns `resume.json`, a PDF, the lint report, and token usage.
 
-The first adapter is the Claude Agent SDK (`claude-agent-sdk`) on `claude-haiku-5-5`, overridable with `RESUME_MODEL`. The SDK runs the agent loop and the Read, Write, Bash, and Skill tools. We do not flatten the skill into a system prompt. A server copy of the skill, `tailor-resume-server`, is synced into a gitignored kit directory and loaded from the run's working directory. It keeps the writing rules and drops the vault paths, the questions, and the desktop research. The agent may only run `render_resume.py` and `lint_resume.py` from that kit, and may only write inside the working directory.
+The first adapter is the Claude Agent SDK (`claude-agent-sdk`) on `claude-opus-5-5`, overridable with `RESUME_MODEL`. The SDK runs the agent loop and the Read, Write, Bash, and Skill tools. We do not flatten the skill into a system prompt. A server copy of the skill, `tailor-resume-server`, is synced into a gitignored kit directory and loaded from the run's working directory. It keeps the writing rules and drops the vault paths, the questions, and the desktop research. The agent may only run `render_resume.py` and `lint_resume.py` from that kit, and may only write inside the working directory.
 
 The worker reads Postgres, the kit directory, and environment variables. It writes a temp directory and Postgres. It never reads the vault at run time, so local and remote differ only in configuration.
 
@@ -30,7 +30,7 @@ Every shortlist doc must appear on the resume. Other brag docs fill the page, or
 
 After render, the same fit model scores the bullets whose source is a shortlist doc. The resume must score at least the stored job fit and must still cover every requirement the shortlist covered. Filler bullets are reported and do not fail the gate. Up to two rewrites get the lost requirements as feedback. A rewrite that scores lower is discarded, and the higher draft is kept. After that, `RESUME_GATE=warn` (the default) stores the PDF as `below_baseline`. `fail` stores no PDF. A model mismatch skips the gate and logs that. A one-page bullet cannot carry the embedding of a multi-thousand-character source doc, so a long shortlist can land a few points under its baseline even when every doc is cited. That is `below_baseline`, not a failed render.
 
-Each attempt writes one `agent_usage` row: model, token counts, turns, duration, and cost in USD. The row has no prompt and no resume text. `GET /api/admin/usage` and `/admin/usage` show it. They are not linked from the header. A run stops starting new attempts once its cost exceeds `RESUME_MAX_COST_USD` (default 5).
+Each attempt writes one `agent_usage` row: model, token counts, turns, duration, and cost in USD. The row has no prompt and no resume text. `GET /api/admin/usage` and `/admin/usage` show it. They are not linked from the header. A run stops starting new attempts once its cost exceeds `RESUME_MAX_COST_USD` (default 20).
 
 `sends_data_offsite` is true. The agent refuses to load unless `FIT_ALLOW_OFFSITE=1`. `ANTHROPIC_API_KEY` comes from the environment.
 
@@ -51,7 +51,7 @@ Acceptance, checked by `jobhunt resume check` and the Playwright UAT:
 - Brag docs and job descriptions are sent to Anthropic when a resume is generated. The opt-in is the same switch as an offsite fit model.
 - The admin page and the admin API have no authentication while the app binds to loopback. Both need authentication before the API is reachable from anywhere else.
 - Remote hosting, container hardening, and egress limits are not built here. The worker's inputs and outputs are already limited to Postgres, the kit, and a temp directory, which is what a later hardened container needs.
-- Haiku 5.5 is fast and cheap, and a weaker writer than a larger model. `RESUME_MODEL` changes that without a code change. The $5 cap is a backstop, not the expected cost.
+- Opus 5.5 is the default writer. `RESUME_MODEL` changes that without a code change. The $20 cap is a backstop, not the expected cost.
 - Impact is optional. Until docs are rated, filler order is similarity alone.
 
 ## Alternatives considered

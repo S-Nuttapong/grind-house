@@ -1,7 +1,7 @@
 """The fit worker. Loads the model once and polls for work every minute.
 
-Work, in order: due schedules, queued manual runs, then a scrape run for each
-mode that has unscored or changed open jobs and no scrape run already queued.
+Work, in order: due schedules, queued manual runs, then a bank scrape run
+when a target job is unscored or changed and no scrape run is already queued.
 One run at a time, and a restart resumes a run that was interrupted.
 """
 
@@ -216,7 +216,7 @@ def _queue_due(conn: Connection[Any], model: FitScorer, now: datetime) -> None:
 def _queue_scrapes(conn: Connection[Any], model: FitScorer, now: datetime) -> None:
     """Queue a scrape run when open jobs are unscored or changed and none is queued."""
     slot = now.strftime("%Y-%m-%dT%H:%M")
-    for mode in ("bank", "resume"):
+    for mode in ("bank",):
         try:
             source_hash, _docs, _resume_id = resolve(conn, mode, model)
         except SourceError:

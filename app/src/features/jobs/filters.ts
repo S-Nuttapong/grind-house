@@ -27,13 +27,27 @@ export const POSTED_WITHIN = [
   { value: "3", label: "Last 3 days" },
   { value: "7", label: "Last 7 days" },
   { value: "14", label: "Last 14 days" },
+  { value: "30", label: "1 month" },
 ];
 
 export const SORTS = [
-  { value: "match", label: "Best match" },
-  { value: "posted", label: "Date posted" },
-  { value: "first_seen", label: "Recently found" },
+  { value: "newest", label: "Newest" },
+  { value: "oldest", label: "Oldest" },
+  { value: "fit_desc", label: "Job Fit: High - Low" },
+  { value: "fit_asc", label: "Job Fit: Low - High" },
 ];
+
+const SORT_ALIASES: Record<string, string> = {
+  match: "fit_desc",
+  posted: "newest",
+  first_seen: "newest",
+};
+
+export function sortValue(raw: string | undefined): string {
+  if (!raw) return "newest";
+  const mapped = SORT_ALIASES[raw] ?? raw;
+  return SORTS.some((option) => option.value === mapped) ? mapped : "newest";
+}
 
 export const FIT_SOURCES = [
   { value: "", label: "Brag docs" },
@@ -47,8 +61,13 @@ export const ROLE_LABELS: Record<string, string> = {
   fullstack: "Full stack",
   mobile: "Mobile",
   data: "Data",
-  ml: "Machine learning",
-  devops: "DevOps / platform",
+  ml: "AI / ML",
+  product_engineer: "Product engineer",
+  growth_engineer: "Growth engineer",
+  platform_engineer: "Platform engineer",
+  web_engineer: "Web engineer",
+  forward_deployed: "Forward deployed",
+  devops: "DevOps",
   security: "Security",
   qa: "QA",
   engineering_manager: "Engineering manager",

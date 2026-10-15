@@ -29,7 +29,7 @@ class StopRequested(Exception):
 
 
 def max_cost() -> Decimal:
-    raw = os.environ.get("RESUME_MAX_COST_USD", "5")
+    raw = os.environ.get("RESUME_MAX_COST_USD", "20")
     try:
         return Decimal(raw)
     except Exception:

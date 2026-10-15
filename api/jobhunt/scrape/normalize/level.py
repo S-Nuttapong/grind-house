@@ -4,6 +4,9 @@ import re
 
 Level = str
 
+# Kept levels are everything else, including unknown (no level in the title).
+EXCLUDED_LEVELS = frozenset({"manager", "principal", "junior", "intern"})
+
 _RULES: tuple[tuple[str, str], ...] = (
     (r"\bintern\b", "intern"),
     (r"\b(?:junior|graduate|entry)\b", "junior"),

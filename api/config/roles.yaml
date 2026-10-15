@@ -1,4 +1,5 @@
 # Longer phrases are matched before shorter ones. Unknown titles stay null.
+# web_engineer phrases are a fallback: they match only when nothing else does.
 engineering_manager:
   - engineering manager
   - eng manager
@@ -17,19 +18,43 @@ backend:
   - back-end
   - backend
 mobile:
+  - android platform engineer
+  - mobile platform engineer
   - ios
   - android
   - mobile
 data:
+  - data platform engineer
   - data engineer
   - data scientist
   - analytics engineer
 software:
+  - software development engineer
+  - member of technical staff
   - software engineer
+  - java engineer
+  - java developer
+  - search engineer
   - software developer
   - swe
   - programmer
+product_engineer:
+  - product engineer
+growth_engineer:
+  - growth engineer
+platform_engineer:
+  - platform engineer
+web_engineer:
+  - web engineer
+  - web developer
+forward_deployed:
+  - forward deployed
 ml:
+  - machine learning platform engineer
+  - ml platform engineer
+  - ai platform engineer
+  - computer vision
+  - research engineer
   - machine learning
   - ml engineer
   - ai engineer
@@ -39,10 +64,10 @@ ml:
   - llm engineer
 devops:
   - devops
-  - platform engineer
   - site reliability
   - sre
 security:
+  - security platform engineer
   - security engineer
   - appsec
   - cybersecurity

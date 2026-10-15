@@ -4,8 +4,8 @@ from pathlib import Path
 import psycopg
 from jobhunt.fit import repo as fit_repo
 from jobhunt.fit.fake import FakeFitScorer
-from jobhunt.fit.sources import job_hash
-from jobhunt.fit.worker import execute_run, idempotency_key, poll_once, queue_run
+from jobhunt.fit.sources import SourceError, job_hash
+from jobhunt.fit.worker import _queue_scrapes, execute_run, idempotency_key, poll_once, queue_run
 from jobhunt.profile.import_bank import import_bank
 from jobhunt.scrape import repo
 
@@ -20,7 +20,20 @@ def _open_job(conn, company_id: int, number: int) -> int:
         apply_url=f"https://example.com/{number}",
         dedupe_key=f"{company_id}|{title.lower()}|SG",
         description_md="Go and Kafka for payments.",
+        role="software",
     )
+
+
+def test_queue_scrapes_resolves_bank_only(monkeypatch) -> None:
+    seen: list[str] = []
+
+    def resolve(_conn, mode: str, _model) -> None:
+        seen.append(mode)
+        raise SourceError("empty")
+
+    monkeypatch.setattr("jobhunt.fit.worker.resolve", resolve)
+    _queue_scrapes(None, FakeFitScorer(), datetime(2026, 10, 13, tzinfo=UTC))  # type: ignore[arg-type]
+    assert seen == ["bank"]
 
 
 def test_idempotency_key_depends_on_slot_and_schedule() -> None:

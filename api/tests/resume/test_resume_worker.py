@@ -1,8 +1,11 @@
 """A full resume run against the fake agent. The worker commits on its own connection."""
 
+from dataclasses import replace
 from datetime import date
 from uuid import uuid4
 
+import pytest
+from jobhunt import composition
 from jobhunt.brag import repo as brag_repo
 from jobhunt.fit import repo as fit_repo
 from jobhunt.fit.base import BragDoc
@@ -14,6 +17,15 @@ from jobhunt.scrape import repo as scrape_repo
 
 _TEXT = "Built React services for payment teams."
 _FILLER = "Owned Kafka pipelines for ledger events."
+
+
+@pytest.fixture(autouse=True)
+def fake_scorer(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        composition,
+        "COMPOSITION",
+        replace(composition.COMPOSITION, scorer=FakeFitScorer()),
+    )
 
 
 def _seed(conn) -> int:

@@ -612,7 +612,9 @@ class FitScorer(ABC):
     def fit_many(self, docs: Sequence[BragDoc], job_descriptions: Sequence[str]) -> list[FitResult]: ...
 ```
 
-`BragDoc` is an id and a text. `FitResult` is a 0–100 `score`, the uncalibrated `raw` aggregate, `coverage`, `top_docs` (doc id, the aspect it covers, similarity 0–1), and `gaps`. The scorer is `COMPOSITION.scorer` in `jobhunt/composition.py`. The default is `MatrixFitScorer("qwen3")`. `ClaudeFitScorer` is the offsite adapter. Adding a strategy is one class plus one line there. A scorer with `sends_data_offsite = True` refuses to run unless `JOBHUNT_ALLOW_OFFSITE=1`. `fit/contract.py` drops a match whose doc id was not in the input.
+`BragDoc` is an id and a text. `FitResult` is a 0–100 `score`, the uncalibrated `raw` aggregate, `coverage`, `top_docs` (doc id, the aspect it covers, similarity 0–1), and `gaps`. The scorer is `COMPOSITION.scorer` in `jobhunt/composition.py`. The live scorer is `ClaudeFitScorer` (`claude-haiku-5-5/v3`). `MatrixFitScorer("qwen3")` stays available for comparison. Adding a strategy is one class plus one line there. A scorer with `sends_data_offsite = True` refuses to run unless `JOBHUNT_ALLOW_OFFSITE=1`. `fit/contract.py` drops a match whose doc id was not in the input.
+
+**Claude score** (`fit/claude.py`). v3 asks Haiku for matches only. Link-only bullets and benefits or equal-opportunity bullets are removed first, and fewer than 3 requirements scores 0 with no call. A match that names a `kind: stack` term the doc does not mention is dropped (`fit/keywords.py` `stack_terms_in`), and each doc keeps its strongest matches. Credit `g` is 0 at similarity 0.5 and 1 at 0.9. Coverage is `sum(g) / (N + 2)`. Quality is `sum(g²) / sum(g)`. The score is `100 * 2 * quality * coverage / (quality + coverage)`. One matched requirement scores at most 33. A score of 80 needs evidence on at least two-thirds of `N + 2` requirements. Gaps are the requirements with zero credit. `raw` is unchanged, so resume filler and the resume gate still read it. v1 and v2 keep the model's own score. An empty description is still scored from the title; that is a separate follow-up.
 
 **Matrix starter** (`fit/matrix.py`, `fit/aspects.py`, `fit/select.py`). `qwen3` loads `Qwen/Qwen3-Embedding-0.6B` once per worker process. Each brag doc is one vector. `split_aspects` keeps Markdown bullets and sentences and drops sections whose heading matches benefits, perks, about us, EEO, or salary. Aspects are encoded with the instruction "Given a job requirement, retrieve resume achievements that demonstrate it." The cosine matrix has one row per doc and one column per aspect. Greedy coverage picks up to 10 docs: each step adds the doc with the largest gain in the sum over aspects of the best similarity so far, and stops when that gain drops below 0.01. The raw score is the mean, over the selected rows, of each row's maximum. `bge` is the same matrix model with `BAAI/bge-base-en-v1.5` and the prefix `Represent this sentence for searching relevant passages: `. Each model has its own calibration floor and span, because the cosine ranges differ. The defaults stretch 0.40–0.85 to 0–100: `max(0, min(100, (raw - floor) / span * 100))`. `jobhunt fit calibrate` prints a replacement floor and span from the stored raw scores and does not edit the constants. `fake` implements the same interface with term overlap, for tests.
 
@@ -620,7 +622,7 @@ class FitScorer(ABC):
 
 **Sources** (`fit/sources.py`). Bank mode is one `BragDoc` per brag doc (title, role at company, "Key: value" metric lines, tag names, description) plus the profile summary as id `profile`. Resume mode is one doc per Markdown section, id `resume:<id>#n`. The sha256 covers the ids and texts and is upserted into `fit_sources`. Editing a brag doc or selecting a resume creates a new hash; it does not score anything. The board keeps showing the latest computed row whose source has `scored_at` set. The fit mode stays `bank`.
 
-**Keywords** (`fit/keywords.py`). Canonical terms from `synonyms.yaml` present in both texts are `matched_terms`; terms in the job description but not the joined doc text are `missing_terms`. Both are stored on `job_fits` during the run.
+**Keywords** (`fit/keywords.py`). Canonical terms from `synonyms.yaml` present in both texts are `matched_terms`; terms in the job description but not the joined doc text are `missing_terms`. Both are stored on `job_fits` during the run. `stack_terms_in` returns only `kind: stack` terms. Adding a stack term also adds it to matched and missing terms for every scorer, because they read the same file.
 
 **Runner** (`fit/runner.py`). `run_fit(conn, model, mode, limit=None)` selects open jobs whose `job_hash` (sha256 of title + description) is missing or different in `job_fits` for this model and source, calls `fit_many` in batches of 64, and upserts `job_fits` plus `job_fit_matches`. Unchanged jobs are skipped, so a rerun is cheap and a bank edit (new hash) rescores everything.
 
@@ -639,7 +641,7 @@ The UI is a Next.js app in `app/` (`npm run dev`, bound to `127.0.0.1:3000`). Ne
 
 | API route | Purpose | UI page |
 |---|---|---|
-| `GET /api/jobs?q&where&remote&source&posted_within&has_salary&include_closed&fit&min_score&sort&page` | `{jobs, total, page, pages, page_size}`; `fit` is `bank` (default) or `resume`; `sort=match` is the default | Board list |
+| `GET /api/jobs?q&where&remote&source&posted_within&has_salary&include_closed&fit&min_score&sort&page` | `{jobs, total, page, pages, page_size}`; `fit` is `bank` (default) or `resume`; `sort=newest` is the default (`oldest`, `fit_desc`, `fit_asc`; `sort=match` is the high-to-low fit alias). `q` filters matching jobs before the sort | Board list |
 | `GET /api/jobs/{id}` | Job with `description_md`, `postings`, `events`, `tailor_prompt`, `top_brags`, `gaps`, `coverage` | Board detail pane, mobile sheet |
 | `POST /api/jobs/{id}/events` | JSON `{status, reason?}`; status ∈ saved, skipped, applied; returns the job | Save / skip (with reason) / applied |
 | `GET /api/facets` | Source ids and remote types for filter controls | Board filters |
@@ -667,7 +669,7 @@ Every job carries `score` (0–100) and `fit_tier` (strong / good / fair / low) 
 
 **Detail:** full JD (Markdown rendered, must-have `jd_quote`s highlighted), criteria table (label, JD quote, bank ids, evidence_ok), all source URLs, apply link, status history, "Copy tailor prompt".
 
-**Filters panel:** Match group (score against: brag docs or selected resume; minimum score: any, 40+, 60+, 80+), source, remote type, posted within, salary listed, include closed, text search, location, sort (best match by default, date posted, recently found).
+**Filters panel:** Match group (score against: brag docs or selected resume; minimum score: any, 40+, 60+, 80+), source, remote type, posted within, salary listed, include closed, text search, location, sort (newest by default, oldest, job fit high to low, job fit low to high). A text query limits the list to matching jobs, then the chosen sort reorders that list.
 
 **Brag Docs page** (`/brag-docs`): the feed groups brag docs by `quarter`, newest first. A sticky filter bar searches title, description, and metric values, filters by every selected tag, one company, and one metric key. "Log a brag doc" is a dialog: title, date (defaults to today, shows the derived quarter), company (creatable), role, impact (1–5, optional), tags (creatable multi-select), metric rows (creatable key plus a value), a growing markdown description, and URL attachments. Typing a new tag or metric key creates it and applies it immediately. Saving on Cmd+Enter.
 
@@ -789,7 +791,7 @@ Claude Desktop / Cowork config snippet for README (no secrets inline):
 - **T2.8 Fit worker** (§13.8). Claim with `SKIP LOCKED`, idempotency key, per-batch progress plus `pg_notify`, resume after a crash, SIGTERM, heartbeat.
   *Accept:* two workers claiming at once take different runs; a killed run resumes and scores only the remaining jobs; the SSE stream replays history, resumes from `Last-Event-ID` with no duplicates, and ends on the final status event.
 - **T2.9 Profile + schedules API** (§14). Entry and resume CRUD, schedule validation (422 on bad cron, timezone, or a gap under 15 min), queue run returns 202, fit status with the stale flag.
-  *Accept:* integration tests cover each route; the board's `sort=match` and `min_score` read stored scores only.
+  *Accept:* integration tests cover each route; the board's `sort=fit_desc` (`sort=match` alias) and `min_score` read stored scores only.
 - **T2.10 Profile + schedules UI.** `/profile`, `/schedules` with live progress, the match filter group, the score badge, and the scoring pill.
   *Accept:* Playwright covers the board sorted by score, a schedule edit, and a run whose progress survives a reload.
 - **T2.11 Brag docs** ([ADR-0002](docs/adr/0002-brag-docs.md)). Replace `bank_entries` with tags, metric keys, brag docs, and their metrics and attachments. `/brag-docs` with the creatable form, quarter grouping, and the filter bar. `jobhunt brag-docs migrate-vault` rewrites old vault frontmatter once.
@@ -831,7 +833,7 @@ HN / RemoteOK / Remotive adapters (P2-ready interfaces exist), Glassdoor/ZipRecr
 |---|---|---|
 | Target locations, remote tz band | SG + TH onsite/hybrid; remote overlapping UTC+5..+10 | `config/prefs.yaml` |
 | First 30 companies | none; San fills `companies.seed.yaml` (name + careers URL; detector finds ATS) | `config/companies.seed.yaml` |
-| Initial fetch scopes | ATS tiers A+B daily 07:00; Indeed `software engineer` for SG, TH, TW, JP, AU, NZ, HK, MY, VN, ID, UK, DE, NL, FR daily 07:30; LinkedIn guest SG `frontend engineer` at 08:00 and 20:00, plus one daily software-engineer search per new country from 09:00; Glassdoor SG/AU/NZ; Naukri Bengaluru; Adzuna gb/de/nl/fr/au/nz/sg/in; Reed London; Jooble for those countries except VN; MyCareersFuture SG | `config/scopes.seed.yaml` or UI |
+| Initial fetch scopes | ATS tiers A+B daily 07:00; scheduled software-role searches include `software engineer`, `product engineer`, `growth engineer`, and `web engineer`; Indeed for SG, TH, TW, JP, AU, NZ, HK, MY, VN, ID, UK, DE, NL, FR daily 07:30; LinkedIn guest SG at 08:00 and 20:00, plus one daily search per new country from 09:00; Glassdoor SG/AU/NZ; Naukri Bengaluru; Adzuna gb/de/nl/fr/au/nz/sg/in; Reed London; Jooble for those countries except VN; MyCareersFuture SG | `config/scopes.seed.yaml` or UI |
 | Write shortlisted jobs to Obsidian | no (vault stays read-only) | revisit after v1 |
 
 `companies.seed.yaml` format:

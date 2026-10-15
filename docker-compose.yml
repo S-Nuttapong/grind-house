@@ -60,9 +60,9 @@ services:
       DATABASE_URL: postgresql://jobhunt:jobhunt@postgres:5432/jobhunt?sslmode=disable
       HF_HOME: /models
       JOBHUNT_ALLOW_OFFSITE: "1"
-      RESUME_MODEL: claude-haiku-5-5
+      RESUME_MODEL: claude-opus-5-5
       RESUME_GATE: warn
-      RESUME_MAX_COST_USD: "5"
+      RESUME_MAX_COST_USD: "20"
       RESUME_KIT_DIR: /kit
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     volumes:

@@ -133,7 +133,7 @@ def admin_usage(days: int = 30) -> dict[str, Any]:
 def _model_name() -> str:
     import os
 
-    return os.environ.get("RESUME_MODEL", "claude-haiku-5-5")
+    return os.environ.get("RESUME_MODEL", "claude-opus-5-5")
 
 
 def _replay(run_id: int, after_id: int) -> list[dict[str, Any]]:

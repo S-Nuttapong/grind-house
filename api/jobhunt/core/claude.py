@@ -10,15 +10,39 @@ from jobhunt.core.log import get_logger
 
 log = get_logger("claude")
 
-# Haiku 5.5, global routing, prompts up to 100k tokens.
+# Per million tokens: (input, output, 5-minute cache write, cache read).
+# The cutoff is prompt tokens (input + cache read + cache write).
 # https://platform.claude.com/docs/en/about-claude/pricing
-_SHORT = (100_000, Decimal("0.10"), Decimal("0.50"), Decimal("0.125"), Decimal("0.01"))
-_LONG = (100_000, Decimal("0.50"), Decimal("2.50"), Decimal("0.625"), Decimal("0.05"))
+_HAIKU = "claude-haiku-5-5"
+_OPUS = "claude-opus-5-5"
+_SHORT_LIMIT = 100_000
+_HAIKU_SHORT = (Decimal("0.10"), Decimal("0.50"), Decimal("0.125"), Decimal("0.01"))
+_HAIKU_LONG = (Decimal("0.50"), Decimal("2.50"), Decimal("0.625"), Decimal("0.05"))
+_OPUS_SHORT = (Decimal("4"), Decimal("20"), Decimal("5"), Decimal("0.40"))
+_Rate = tuple[Decimal, Decimal, Decimal, Decimal]
+_PRICES: dict[str, tuple[_Rate, _Rate | None]] = {
+    _HAIKU: (_HAIKU_SHORT, _HAIKU_LONG),
+    _OPUS: (_OPUS_SHORT, None),
+}
 _MILLION = Decimal(1_000_000)
+
+
+@dataclass(frozen=True)
+class CallMeta:
+    model: str
+    input_tokens: int
+    output_tokens: int
+    cache_read_tokens: int
+    cache_write_tokens: int
+    cost_usd: Decimal
 
 
 class ClaudeError(Exception):
     """The model did not return a usable structured result."""
+
+    def __init__(self, message: str, calls: list[CallMeta] | None = None) -> None:
+        super().__init__(message)
+        self.calls = list(calls or [])
 
 
 class ClaudeRefusal(ClaudeError):
@@ -31,16 +55,6 @@ class ClaudeTruncated(ClaudeError):
 
 class ClaudeInvalid(ClaudeError):
     """The reply did not match the schema after one retry."""
-
-
-@dataclass(frozen=True)
-class CallMeta:
-    model: str
-    input_tokens: int
-    output_tokens: int
-    cache_read_tokens: int
-    cache_write_tokens: int
-    cost_usd: Decimal
 
 
 class _Parser(Protocol):
@@ -66,6 +80,7 @@ def structured_call[T: BaseModel](
     tokens = max_tokens
     schema_retried = False
     truncated_retried = False
+    calls: list[CallMeta] = []
     while True:
         try:
             message = api.messages.parse(
@@ -83,23 +98,24 @@ def structured_call[T: BaseModel](
             )
         except ValidationError:
             if schema_retried:
-                raise ClaudeInvalid() from None
+                raise ClaudeInvalid("reply did not match the schema", calls) from None
             schema_retried = True
             continue
         meta = _meta(message, model)
+        calls.append(meta)
         _log(meta)
         if message.stop_reason == "refusal":
-            raise ClaudeRefusal()
+            raise ClaudeRefusal("model refused", calls)
         if message.stop_reason == "max_tokens":
             if not truncated_retried:
                 truncated_retried = True
                 tokens *= 2
                 continue
-            raise ClaudeTruncated()
+            raise ClaudeTruncated(f"reply hit max_tokens at {tokens} tokens", calls)
         parsed = message.parsed_output
         if not isinstance(parsed, output):
             if schema_retried:
-                raise ClaudeInvalid()
+                raise ClaudeInvalid("reply did not match the schema", calls)
             schema_retried = True
             continue
         return parsed, meta
@@ -123,13 +139,25 @@ def _meta(message: Any, model: str) -> CallMeta:
         output_tokens=output_tokens,
         cache_read_tokens=cache_read,
         cache_write_tokens=cache_write,
-        cost_usd=_cost(input_tokens, output_tokens, cache_read, cache_write),
+        cost_usd=_cost(model, input_tokens, output_tokens, cache_read, cache_write),
     )
 
 
-def _cost(input_tokens: int, output_tokens: int, cache_read: int, cache_write: int) -> Decimal:
+def _cost(
+    model: str, input_tokens: int, output_tokens: int, cache_read: int, cache_write: int
+) -> Decimal:
+    """Dollar cost for one call. An unknown model raises instead of using Haiku rates."""
+    rates = _PRICES.get(model)
+    if rates is None:
+        raise ValueError(f"no price for model {model}")
+    short, long = rates
     prompt = input_tokens + cache_read + cache_write
-    _limit, input_rate, output_rate, write_rate, read_rate = _LONG if prompt > _SHORT[0] else _SHORT
+    if prompt > _SHORT_LIMIT:
+        if long is None:
+            raise ValueError(f"no long-context price for model {model}")
+        input_rate, output_rate, write_rate, read_rate = long
+    else:
+        input_rate, output_rate, write_rate, read_rate = short
     spent = (
         Decimal(input_tokens) * input_rate
         + Decimal(output_tokens) * output_rate

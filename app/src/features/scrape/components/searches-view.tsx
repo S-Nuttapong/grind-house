@@ -66,7 +66,12 @@ const ROLES = [
   ["fullstack", "Full stack"],
   ["frontend", "Frontend"],
   ["backend", "Backend"],
-  ["ml", "Machine learning"],
+  ["ml", "AI / ML"],
+  ["product_engineer", "Product engineer"],
+  ["growth_engineer", "Growth engineer"],
+  ["platform_engineer", "Platform engineer"],
+  ["web_engineer", "Web engineer"],
+  ["forward_deployed", "Forward deployed"],
 ] as const;
 
 function pollDefault(sourceId: string): number {

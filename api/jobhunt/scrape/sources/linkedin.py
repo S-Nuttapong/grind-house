@@ -7,6 +7,7 @@ from typing import Any
 
 import httpx
 from bs4 import BeautifulSoup
+from tenacity import RetryError
 
 from jobhunt.core.http import HttpClient, SourceBlocked
 from jobhunt.facts.base import JobDetail
@@ -34,6 +35,16 @@ _ATS = re.compile(
     re.IGNORECASE,
 )
 _MAX_PAGES = 20
+# A 429 on the detail endpoint clears in about 2.5s. The later waits are a margin.
+_RETRY_AFTER = (2.5, 5.0, 10.0, 20.0)
+
+
+class PostingGone(Exception):
+    """LinkedIn returned 404: the posting was taken down."""
+
+    def __init__(self, job_id: str) -> None:
+        super().__init__(f"linkedin job {job_id} is no longer posted")
+        self.job_id = job_id
 
 
 class LinkedInSource(SourceDefaults):
@@ -85,10 +96,46 @@ class LinkedInSource(SourceDefaults):
 
 
 def fetch_detail(http: HttpClient, job_id: str) -> dict[str, Any]:
-    """Description, seniority, industry, and an offsite apply link when LinkedIn has one."""
-    response = http.get(_DETAIL.format(job_id=job_id), "linkedin_guest")
-    _reject_authwall(response.text)
-    return parse_detail(response.text)
+    """Description, seniority, industry, and an offsite apply link when LinkedIn has one.
+
+    A 429 is a short throttle, so it is retried. A 404 means the job is gone.
+    A 999 is an IP block: it stops the queue instead of burning an attempt.
+    """
+    url = _DETAIL.format(job_id=job_id)
+    waits = iter(_RETRY_AFTER)
+    network_retried = False
+    while True:
+        try:
+            response = http.get(url, "linkedin_guest")
+        except SourceBlocked as exc:
+            if exc.status_code != 429:
+                raise
+            delay = next(waits, None)
+            if delay is None:
+                raise
+            http._sleep(delay + http._uniform(0.0, 1.0))
+            continue
+        except httpx.HTTPStatusError as exc:
+            status = exc.response.status_code
+            if status == 404:
+                raise PostingGone(job_id) from exc
+            if status == 999:
+                raise SourceBlocked("linkedin_guest", 999) from exc
+            raise
+        except RetryError as exc:
+            # The shared client retries a 999 as if it were a 5xx, then raises this.
+            response = exc.last_attempt.result()
+            code = getattr(response, "status_code", None)
+            if code == 999:
+                raise SourceBlocked("linkedin_guest", 999) from exc
+            raise
+        except httpx.TransportError:
+            if network_retried:
+                raise
+            network_retried = True
+            continue
+        _reject_authwall(response.text)
+        return parse_detail(response.text)
 
 
 def parse_cards(html: str, country: str) -> list[RawPosting]:

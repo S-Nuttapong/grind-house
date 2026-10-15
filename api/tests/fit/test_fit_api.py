@@ -9,6 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 from jobhunt.app import create_app
 from jobhunt.brag import repo as brag_repo
+from jobhunt.composition import COMPOSITION
 from jobhunt.core.db import close_pool
 from jobhunt.fit import repo as fit_repo
 from jobhunt.fit.fake import FakeFitScorer
@@ -168,6 +169,7 @@ def test_board_sorts_by_stored_score(client: TestClient, database_url: str, bank
             apply_url="https://example.com/fit-weak",
             dedupe_key=f"{company_id}|zzfit designer|SG",
             description_md="Brand design only.",
+            role="software",
         )
         strong = repo.insert_job(
             conn,
@@ -177,12 +179,46 @@ def test_board_sorts_by_stored_score(client: TestClient, database_url: str, bank
             apply_url="https://example.com/fit-strong",
             dedupe_key=f"{company_id}|zzfit go|SG",
             description_md="Go and Kafka for payments.",
+            role="software",
         )
         run_fit(conn, FakeFitScorer(), "bank")
+        # Matches reference job_fits (job_id, model_id, source_hash), so the
+        # model id cannot be updated in place. Copy the rows, then delete the
+        # fake rows; ON DELETE CASCADE removes their matches.
+        model_id = COMPOSITION.scorer.model_id
+        job_ids = [weak, strong]
+        conn.execute(
+            """
+            INSERT INTO job_fits (
+                job_id, model_id, source_hash, job_hash, score, raw, coverage, gaps,
+                matched_terms, missing_terms
+            )
+            SELECT job_id, %s, source_hash, job_hash, score, raw, coverage, gaps,
+                   matched_terms, missing_terms
+            FROM job_fits
+            WHERE job_id = ANY(%s) AND model_id = 'fake/v1'
+            """,
+            (model_id, job_ids),
+        )
+        conn.execute(
+            """
+            INSERT INTO job_fit_matches (
+                job_id, model_id, source_hash, rank, doc_ref, aspect, similarity
+            )
+            SELECT job_id, %s, source_hash, rank, doc_ref, aspect, similarity
+            FROM job_fit_matches
+            WHERE job_id = ANY(%s) AND model_id = 'fake/v1'
+            """,
+            (model_id, job_ids),
+        )
+        conn.execute(
+            "DELETE FROM job_fits WHERE job_id = ANY(%s) AND model_id = 'fake/v1'",
+            (job_ids,),
+        )
         conn.commit()
 
     try:
-        body = client.get("/api/jobs", params={"q": "ZzFit"}).json()
+        body = client.get("/api/jobs", params={"q": "ZzFit", "sort": "fit_desc"}).json()
         assert [job["title"] for job in body["jobs"]] == ["ZzFit Go Engineer", "ZzFit Designer"]
         assert body["jobs"][0]["fit_tier"] == "strong"
         assert body["jobs"][0]["score"] > body["jobs"][1]["score"]

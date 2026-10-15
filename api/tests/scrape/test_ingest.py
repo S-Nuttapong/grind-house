@@ -200,6 +200,30 @@ def test_edited_description_stores_a_new_payload(conn) -> None:
     assert payloads == (2,)
 
 
+def test_excluded_level_is_counted_as_skipped(conn) -> None:
+    _company(conn)
+    fetched, new_jobs, _, _, skipped = ingest_batch(
+        conn,
+        run_id=_run(conn),
+        source_id="linkedin_guest",
+        batch=FetchBatch(
+            postings=[
+                _posting(
+                    source_id="linkedin_guest",
+                    source_job_id="a",
+                    title="Junior Software Engineer",
+                ),
+                _posting(source_id="linkedin_guest", source_job_id="b", title="Software Engineer"),
+            ]
+        ),
+        full_board=False,
+        allowed_roles={"software"},
+    )
+    assert fetched == 1
+    assert new_jobs == 1
+    assert skipped == 1
+
+
 def test_off_topic_titles_are_counted_as_skipped(conn) -> None:
     _company(conn)
     fetched, new_jobs, _, _, skipped = ingest_batch(

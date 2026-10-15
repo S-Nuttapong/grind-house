@@ -2,6 +2,7 @@
 
 import re
 from functools import cache
+from typing import Any
 
 import yaml
 
@@ -11,14 +12,23 @@ _CONFIG = config_path("synonyms.yaml")
 
 
 @cache
+def _entries() -> dict[str, Any]:
+    return yaml.safe_load(_CONFIG.read_text()) or {}
+
+
+@cache
 def vocabulary() -> dict[str, tuple[str, ...]]:
     """Map each canonical term to the forms that count as that term."""
-    raw = yaml.safe_load(_CONFIG.read_text()) or {}
     vocab: dict[str, tuple[str, ...]] = {}
-    for term, spec in raw.items():
+    for term, spec in _entries().items():
         forms = [str(term), *[str(item) for item in spec.get("syn", [])]]
         vocab[str(term)] = tuple(forms)
     return vocab
+
+
+@cache
+def _stack_terms() -> frozenset[str]:
+    return frozenset(str(term) for term, spec in _entries().items() if spec.get("kind") == "stack")
 
 
 def terms_in(text: str) -> set[str]:
@@ -28,6 +38,11 @@ def terms_in(text: str) -> set[str]:
         if any(re.search(rf"(?<!\w){re.escape(form.lower())}(?!\w)", folded) for form in forms):
             found.add(term)
     return found
+
+
+def stack_terms_in(text: str) -> set[str]:
+    """Named technologies (kind: stack) in the text."""
+    return terms_in(text) & _stack_terms()
 
 
 def compare(profile_text: str, job_description: str) -> tuple[list[str], list[str]]:

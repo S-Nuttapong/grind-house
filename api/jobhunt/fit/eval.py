@@ -1,6 +1,7 @@
 """Fit metrics. eval_fit takes a scorer, not a model name."""
 
 import math
+import random
 from collections.abc import Sequence
 from dataclasses import dataclass
 
@@ -84,6 +85,39 @@ def hit_at_k(
     return hits / len(pairs)
 
 
+def precision_at_k(
+    chosen: Sequence[Sequence[str]], expected: Sequence[Sequence[str]], k: int
+) -> float | None:
+    """Share of the top-k picks that are in the expected docs. None when nothing was picked."""
+    hits = 0
+    total = 0
+    for picks, wanted in zip(chosen, expected, strict=True):
+        top = list(picks[:k])
+        wanted_set = set(wanted)
+        total += len(top)
+        hits += sum(1 for doc in top if doc in wanted_set)
+    if total == 0:
+        return None
+    return hits / total
+
+
+def recall_at_k(
+    chosen: Sequence[Sequence[str]], expected: Sequence[Sequence[str]], k: int
+) -> float | None:
+    """Share of the expected docs that appear in the top k. None when nothing was expected."""
+    hits = 0
+    total = 0
+    for picks, wanted in zip(chosen, expected, strict=True):
+        if not wanted:
+            continue
+        top = set(picks[:k])
+        total += len(wanted)
+        hits += sum(1 for doc in wanted if doc in top)
+    if total == 0:
+        return None
+    return hits / total
+
+
 def _ranks(values: Sequence[float]) -> list[float]:
     order = sorted(range(len(values)), key=lambda index: values[index])
     ranks = [0.0] * len(values)
@@ -129,6 +163,28 @@ class FitReport:
     icc: float | None
     retest_sd: float | None
     order_delta: float | None
+    precision_at_10: float | None = None
+    recall_at_10: float | None = None
+
+
+@dataclass(frozen=True)
+class BootstrapJob:
+    """One job's scores, used by paired_bootstrap. Lists stay aligned by index."""
+
+    score: float
+    rating: float
+    picks: tuple[str, ...]
+    gold_docs: tuple[str, ...]
+    scores: tuple[float, ...] = ()
+    order_delta: float | None = None
+    cost_usd: float = 0.0
+
+
+@dataclass(frozen=True)
+class BootstrapInterval:
+    mean: float
+    low: float
+    high: float
 
 
 def eval_fit(
@@ -151,13 +207,16 @@ def eval_fit(
         deltas.append(abs(repeated[0].score - reversed_score))
     first = [row[0] for row in scores]
     ratings = [int(label.rating) for label in labels]
+    expected = [label.docs for label in labels]
     return FitReport(
         spearman=spearman(first, [label.rating for label in labels]),
-        hit_at_10=hit_at_k(picks, [label.docs for label in labels], 10),
+        hit_at_10=hit_at_k(picks, expected, 10),
         kappa=quadratic_kappa([score_quintile(score) for score in first], ratings),
         icc=icc(scores),
         retest_sd=retest_sd(scores),
         order_delta=(sum(deltas) / len(deltas)) if deltas else None,
+        precision_at_10=precision_at_k(picks, expected, 10),
+        recall_at_10=recall_at_k(picks, expected, 10),
     )
 
 
@@ -177,6 +236,106 @@ def fit_gates(report: FitReport, *, baseline_spearman: float | None) -> list[str
 
 def score_quintile(score: float) -> int:
     return min(5, max(1, int(score // 20) + 1))
+
+
+def objective(precision: float | None, rho: float | None) -> float | None:
+    """Half precision@10 and half rank agreement, both on a 0 to 1 scale."""
+    if precision is None or rho is None:
+        return None
+    return 0.5 * precision + 0.5 * ((rho + 1) / 2)
+
+
+def paired_bootstrap(
+    left: Sequence[BootstrapJob],
+    right: Sequence[BootstrapJob],
+    seed: int,
+    resamples: int = 10_000,
+) -> dict[str, BootstrapInterval]:
+    """Resample the same job indexes for both versions. Returns v2 minus v1.
+
+    `left` is v1 and `right` is v2, paired by index. The interval is the 2.5th
+    to 97.5th percentile of the resampled deltas.
+    """
+    if len(left) != len(right) or not left:
+        raise ValueError("bootstrap needs the same jobs for both versions")
+    if resamples < 1:
+        raise ValueError("resamples must be at least 1")
+    count = len(left)
+    rng = random.Random(seed)
+    buckets: dict[str, list[float]] = {
+        name: []
+        for name in (
+            "objective",
+            "precision",
+            "recall",
+            "spearman",
+            "lineup",
+            "retest_sd",
+            "order_delta",
+            "cost",
+        )
+    }
+    for _draw in range(resamples):
+        indexes = [rng.randrange(count) for _index in range(count)]
+        sample_left = [left[index] for index in indexes]
+        sample_right = [right[index] for index in indexes]
+        for name, delta in _bootstrap_deltas(sample_left, sample_right).items():
+            if delta is not None:
+                buckets[name].append(delta)
+    return {name: _interval(values) for name, values in buckets.items() if values}
+
+
+def _bootstrap_deltas(
+    left: Sequence[BootstrapJob], right: Sequence[BootstrapJob]
+) -> dict[str, float | None]:
+    left_metrics = _bootstrap_metrics(left)
+    right_metrics = _bootstrap_metrics(right)
+    deltas: dict[str, float | None] = {}
+    for name in left_metrics:
+        first = left_metrics[name]
+        second = right_metrics[name]
+        deltas[name] = None if first is None or second is None else second - first
+    return deltas
+
+
+def _bootstrap_metrics(jobs: Sequence[BootstrapJob]) -> dict[str, float | None]:
+    picks = [job.picks for job in jobs]
+    expected = [job.gold_docs for job in jobs]
+    precision = precision_at_k(picks, expected, 10)
+    rho = spearman([job.score for job in jobs], [job.rating for job in jobs])
+    repeats = [job.scores for job in jobs if len(job.scores) >= 2]
+    order = [job.order_delta for job in jobs if job.order_delta is not None]
+    return {
+        "objective": objective(precision, rho),
+        "precision": precision,
+        "recall": recall_at_k(picks, expected, 10),
+        "spearman": rho,
+        "lineup": sum(len(job.picks) for job in jobs) / len(jobs),
+        "retest_sd": retest_sd(repeats),
+        "order_delta": (sum(order) / len(order)) if order else None,
+        "cost": sum(job.cost_usd for job in jobs) / len(jobs),
+    }
+
+
+def _interval(values: Sequence[float]) -> BootstrapInterval:
+    ordered = sorted(values)
+    return BootstrapInterval(
+        mean=sum(ordered) / len(ordered),
+        low=_percentile(ordered, 0.025),
+        high=_percentile(ordered, 0.975),
+    )
+
+
+def _percentile(ordered: Sequence[float], quantile: float) -> float:
+    if len(ordered) == 1:
+        return ordered[0]
+    position = (len(ordered) - 1) * quantile
+    lower = math.floor(position)
+    upper = math.ceil(position)
+    if lower == upper:
+        return ordered[lower]
+    weight = position - lower
+    return ordered[lower] * (1 - weight) + ordered[upper] * weight
 
 
 def reverse_order(text: str) -> str:

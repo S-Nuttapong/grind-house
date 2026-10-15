@@ -1,10 +1,17 @@
 .DS_Store
 .env
+.env.*
 !.env.tpl
 .venv
 __pycache__/
 *.py[cod]
 data/
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-shm
+*.db-wal
 exports/
 *.log
 *.pem

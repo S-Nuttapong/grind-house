@@ -103,16 +103,24 @@ def _score_all(
         return found
 
 
+def _target_params(conn: Connection[Any]) -> tuple[list[str], list[str]]:
+    from jobhunt.scrape.repo import target_job_params
+
+    return target_job_params(conn)
+
+
 def _pending(
     conn: Connection[Any], model_id: str, source_hash: str, limit: int | None
 ) -> tuple[list[dict[str, Any]], int]:
     with conn.cursor(row_factory=dict_row) as cursor:
         cursor.execute(
             """
-            SELECT id, title, description_md FROM jobs
-            WHERE closed_at IS NULL
-            ORDER BY id
-            """
+            SELECT j.id, j.title, j.description_md FROM jobs j
+            WHERE j.closed_at IS NULL
+              AND j.role = ANY(%s) AND j.level <> ALL(%s)
+            ORDER BY j.id
+            """,
+            _target_params(conn),
         )
         rows = [dict(row) for row in cursor.fetchall()]
     stored = _stored_hashes(conn, model_id, source_hash)

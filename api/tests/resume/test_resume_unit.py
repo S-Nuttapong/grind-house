@@ -123,6 +123,14 @@ def test_pricing_uses_short_and_long_context_rates() -> None:
         cache_write_tokens=0,
     )
     assert short == Decimal("0.001100")
+    opus = estimate(
+        "claude-opus-5-5",
+        input_tokens=1_000,
+        output_tokens=2_000,
+        cache_read_tokens=0,
+        cache_write_tokens=0,
+    )
+    assert opus == Decimal("0.044000")
     long = estimate(
         "other",
         input_tokens=200_000,

@@ -825,6 +825,17 @@ def known_ids(conn: Connection[Any], source_id: str) -> list[str]:
     return [str(row[0]) for row in rows]
 
 
+# Open jobs the fit scorer and the prune keep. Null roles fail the ANY check.
+TARGET_JOB_SQL = "j.role = ANY(%s) AND j.level <> ALL(%s)"
+
+
+def target_job_params(conn: Connection[Any]) -> tuple[list[str], list[str]]:
+    """Allowed role slugs and the excluded levels, in that order."""
+    from jobhunt.scrape.normalize.level import EXCLUDED_LEVELS
+
+    return allowed_roles(conn), sorted(EXCLUDED_LEVELS)
+
+
 def allowed_roles(conn: Connection[Any]) -> list[str]:
     row = conn.execute("SELECT allowed_roles FROM scrape_settings WHERE id").fetchone()
     if row is None:
@@ -834,6 +845,122 @@ def allowed_roles(conn: Connection[Any]) -> list[str]:
 
 def save_allowed_roles(conn: Connection[Any], roles: list[str]) -> None:
     conn.execute("UPDATE scrape_settings SET allowed_roles = %s WHERE id", (roles,))
+
+
+_PROTECTED_SQL = """
+  AND NOT EXISTS (SELECT 1 FROM labels WHERE job_id = j.id)
+  AND NOT EXISTS (SELECT 1 FROM job_events WHERE job_id = j.id)
+  AND NOT EXISTS (SELECT 1 FROM resume_runs WHERE job_id = j.id)
+"""
+
+
+def promote_into_target(conn: Connection[Any]) -> int:
+    """Set role when the title now maps into the allowed roles and the stored role does not.
+
+    A job already in the allowed set is left alone, so a retag never demotes one.
+    """
+    from jobhunt.scrape.normalize.role import infer_role
+
+    allowed = set(allowed_roles(conn))
+    rows = conn.execute("SELECT id, title, role FROM jobs").fetchall()
+    updated = 0
+    for job_id, title, role in rows:
+        if role in allowed:
+            continue
+        inferred = infer_role(str(title))
+        if inferred in allowed and inferred != role:
+            conn.execute("UPDATE jobs SET role = %s WHERE id = %s", (inferred, int(job_id)))
+            updated += 1
+    return updated
+
+
+def prune_plan(conn: Connection[Any], *, limit: int = 20) -> tuple[int, int, int, list[str]]:
+    """Return (promoted, deletable, protected, sample titles) without writing.
+
+    Promotion is simulated: a null or off-target role becomes the inferred role
+    when that role is allowed. Levels are not changed.
+    """
+    from jobhunt.scrape.normalize.level import EXCLUDED_LEVELS
+    from jobhunt.scrape.normalize.role import infer_role
+
+    allowed = set(allowed_roles(conn))
+    rows = conn.execute(
+        """
+        SELECT j.title, j.role, j.level,
+          (
+            EXISTS (SELECT 1 FROM labels WHERE job_id = j.id)
+            OR EXISTS (SELECT 1 FROM job_events WHERE job_id = j.id)
+            OR EXISTS (SELECT 1 FROM resume_runs WHERE job_id = j.id)
+          )
+        FROM jobs j
+        ORDER BY j.id
+        """
+    ).fetchall()
+    promoted = 0
+    deletable: list[str] = []
+    protected = 0
+    for title, role, level, saved in rows:
+        effective = str(role) if role is not None else None
+        if effective not in allowed:
+            inferred = infer_role(str(title))
+            if inferred in allowed and inferred != effective:
+                effective = inferred
+                promoted += 1
+        if effective in allowed and str(level) not in EXCLUDED_LEVELS:
+            continue
+        if saved:
+            protected += 1
+        else:
+            deletable.append(str(title))
+    return promoted, len(deletable), protected, deletable[:limit]
+
+
+def prune_preview(conn: Connection[Any], *, limit: int = 20) -> tuple[int, int, list[str]]:
+    """Return (deletable, protected, sample titles) for jobs outside the target."""
+    roles, levels = target_job_params(conn)
+    off = f"NOT (coalesce({TARGET_JOB_SQL}, false))"
+    count = conn.execute(
+        f"SELECT count(*) FROM jobs j WHERE {off} {_PROTECTED_SQL}",
+        (roles, levels),
+    ).fetchone()
+    protected = conn.execute(
+        f"""
+        SELECT count(*) FROM jobs j
+        WHERE {off}
+          AND (
+            EXISTS (SELECT 1 FROM labels WHERE job_id = j.id)
+            OR EXISTS (SELECT 1 FROM job_events WHERE job_id = j.id)
+            OR EXISTS (SELECT 1 FROM resume_runs WHERE job_id = j.id)
+          )
+        """,
+        (roles, levels),
+    ).fetchone()
+    samples = conn.execute(
+        f"""
+        SELECT j.title FROM jobs j
+        WHERE {off} {_PROTECTED_SQL}
+        ORDER BY j.id
+        LIMIT %s
+        """,
+        (roles, levels, limit),
+    ).fetchall()
+    deleted = int(count[0]) if count else 0
+    kept = int(protected[0]) if protected else 0
+    return deleted, kept, [str(row[0]) for row in samples]
+
+
+def prune_off_target(conn: Connection[Any]) -> int:
+    """Delete jobs outside the target. Jobs with a label, event, or resume run stay."""
+    roles, levels = target_job_params(conn)
+    cursor = conn.execute(
+        f"""
+        DELETE FROM jobs j
+        WHERE NOT (coalesce({TARGET_JOB_SQL}, false))
+        {_PROTECTED_SQL}
+        """,
+        (roles, levels),
+    )
+    return int(cursor.rowcount)
 
 
 def due_scopes(conn: Connection[Any]) -> list[tuple[Any, ...]]:
@@ -1021,3 +1148,49 @@ def fail_detail(conn: Connection[Any], posting_id: int) -> None:
         """,
         (posting_id,),
     )
+
+
+def gone_detail(conn: Connection[Any], posting_id: int) -> None:
+    """The posting returned 404. Leave it out of later backfills."""
+    conn.execute(
+        """
+        UPDATE postings
+        SET detail_status = 'gone', detail_attempts = detail_attempts + 1
+        WHERE id = %s
+        """,
+        (posting_id,),
+    )
+
+
+def requeue_missing_details(conn: Connection[Any], source_id: str) -> int:
+    """Queue open jobs that still have no description. Skip postings that are gone."""
+    cursor = conn.execute(
+        """
+        UPDATE postings p
+        SET detail_status = 'pending', detail_attempts = 0
+        FROM jobs j
+        WHERE j.id = p.job_id
+          AND p.source_id = %s
+          AND j.closed_at IS NULL
+          AND coalesce(j.description_md, '') = ''
+          AND p.detail_status <> 'gone'
+        """,
+        (source_id,),
+    )
+    return int(cursor.rowcount)
+
+
+def count_pending_details(conn: Connection[Any], source_id: str) -> int:
+    row = conn.execute(
+        """
+        SELECT count(*)
+        FROM postings p
+        JOIN jobs j ON j.id = p.job_id
+        WHERE p.source_id = %s AND p.detail_status = 'pending' AND p.detail_attempts < 3
+          AND j.closed_at IS NULL
+        """,
+        (source_id,),
+    ).fetchone()
+    if row is None:
+        return 0
+    return int(row[0])

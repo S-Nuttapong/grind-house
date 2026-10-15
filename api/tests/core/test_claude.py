@@ -51,7 +51,7 @@ class _Client:
 
 def test_refusal_is_not_retried() -> None:
     client = _Client([_Message("refusal", None)])
-    with pytest.raises(ClaudeRefusal):
+    with pytest.raises(ClaudeRefusal, match="refused") as caught:
         structured_call(
             model="claude-haiku-5-5",
             system="rules",
@@ -61,11 +61,12 @@ def test_refusal_is_not_retried() -> None:
             client=client,
         )
     assert len(client.messages.calls) == 1
+    assert len(caught.value.calls) == 1
 
 
 def test_max_tokens_retries_once_at_double() -> None:
     client = _Client([_Message("max_tokens", None), _Message("max_tokens", None)])
-    with pytest.raises(ClaudeTruncated):
+    with pytest.raises(ClaudeTruncated, match="max_tokens") as caught:
         structured_call(
             model="claude-haiku-5-5",
             system="rules",
@@ -75,6 +76,8 @@ def test_max_tokens_retries_once_at_double() -> None:
             client=client,
         )
     assert [call["max_tokens"] for call in client.messages.calls] == [100, 200]
+    assert len(caught.value.calls) == 2
+    assert "200" in str(caught.value)
 
 
 def _invalid() -> ValidationError:
@@ -98,7 +101,7 @@ def test_schema_error_retries_once() -> None:
 
 def test_a_second_schema_error_is_invalid() -> None:
     client = _Client([_invalid(), _invalid()])
-    with pytest.raises(ClaudeInvalid):
+    with pytest.raises(ClaudeInvalid, match="schema") as caught:
         structured_call(
             model="claude-haiku-5-5",
             system="rules",
@@ -107,6 +110,18 @@ def test_a_second_schema_error_is_invalid() -> None:
             max_tokens=100,
             client=client,
         )
+    assert caught.value.calls == []
+
+
+def test_cost_uses_the_model_table() -> None:
+    from jobhunt.core.claude import _cost
+
+    assert _cost("claude-haiku-5-5", 100, 20, 0, 0) == Decimal("0.00002000")
+    assert _cost("claude-opus-5-5", 100, 20, 0, 0) == Decimal("0.00080000")
+    with pytest.raises(ValueError, match="no price"):
+        _cost("claude-unknown", 1, 1, 0, 0)
+    with pytest.raises(ValueError, match="long-context"):
+        _cost("claude-opus-5-5", 100_001, 0, 0, 0)
 
 
 def test_system_block_is_cached_and_the_prompt_is_not_logged(

@@ -60,6 +60,7 @@ def tick(search_id: int | None = None) -> int:
                 return 0
             ran = _work(search_id)
             _maybe_close()
+            _prune()
             return ran
         finally:
             run_phase("after")
@@ -136,7 +137,10 @@ def _run_source(
             # for a tick that only has incremental polls, or no search at all.
             if not wide:
                 try:
-                    drain_details(source_id, http)
+                    outcome = drain_details(source_id, http)
+                    stopped = getattr(outcome, "stopped", None)
+                    if stopped:
+                        log.warning("detail queue stopped: %s", stopped)
                 except (SourceBlocked, RunPartial) as exc:
                     log.warning("detail queue stopped: %s", exc)
             for scope in scopes:
@@ -339,6 +343,20 @@ def _maybe_close() -> None:
             duration_ms=0,
         )
     log.info("closed %s stale aggregator jobs", closed)
+
+
+def _prune() -> None:
+    """Drop jobs that are outside the target after this tick. The count is the hook duration."""
+    with tx() as conn:
+        deleted = repo.prune_off_target(conn)
+        repo.insert_hook(
+            conn,
+            name="prune-off-target",
+            phase="tick",
+            exit_code=0,
+            duration_ms=deleted,
+        )
+    log.info("pruned %s off-target jobs", deleted)
 
 
 def _skip(reason: str) -> None:

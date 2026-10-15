@@ -7,13 +7,33 @@ import yaml
 
 from jobhunt.core.paths import config_path
 
+# Applied only after every other phrase misses, so "Web Developer (React)" stays frontend.
+_FALLBACK_SLUGS = frozenset({"web_engineer"})
+_LEVEL_WORD = (
+    r"(?:senior|sr|staff|principal|junior|jr|intern|mid|associate|entry|graduate|"
+    r"lead|level|[ivx]+|\d+)"
+)
+_BARE_SOFTWARE = re.compile(
+    rf"^(?:{_LEVEL_WORD}\s+)*(?:engineers?|developers?)(?:\s+{_LEVEL_WORD})*$",
+    re.IGNORECASE,
+)
+
 
 def infer_role(title: str, hint: str | None = None) -> str | None:
     """Return a taxonomy slug. A hint wins when it matches; otherwise the title."""
+    primary = _primary_keywords()
+    fallback = _fallback_keywords()
     for text in (hint, title):
-        found = _match(text, _role_keywords())
+        found = _match(text, primary)
         if found:
             return found
+    for text in (hint, title):
+        found = _match(text, fallback)
+        if found:
+            return found
+    for text in (hint, title):
+        if _bare_software(text):
+            return "software"
     return None
 
 
@@ -45,8 +65,21 @@ def _match(text: str | None, keywords: list[tuple[str, str]]) -> str | None:
 
 
 @cache
-def _role_keywords() -> list[tuple[str, str]]:
-    return _keywords("roles.yaml")
+def _primary_keywords() -> list[tuple[str, str]]:
+    return [pair for pair in _keywords("roles.yaml") if pair[1] not in _FALLBACK_SLUGS]
+
+
+@cache
+def _fallback_keywords() -> list[tuple[str, str]]:
+    return [pair for pair in _keywords("roles.yaml") if pair[1] in _FALLBACK_SLUGS]
+
+
+def _bare_software(text: str | None) -> bool:
+    """True when the title is only Engineer or Developer plus level words."""
+    if not text or not text.strip():
+        return False
+    compact = re.sub(r"[^A-Za-z0-9]+", " ", text).strip()
+    return _BARE_SOFTWARE.fullmatch(compact) is not None
 
 
 @cache

@@ -80,11 +80,12 @@ export function JobCard({ job, selected }: { job: JobSummary; selected: boolean 
                 {Math.round(job.score)}% {TIER_LABELS[job.fit_tier]}
               </Badge>
             )}
-            {job.is_new ? (
-              <Badge className="bg-primary/10 text-primary">New</Badge>
-            ) : (
-              job.age && <span className="text-muted-foreground">{job.age} ago</span>
-            )}
+            {job.age &&
+              (job.is_new ? (
+                <Badge className="bg-primary/10 text-primary">{job.age} ago</Badge>
+              ) : (
+                <span className="text-muted-foreground">{job.age} ago</span>
+              ))}
             {job.status && job.status !== "skipped" && (
               <Badge variant="outline" className="capitalize">
                 {job.status}

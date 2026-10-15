@@ -2,7 +2,7 @@ from decimal import Decimal
 
 import pytest
 from jobhunt.scrape.normalize.company import norm_company
-from jobhunt.scrape.normalize.level import infer_level
+from jobhunt.scrape.normalize.level import EXCLUDED_LEVELS, infer_level
 from jobhunt.scrape.normalize.location import parse_location
 from jobhunt.scrape.normalize.salary import normalize_salary
 from jobhunt.scrape.normalize.text import content_hash, html_to_md
@@ -65,6 +65,10 @@ def test_norm_title(raw: str, expected: str) -> None:
 )
 def test_infer_level(title: str, hint: str | None, expected: str) -> None:
     assert infer_level(title, hint) == expected
+
+
+def test_excluded_levels_are_manager_principal_junior_and_intern() -> None:
+    assert EXCLUDED_LEVELS == frozenset({"manager", "principal", "junior", "intern"})
 
 
 @pytest.mark.parametrize(
