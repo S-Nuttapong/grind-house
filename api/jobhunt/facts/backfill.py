@@ -1,4 +1,4 @@
-"""Fill empty role, location, level, and pay through the composed Claude parser."""
+"""Fill empty role, location, level, and pay through the composed LLM parser."""
 
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -12,9 +12,9 @@ from jobhunt.core.log import get_logger
 from jobhunt.core.paths import API_ROOT
 from jobhunt.facts.apply import posting_input
 from jobhunt.facts.base import JobDetail
-from jobhunt.facts.claude import ClaudeParser
 from jobhunt.facts.contract import check_facts
 from jobhunt.facts.coverage import coverage_table
+from jobhunt.facts.llm_parser import LLMParser
 from jobhunt.facts.merge import merge_facts, save_facts
 from jobhunt.scrape.sources.base import RawPosting
 
@@ -99,10 +99,10 @@ def run_backfill(
     return report
 
 
-def _require_parser() -> ClaudeParser:
+def _require_parser() -> LLMParser:
     parser = COMPOSITION.parser
-    if not isinstance(parser, ClaudeParser):
-        raise ValueError("backfill requires COMPOSITION.parser to be ClaudeParser")
+    if not isinstance(parser, LLMParser):
+        raise ValueError("backfill requires COMPOSITION.parser to be an LLMParser")
     require_on_machine(parser, "parser")
     return parser
 
@@ -138,7 +138,7 @@ def _restore(conn: Connection[Any]) -> None:
 
 def _fill(
     conn: Connection[Any],
-    parser: ClaudeParser,
+    parser: LLMParser,
     *,
     dry_run: bool,
     limit: int | None,
@@ -212,7 +212,7 @@ def _next_jobs(
 
 
 def _one(
-    conn: Connection[Any], parser: ClaudeParser, job_id: int, retry_failed: bool
+    conn: Connection[Any], parser: LLMParser, job_id: int, retry_failed: bool
 ) -> tuple[Decimal, list[tuple[int, str, str]], str | None]:
     eligible = _FAILED if retry_failed else _FRESH
     params: tuple[object, ...] = (job_id, parser.parser_id, parser.parser_id)
@@ -252,7 +252,7 @@ def _one(
 
 def _parse_posting(
     conn: Connection[Any],
-    parser: ClaudeParser,
+    parser: LLMParser,
     row: tuple[Any, ...],
     drops: list[tuple[str, str]],
 ) -> tuple[Decimal, str | None]:

@@ -1,12 +1,26 @@
-"""One structured call to Claude. Tokens and cost are logged. Prompt text is not."""
+"""Claude client for structured completions. Tokens and cost are logged. Prompt text is not."""
 
-from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, Protocol, cast
 
 from pydantic import BaseModel, ValidationError
 
+from jobhunt.core.llm import CallMeta
+from jobhunt.core.llm import LLMError as ClaudeError
+from jobhunt.core.llm import LLMInvalid as ClaudeInvalid
+from jobhunt.core.llm import LLMRefusal as ClaudeRefusal
+from jobhunt.core.llm import LLMTruncated as ClaudeTruncated
 from jobhunt.core.log import get_logger
+
+__all__ = [
+    "CallMeta",
+    "ClaudeError",
+    "ClaudeInvalid",
+    "ClaudeLLM",
+    "ClaudeRefusal",
+    "ClaudeTruncated",
+    "structured_call",
+]
 
 log = get_logger("claude")
 
@@ -27,34 +41,29 @@ _PRICES: dict[str, tuple[_Rate, _Rate | None]] = {
 _MILLION = Decimal(1_000_000)
 
 
-@dataclass(frozen=True)
-class CallMeta:
-    model: str
-    input_tokens: int
-    output_tokens: int
-    cache_read_tokens: int
-    cache_write_tokens: int
-    cost_usd: Decimal
+class ClaudeLLM:
+    """StructuredLLM client. Prompt caching stays here; other providers do not see it."""
 
+    sends_data_offsite = True
 
-class ClaudeError(Exception):
-    """The model did not return a usable structured result."""
+    def __init__(self, model: str = _HAIKU) -> None:
+        self.model_id = model
 
-    def __init__(self, message: str, calls: list[CallMeta] | None = None) -> None:
-        super().__init__(message)
-        self.calls = list(calls or [])
-
-
-class ClaudeRefusal(ClaudeError):
-    """The model refused. Not retried."""
-
-
-class ClaudeTruncated(ClaudeError):
-    """The reply hit max_tokens twice."""
-
-
-class ClaudeInvalid(ClaudeError):
-    """The reply did not match the schema after one retry."""
+    def complete[T: BaseModel](
+        self,
+        *,
+        system: str,
+        user: str,
+        output: type[T],
+        max_tokens: int,
+    ) -> tuple[T, CallMeta]:
+        return structured_call(
+            model=self.model_id,
+            system=system,
+            user=user,
+            output=output,
+            max_tokens=max_tokens,
+        )
 
 
 class _Parser(Protocol):

@@ -1,4 +1,4 @@
-"""Backfill fills empty columns through ClaudeParser and leaves stored values alone."""
+"""Backfill fills empty columns through LLMParser and leaves stored values alone."""
 
 from dataclasses import replace
 from decimal import Decimal
@@ -8,11 +8,11 @@ from jobhunt.composition import COMPOSITION
 from jobhunt.core.claude import CallMeta, ClaudeRefusal
 from jobhunt.facts import backfill as backfill_mod
 from jobhunt.facts.base import JobDetail, LocationFact, ParseHints, Place, PostingInput, TextFact
-from jobhunt.facts.claude import ClaudeParser
+from jobhunt.facts.llm_parser import LLMParser
 from jobhunt.scrape import repo
 
 
-class StubParser(ClaudeParser):
+class StubParser(LLMParser):
     def __init__(self, *, fail: bool = False, bad_evidence: bool = False) -> None:
         super().__init__()
         self.fail = fail
@@ -86,7 +86,7 @@ def _posting(conn, job_id: int, source_job_id: str) -> int:
 def test_backfill_refuses_unless_claude_parser(conn, monkeypatch) -> None:
     monkeypatch.setattr(backfill_mod, "COMPOSITION", COMPOSITION)
     monkeypatch.delenv("JOBHUNT_ALLOW_OFFSITE", raising=False)
-    with pytest.raises(ValueError, match="ClaudeParser"):
+    with pytest.raises(ValueError, match="LLMParser"):
         backfill_mod.run_backfill(conn, limit=1)
 
 
@@ -177,7 +177,7 @@ def test_contract_drop_and_api_retry(committed, monkeypatch, tmp_path) -> None:
     failed_report = backfill_mod.run_backfill(
         committed, checkpoint=tmp_path / "fail.checkpoint", report_dir=tmp_path
     )
-    assert "API error: ClaudeRefusal" in failed_report
+    assert "API error: LLMRefusal" in failed_report
     status = committed.execute(
         "SELECT facts_status FROM postings WHERE id = %s", (failed_posting,)
     ).fetchone()
@@ -199,5 +199,5 @@ def test_contract_drop_and_api_retry(committed, monkeypatch, tmp_path) -> None:
     _reset(committed)
 
 
-def _compose(parser: ClaudeParser):
+def _compose(parser: LLMParser):
     return replace(COMPOSITION, parser=parser)

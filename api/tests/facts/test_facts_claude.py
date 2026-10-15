@@ -1,6 +1,6 @@
 """Claude parser schema and mapping. No network."""
 
-from jobhunt.facts.claude import _SYSTEM, ParsedFields, detail_from_parsed
+from jobhunt.facts.extraction import JOB_FACTS, ParsedFields, detail_from_parsed
 from jobhunt.scrape.normalize.role import role_ids
 
 
@@ -13,8 +13,8 @@ def test_schema_requires_every_field_and_has_no_reasoning() -> None:
 
 
 def test_level_is_not_taken_from_years_alone() -> None:
-    assert "years of experience" in _SYSTEM
-    assert "When in doubt, unknown" in _SYSTEM
+    assert "years of experience" in JOB_FACTS.system
+    assert "When in doubt, unknown" in JOB_FACTS.system
 
 
 def test_unknown_fields_stay_empty() -> None:

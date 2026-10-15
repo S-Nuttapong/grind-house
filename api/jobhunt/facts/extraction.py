@@ -1,51 +1,36 @@
-"""Claude detail parser. The schema and the prompt live in this file."""
+"""What to extract from a posting. No provider, no SDK."""
 
+from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal, InvalidOperation
+from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
-from jobhunt.core.claude import CallMeta, ClaudeError, structured_call
 from jobhunt.facts.base import (
     LEVELS,
     DateFact,
     JobDetail,
     LocationFact,
-    ParseHints,
     Pay,
     PayFact,
     Place,
     PostingInput,
     TextFact,
-    as_input,
-    prefer,
 )
 from jobhunt.scrape.normalize.role import role_ids
 
-_MODEL = "claude-haiku-5-5"
-_PROMPT_VERSION = "v1"
-_MAX_TOKENS = 1024
+_PROMPT_PATH = Path(__file__).parent / "prompts" / "job_facts.md"
 _DESCRIPTION_CAP = 20_000
+_MAX_TOKENS = 1024
 
 _ROLES = tuple(sorted(role_ids())) + ("unknown",)
 _LEVELS = LEVELS + ("unknown",)
 _WORKPLACES = ("onsite", "hybrid", "remote", "unknown")
 _JOB_TYPES = ("fulltime", "parttime", "contract", "internship", "temporary", "unknown")
 _INTERVALS = ("yearly", "monthly", "weekly", "daily", "hourly", "unknown")
-
-_SYSTEM = """Extract facts from one job posting. Use only what the posting says.
-
-role is a slug from the schema, or unknown.
-level is intern, junior, mid, senior, staff, principal, lead, or manager.
-Take level from the title or from explicit seniority wording.
-Do not infer level from years of experience alone. When in doubt, unknown.
-workplace, job_type, currency, interval, country, and posted are unknown when absent.
-minimum and maximum are decimal strings, or empty when absent.
-city is empty when absent.
-Each evidence field is a verbatim substring of the title or description, or empty.
-Do not guess.
-"""
 
 
 class ParsedFields(BaseModel):
@@ -73,31 +58,26 @@ class ParsedFields(BaseModel):
     evidence_posted: str
 
 
-class ClaudeParser:
-    """Sends the posting to Claude. Board facts already on the input are kept."""
+@dataclass(frozen=True)
+class ExtractionSpec:
+    version: str
+    system: str
+    render_user: Callable[[PostingInput], str]
+    output: type[ParsedFields]
+    max_tokens: int
 
-    sends_data_offsite = True
 
-    def __init__(self, model: str = _MODEL) -> None:
-        self.model = model
-        self.parser_id = f"{model}/{_PROMPT_VERSION}"
-        self.calls: list[CallMeta] = []
-
-    def parse(self, posting: PostingInput | str, hints: ParseHints | None = None) -> JobDetail:
-        del hints
-        item = as_input(posting)
-        try:
-            parsed, meta = structured_call(
-                model=self.model,
-                system=_SYSTEM,
-                user=_user(item),
-                output=ParsedFields,
-                max_tokens=_MAX_TOKENS,
-            )
-            self.calls.append(meta)
-        except ClaudeError:
-            raise
-        return prefer(item.source_facts, detail_from_parsed(parsed, self.parser_id))
+def render_user(item: PostingInput) -> str:
+    description = item.description_md[:_DESCRIPTION_CAP]
+    return "\n".join(
+        (
+            f"Title: {item.title}",
+            f"Location: {item.location_raw or ''}",
+            f"Employment: {item.employment_type_raw or ''}",
+            "Description:",
+            description,
+        )
+    )
 
 
 def detail_from_parsed(parsed: ParsedFields, parser_id: str) -> JobDetail:
@@ -112,17 +92,29 @@ def detail_from_parsed(parsed: ParsedFields, parser_id: str) -> JobDetail:
     )
 
 
-def _user(item: PostingInput) -> str:
-    description = item.description_md[:_DESCRIPTION_CAP]
-    return "\n".join(
-        (
-            f"Title: {item.title}",
-            f"Location: {item.location_raw or ''}",
-            f"Employment: {item.employment_type_raw or ''}",
-            "Description:",
-            description,
-        )
-    )
+def _load_prompt(path: Path) -> tuple[str, str]:
+    raw = path.read_text()
+    if not raw.startswith("---\n"):
+        raise ValueError(f"{path.name} needs a version front matter")
+    _marker, header, body = raw.split("---\n", 2)
+    version = ""
+    for line in header.splitlines():
+        if line.startswith("version:"):
+            version = line.split(":", 1)[1].strip()
+    if not version:
+        raise ValueError(f"{path.name} has no version")
+    return version, body.lstrip("\n")
+
+
+_VERSION, _SYSTEM = _load_prompt(_PROMPT_PATH)
+
+JOB_FACTS = ExtractionSpec(
+    version=_VERSION,
+    system=_SYSTEM,
+    render_user=render_user,
+    output=ParsedFields,
+    max_tokens=_MAX_TOKENS,
+)
 
 
 def _text(value: str, evidence: str, parser_id: str) -> TextFact | None:

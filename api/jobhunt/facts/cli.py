@@ -81,16 +81,20 @@ def reparse(
 
 
 @facts_app.command("eval")
-def evaluate(gold: Path = _GOLD) -> None:
+def evaluate(
+    gold: Path = _GOLD,
+    llm: str | None = typer.Option(None, "--llm", help="Provider instead of the composed parser."),
+) -> None:
     """Score COMPOSITION.parser on the gold file and apply the gates."""
-    from jobhunt.composition import COMPOSITION, require_on_machine
+    from jobhunt.composition import COMPOSITION, job_facts_parser, require_on_machine
     from jobhunt.facts.eval import eval_parser, load_gold, parser_gates
 
     if not gold.is_file():
         typer.echo(f"no gold file at {gold}", err=True)
         raise typer.Exit(code=1)
-    require_on_machine(COMPOSITION.parser, "parser")
-    report = eval_parser(COMPOSITION.parser, load_gold(gold))
+    parser = job_facts_parser(llm) if llm is not None else COMPOSITION.parser
+    require_on_machine(parser, "parser")
+    report = eval_parser(parser, load_gold(gold))
     _print_parser_report(report)
     failures = parser_gates(report)
     for failure in failures:

@@ -1,10 +1,13 @@
-"""The only file that picks adapters. Swap a line here; do not add a lookup table."""
+"""The only file that picks adapters. Swap the parser line here to change the live one."""
 
 import os
 from dataclasses import dataclass
 
+from jobhunt.core.claude import ClaudeLLM
+from jobhunt.core.llm import StructuredLLM
 from jobhunt.facts.base import DetailParser
 from jobhunt.facts.default import DefaultParser
+from jobhunt.facts.llm_parser import LLMParser
 from jobhunt.fit.base import FitScorer
 from jobhunt.fit.claude import ClaudeFitScorer
 from jobhunt.resume.base import ResumeWriter
@@ -36,6 +39,18 @@ class Composition:
             if item.id == source_id:
                 return item
         raise ValueError(f"no source for {source_id}")
+
+
+def job_facts_llm(name: str) -> StructuredLLM:
+    """Resolve `claude` or `claude:<model>`. A new provider is one branch here."""
+    provider, _, model = name.partition(":")
+    if provider != "claude":
+        raise ValueError(f"unknown llm {name}")
+    return ClaudeLLM(model or "claude-haiku-5-5")
+
+
+def job_facts_parser(name: str) -> LLMParser:
+    return LLMParser(job_facts_llm(name))
 
 
 def require_on_machine(adapter: object, label: str) -> None:
