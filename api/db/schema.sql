@@ -543,7 +543,7 @@ CREATE TABLE resume_runs (
   status              text NOT NULL DEFAULT 'queued'
                       CHECK (status IN ('queued','running','ok','below_baseline','failed')),
   locked_until        timestamptz,
-  attempts            integer NOT NULL DEFAULT 0
+  attempts            integer NOT NULL DEFAULT 0,
   baseline_score      real,
   baseline_coverage   real,
   resume_score        real,
