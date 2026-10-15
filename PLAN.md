@@ -643,10 +643,11 @@ The UI is a Next.js app in `app/` (`npm run dev`, bound to `127.0.0.1:3000`). Ne
 |---|---|---|
 | `GET /api/jobs?q&where&remote&source&posted_within&has_salary&include_closed&fit&min_score&min_experience&sort&page` | `{jobs, total, page, pages, page_size}`; `fit` is `bank` (default) or `resume`; `sort=newest` is the default (`oldest`, `fit_desc`, `fit_asc`; `sort=match` is the high-to-low fit alias). `q` filters matching jobs before the sort. `min_experience` is 0–15: 0 shows every job, and N shows jobs whose minimum stated years is at least N | Board list |
 | `GET /api/jobs/{id}` | Job with `description_md`, `postings`, `events`, `tailor_prompt`, `top_brags`, `gaps`, `coverage` | Board detail pane, mobile sheet |
-| `POST /api/jobs/{id}/events` | JSON `{status, reason?}`; status ∈ saved, skipped, applied, removed; returns the job. `removed` drops the job from the pipeline and clears its `ui_action` label | Save / skip (with reason) / applied / remove |
-| `POST /api/jobs/events/bulk` | JSON `{job_ids, status, reason?}`; 1–300 ids; unknown ids are skipped; `{updated}` | Pipeline drag, bulk remove |
+| `POST /api/jobs/{id}/events` | JSON `{status, reason?}`; status ∈ saved, skipped, applied, removed; returns the job. `removed` drops the job from the tracker and clears its `ui_action` label | Save / skip (with reason) / applied / remove |
+| `POST /api/jobs/events/bulk` | JSON `{job_ids, status, reason?}`; 1–300 ids; unknown ids are skipped; `{updated}` | Tracker drag, bulk remove |
 | `GET /api/facets` | Source ids and remote types for filter controls | Board filters |
-| `GET /api/pipeline` | Jobs with a status, grouped saved / applied / skipped. Each card includes `resume_status`, the latest resume run | Pipeline kanban |
+| `GET /api/tracker` | Jobs with a status, grouped saved / applied / skipped. Each card includes `resume_status`, the latest resume run. Order is `tracker_ranks`, then newest status | Application tracker |
+| `POST /api/tracker/order` | JSON `{saved, applied, skipped}` of job ids, at most 300 in total. Writes `tracker_ranks` and moves a job when its column changed | Application tracker |
 | `GET /api/runs` | Recent runs with counts and errors | Runs |
 | `GET/POST /api/brag-docs`, `GET/PUT/DELETE /api/brag-docs/{id}`, `GET /api/brag-docs/companies` | Brag docs, with tags, metrics, and attachments | Brag Docs |
 | `GET/POST /api/tags`, `GET/POST /api/metric-keys` | Create is idempotent on a case-insensitive name | Brag Docs form |
@@ -658,7 +659,7 @@ The UI is a Next.js app in `app/` (`npm run dev`, bound to `127.0.0.1:3000`). Ne
 | `GET /api/fit/runs/{id}/stream` | SSE: replay `fit_run_events`, then tail `LISTEN/NOTIFY`; `Last-Event-ID` resumes | Schedules |
 | `GET /api/fit/status` | Model id, scored counts per mode, stale flag, worker heartbeat | Board, Schedules |
 | `POST /api/jobs/{id}/resume` | Queues a resume run; 202 `{run_id}`; 409 when the job has no fit matches. A second click while that job is queued returns the same run | Board detail, Generate resume |
-| `POST /api/resume-runs/bulk` | Queues runs for jobs that have no resume yet. Skips a job that already has a finished or active run, or that is unscored. `{queued, skipped}` | Pipeline bulk Generate resume |
+| `POST /api/resume-runs/bulk` | Queues runs for jobs that have no resume yet. Skips a job that already has a finished or active run, or that is unscored. `{queued, skipped}` | Tracker bulk Generate resume |
 | `GET /api/jobs/{id}/resume-runs` | Resume runs for one job, latest first | Board detail |
 | `GET /api/resume-queue` | Active runs in queue order (`ahead` is how many are in front) and the latest finished runs, with job title and company | Resume queue |
 | `GET /api/resume-runs/{id}` | One run. A queued run includes `ahead` | Board detail |
@@ -675,7 +676,7 @@ Every job carries `score` (0–100) and `fit_tier` (strong / good / fair / low) 
 
 **Filters panel:** Match group (score against: brag docs or selected resume; minimum score: any, 40+, 60+, 80+), source, remote type, posted within, salary listed, include closed, text search, location, sort (newest by default, oldest, job fit high to low, job fit low to high). A text query limits the list to matching jobs, then the chosen sort reorders that list.
 
-**Pipeline page** (`/pipeline`): three columns (saved, applied, not interested). Drag a card to reorder it in its column, or onto another column to move it. Dragging one card from a selection moves the whole selection. The order is kept. Each card has a checkbox, and each column has select-all. The selection toolbar queues **Generate resume** for jobs that have no finished resume, and **Remove from pipeline** (with undo). Removing appends a `removed` event, so the job leaves the pipeline and shows as unsaved on the board. Its history stays.
+**Application tracker** (`/tracker`, and `/pipeline` redirects here): three columns (saved, applied, not interested). Drag a card to reorder it in its column, or onto another column to move it. Dragging one card from a selection moves the whole selection. The order is kept in `tracker_ranks`. Each card has a checkbox, and each column has select-all. The selection toolbar queues **Generate resume** for jobs that have no finished resume, and **Remove from tracker** (with undo). Removing appends a `removed` event, so the job leaves the tracker and shows as unsaved on the board. Its history stays.
 
 **Brag Docs page** (`/brag-docs`): the feed groups brag docs by `quarter`, newest first. A sticky filter bar searches title, description, and metric values, filters by every selected tag, one company, and one metric key. "Log a brag doc" is a dialog: title, date (defaults to today, shows the derived quarter), company (creatable), role, impact (1–5, optional), tags (creatable multi-select), metric rows (creatable key plus a value), a growing markdown description, and URL attachments. Typing a new tag or metric key creates it and applies it immediately. Saving on Cmd+Enter.
 

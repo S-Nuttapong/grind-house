@@ -356,7 +356,7 @@ CREATE VIEW job_status AS
   ) latest
   WHERE status <> 'removed';
 
-CREATE TABLE pipeline_ranks (                       -- manual order inside a column
+CREATE TABLE tracker_ranks (                       -- manual order inside a column
   job_id  bigint PRIMARY KEY REFERENCES jobs(id) ON DELETE CASCADE,
   rank    integer NOT NULL
 );

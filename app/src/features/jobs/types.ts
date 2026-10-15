@@ -65,4 +65,4 @@ export type Facets = {
   levels: string[];
 };
 
-export type Pipeline = Record<JobStatus, JobSummary[]>;
+export type Tracker = Record<JobStatus, JobSummary[]>;

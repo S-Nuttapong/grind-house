@@ -101,7 +101,7 @@ class BulkEventsIn(BaseModel):
     reason: str | None = None
 
 
-class PipelineOrderIn(BaseModel):
+class TrackerOrderIn(BaseModel):
     saved: list[int] = Field(default_factory=list, max_length=300)
     applied: list[int] = Field(default_factory=list, max_length=300)
     skipped: list[int] = Field(default_factory=list, max_length=300)
@@ -117,7 +117,7 @@ class Facets(BaseModel):
     levels: list[str]
 
 
-class Pipeline(BaseModel):
+class Tracker(BaseModel):
     saved: list[JobSummary]
     applied: list[JobSummary]
     skipped: list[JobSummary]
@@ -173,21 +173,21 @@ def facets() -> Facets:
         return Facets(**queries.list_facets(conn))
 
 
-@router.post("/pipeline/order")
-def pipeline_order(body: PipelineOrderIn) -> dict[str, bool]:
+@router.post("/tracker/order")
+def tracker_order(body: TrackerOrderIn) -> dict[str, bool]:
     columns = {"saved": body.saved, "applied": body.applied, "skipped": body.skipped}
     if sum(len(ids) for ids in columns.values()) > 300:
         raise HTTPException(status_code=422, detail="too many jobs")
     with tx() as conn:
-        queries.arrange_pipeline(conn, columns)
+        queries.arrange_tracker(conn, columns)
     return {"ok": True}
 
 
-@router.get("/pipeline", response_model=Pipeline)
-def pipeline() -> Pipeline:
+@router.get("/tracker", response_model=Tracker)
+def tracker() -> Tracker:
     with tx() as conn:
-        columns = queries.list_pipeline(conn)
-    return Pipeline(**{name: [_summary(row) for row in rows] for name, rows in columns.items()})
+        columns = queries.list_tracker(conn)
+    return Tracker(**{name: [_summary(row) for row in rows] for name, rows in columns.items()})
 
 
 def _summary(row: dict[str, Any]) -> JobSummary:

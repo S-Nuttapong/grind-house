@@ -221,7 +221,7 @@ def test_detail_returns_markdown_as_data(seeded: dict[str, int]) -> None:
     assert client.get("/api/jobs/999999999").status_code == 404
 
 
-def test_events_update_status_and_pipeline(seeded: dict[str, int]) -> None:
+def test_events_update_status_and_tracker(seeded: dict[str, int]) -> None:
     client = TestClient(create_app())
     saved = client.post(f"/api/jobs/{seeded['new']}/events", json={"status": "saved"})
     assert saved.status_code == 200
@@ -236,9 +236,9 @@ def test_events_update_status_and_pipeline(seeded: dict[str, int]) -> None:
     bogus = client.post(f"/api/jobs/{seeded['new']}/events", json={"status": "bogus"})
     assert bogus.status_code == 422
 
-    pipeline = client.get("/api/pipeline").json()
-    assert seeded["new"] in [job["id"] for job in pipeline["saved"]]
-    assert seeded["old"] in [job["id"] for job in pipeline["skipped"]]
+    tracker = client.get("/api/tracker").json()
+    assert seeded["new"] in [job["id"] for job in tracker["saved"]]
+    assert seeded["old"] in [job["id"] for job in tracker["skipped"]]
 
 
 def test_facets_and_runs(seeded: dict[str, int]) -> None:

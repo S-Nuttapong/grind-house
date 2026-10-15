@@ -35,7 +35,7 @@ export function MoveMenu({ jobId, current }: { jobId: number; current: string })
             {target.label}
           </DropdownMenuItem>
         ))}
-        <DropdownMenuItem onSelect={() => send("removed")}>Remove from pipeline</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => send("removed")}>Remove from tracker</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

@@ -7,10 +7,10 @@ import { recordJobEvent } from "@/features/jobs/actions";
 import type { MoveStatus } from "@/features/jobs/types";
 
 const MESSAGES: Record<MoveStatus, string> = {
-  saved: "Saved to your pipeline",
+  saved: "Saved to your tracker",
   applied: "Marked as applied",
   skipped: "Hidden as not interested",
-  removed: "Removed from your pipeline",
+  removed: "Removed from your tracker",
 };
 
 export function useJobEvent(jobId: number) {

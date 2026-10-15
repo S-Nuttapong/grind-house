@@ -2,7 +2,7 @@
 
 import { refresh } from "next/cache";
 
-import { postBulkEvents, postBulkResumes, postJobEvent, postPipelineOrder } from "@/features/jobs/api";
+import { postBulkEvents, postBulkResumes, postJobEvent, postTrackerOrder } from "@/features/jobs/api";
 import type { JobStatus, MoveStatus } from "@/features/jobs/types";
 
 const STATUSES: ReadonlySet<string> = new Set<MoveStatus>(["saved", "skipped", "applied", "removed"]);
@@ -32,7 +32,7 @@ export async function recordJobEvent(
   return { ok: true, status };
 }
 
-export async function arrangePipeline(columns: Record<JobStatus, number[]>): Promise<MoveResult> {
+export async function arrangeTracker(columns: Record<JobStatus, number[]>): Promise<MoveResult> {
   const saved = cleanIds(columns.saved) ?? [];
   const applied = cleanIds(columns.applied) ?? [];
   const skipped = cleanIds(columns.skipped) ?? [];
@@ -47,11 +47,11 @@ export async function arrangePipeline(columns: Record<JobStatus, number[]>): Pro
     return { ok: false, error: "Invalid jobs or status" };
   }
   try {
-    await postPipelineOrder({ saved, applied, skipped });
+    await postTrackerOrder({ saved, applied, skipped });
     refresh();
     return { ok: true, updated: [...saved, ...applied, ...skipped] };
   } catch (error) {
-    console.error("arrangePipeline failed", { error });
+    console.error("arrangeTracker failed", { error });
     return { ok: false, error: "Could not save. Is the API running?" };
   }
 }

@@ -41,7 +41,7 @@ _REMOTE_LABELS = {
     "onsite": "On-site",
     "unknown": "Workplace unknown",
 }
-PIPELINE_STATUSES = ("saved", "applied", "skipped")
+TRACKER_STATUSES = ("saved", "applied", "skipped")
 _LEVELS = (
     "intern",
     "junior",
@@ -216,7 +216,7 @@ def get_job(conn: Connection[Any], job_id: int, fit_mode: str = "bank") -> dict[
     return job
 
 
-def list_pipeline(conn: Connection[Any]) -> dict[str, list[dict[str, Any]]]:
+def list_tracker(conn: Connection[Any]) -> dict[str, list[dict[str, Any]]]:
     with conn.cursor(row_factory=dict_row) as cursor:
         cursor.execute(
             f"""
@@ -240,16 +240,16 @@ def list_pipeline(conn: Connection[Any]) -> dict[str, list[dict[str, Any]]]:
             JOIN jobs j ON j.id = s.job_id
             JOIN companies c ON c.id = j.company_id
             {_PAY_JOIN}
-            LEFT JOIN pipeline_ranks pr ON pr.job_id = j.id
+            LEFT JOIN tracker_ranks pr ON pr.job_id = j.id
             {_SCORE_JOINS}
             WHERE s.status = ANY(%s)
             ORDER BY pr.rank ASC NULLS FIRST, s.at DESC
             LIMIT 300
             """,
-            ("bank", _fit_model_id(), list(PIPELINE_STATUSES)),
+            ("bank", _fit_model_id(), list(TRACKER_STATUSES)),
         )
         rows = [_present(dict(row)) for row in cursor.fetchall()]
-    columns: dict[str, list[dict[str, Any]]] = {status: [] for status in PIPELINE_STATUSES}
+    columns: dict[str, list[dict[str, Any]]] = {status: [] for status in TRACKER_STATUSES}
     for row in rows:
         columns[str(row["status"])].append(row)
     return columns
@@ -294,10 +294,10 @@ def list_facets(conn: Connection[Any]) -> dict[str, list[str]]:
     }
 
 
-def arrange_pipeline(conn: Connection[Any], columns: dict[str, list[int]]) -> None:
+def arrange_tracker(conn: Connection[Any], columns: dict[str, list[int]]) -> None:
     """Put each column in the given order, and move a job when its column changed."""
     ordered: list[int] = []
-    for status in PIPELINE_STATUSES:
+    for status in TRACKER_STATUSES:
         for job_id in columns.get(status, []):
             if job_id not in ordered:
                 ordered.append(job_id)
@@ -314,7 +314,7 @@ def arrange_pipeline(conn: Connection[Any], columns: dict[str, list[int]]) -> No
             (ordered,),
         ).fetchall()
     }
-    for status in PIPELINE_STATUSES:
+    for status in TRACKER_STATUSES:
         ranked: list[int] = []
         for job_id in columns.get(status, []):
             if job_id not in found or job_id in ranked:
@@ -329,7 +329,7 @@ def _set_ranks(conn: Connection[Any], job_ids: list[int]) -> None:
     for index, job_id in enumerate(job_ids):
         conn.execute(
             """
-            INSERT INTO pipeline_ranks (job_id, rank) VALUES (%s, %s)
+            INSERT INTO tracker_ranks (job_id, rank) VALUES (%s, %s)
             ON CONFLICT (job_id) DO UPDATE SET rank = EXCLUDED.rank
             """,
             (job_id, index),
@@ -361,7 +361,7 @@ def record_event(conn: Connection[Any], job_id: int, status: str, reason: str | 
         """,
         (job_id, status, reason or None),
     )
-    conn.execute("DELETE FROM pipeline_ranks WHERE job_id = %s", (job_id,))
+    conn.execute("DELETE FROM tracker_ranks WHERE job_id = %s", (job_id,))
     if status == "removed":
         conn.execute(
             "DELETE FROM labels WHERE job_id = %s AND origin = 'ui_action'",

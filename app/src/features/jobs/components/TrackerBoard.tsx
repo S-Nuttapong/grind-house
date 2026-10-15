@@ -28,9 +28,9 @@ import { ScoreRing } from "@/components/ScoreRing";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { arrangePipeline, moveJobs, queueResumes, restoreJobs } from "@/features/jobs/actions";
+import { arrangeTracker, moveJobs, queueResumes, restoreJobs } from "@/features/jobs/actions";
 import { MoveMenu } from "@/features/jobs/components/MoveMenu";
-import type { JobStatus, JobSummary, Pipeline } from "@/features/jobs/types";
+import type { JobStatus, JobSummary, Tracker } from "@/features/jobs/types";
 import { cn } from "@/lib/utils";
 
 const COLUMNS: { status: JobStatus; title: string; icon: ReactNode; hint: string }[] = [
@@ -63,7 +63,7 @@ function canGenerate(job: JobSummary): boolean {
   return open && job.score !== null;
 }
 
-export function PipelineBoard({ initial }: { initial: Pipeline }) {
+export function TrackerBoard({ initial }: { initial: Tracker }) {
   const [columns, setColumns] = useState(initial);
   const [seen, setSeen] = useState(initial);
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -124,7 +124,7 @@ export function PipelineBoard({ initial }: { initial: Pipeline }) {
     });
   }
 
-  function commitColumns(next: Pipeline) {
+  function commitColumns(next: Tracker) {
     columnsRef.current = next;
     setColumns(next);
   }
@@ -161,7 +161,7 @@ export function PipelineBoard({ initial }: { initial: Pipeline }) {
         toast.error(result.error);
         return;
       }
-      toast.success("Removed from pipeline", {
+      toast.success("Removed from tracker", {
         action: {
           label: "Undo",
           onClick: () => {
@@ -195,7 +195,7 @@ export function PipelineBoard({ initial }: { initial: Pipeline }) {
     commitColumns(next);
     if (sameOrder(previous, next)) return;
     startTransition(async () => {
-      const result = await arrangePipeline({
+      const result = await arrangeTracker({
         saved: next.saved.map((job) => job.id),
         applied: next.applied.map((job) => job.id),
         skipped: next.skipped.map((job) => job.id),
@@ -228,7 +228,7 @@ export function PipelineBoard({ initial }: { initial: Pipeline }) {
             Generate resume ({generatable.length})
           </Button>
           <Button type="button" size="sm" variant="outline" disabled={isPending} onClick={removeSelected}>
-            Remove from pipeline
+            Remove from tracker
           </Button>
           <Button type="button" size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
             Clear
@@ -310,7 +310,7 @@ function Column({
         <SortableContext items={jobs.map((job) => job.id)} strategy={verticalListSortingStrategy}>
           <ol className="space-y-2">
             {jobs.map((job) => (
-              <PipelineCard key={job.id} job={job} selected={selected.has(job.id)} onToggle={onToggle} />
+              <TrackerCard key={job.id} job={job} selected={selected.has(job.id)} onToggle={onToggle} />
             ))}
           </ol>
         </SortableContext>
@@ -319,7 +319,7 @@ function Column({
   );
 }
 
-function PipelineCard({
+function TrackerCard({
   job,
   selected,
   onToggle,
@@ -399,11 +399,11 @@ function CardBody({
 }
 
 function placeCards(
-  columns: Pipeline,
+  columns: Tracker,
   movingIds: number[],
   to: JobStatus,
   overId: JobStatus | number,
-): Pipeline {
+): Tracker {
   const from = findColumn(columns, movingIds[0] ?? -1);
   if (from === to && !isColumn(overId) && movingIds.length === 1) {
     const items = columns[to];
@@ -434,14 +434,14 @@ function placeCards(
   return next;
 }
 
-function findColumn(columns: Pipeline, id: number): JobStatus | null {
+function findColumn(columns: Tracker, id: number): JobStatus | null {
   for (const status of Object.keys(columns) as JobStatus[]) {
     if (columns[status].some((job) => job.id === id)) return status;
   }
   return null;
 }
 
-function orderedSelection(columns: Pipeline, selected: Set<number>): number[] {
+function orderedSelection(columns: Tracker, selected: Set<number>): number[] {
   const ids: number[] = [];
   for (const status of Object.keys(columns) as JobStatus[]) {
     for (const job of columns[status]) {
@@ -451,7 +451,7 @@ function orderedSelection(columns: Pipeline, selected: Set<number>): number[] {
   return ids;
 }
 
-function sameOrder(left: Pipeline, right: Pipeline): boolean {
+function sameOrder(left: Tracker, right: Tracker): boolean {
   const statuses = Object.keys(left) as JobStatus[];
   return statuses.every((status) => {
     const a = left[status];
@@ -460,7 +460,7 @@ function sameOrder(left: Pipeline, right: Pipeline): boolean {
   });
 }
 
-function without(columns: Pipeline, ids: number[]): Pipeline {
+function without(columns: Tracker, ids: number[]): Tracker {
   const drop = new Set(ids);
   const next = emptyColumns();
   for (const status of Object.keys(next) as JobStatus[]) {
@@ -469,7 +469,7 @@ function without(columns: Pipeline, ids: number[]): Pipeline {
   return next;
 }
 
-function markQueued(columns: Pipeline, ids: number[]): Pipeline {
+function markQueued(columns: Tracker, ids: number[]): Tracker {
   const queued = new Set(ids);
   const paint = (jobs: JobSummary[]) =>
     jobs.map((job) => (queued.has(job.id) ? { ...job, resume_status: "queued" } : job));
@@ -477,10 +477,10 @@ function markQueued(columns: Pipeline, ids: number[]): Pipeline {
 }
 
 function putBack(
-  columns: Pipeline,
+  columns: Tracker,
   snapshot: { id: number; status: JobStatus }[],
   known: JobSummary[],
-): Pipeline {
+): Tracker {
   const byId = new Map(known.map((job) => [job.id, job]));
   const next = {
     saved: [...columns.saved],
@@ -495,6 +495,6 @@ function putBack(
   return next;
 }
 
-function emptyColumns(): Pipeline {
+function emptyColumns(): Tracker {
   return { saved: [], applied: [], skipped: [] };
 }

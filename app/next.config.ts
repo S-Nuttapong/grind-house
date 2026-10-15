@@ -16,6 +16,9 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  async redirects() {
+    return [{ source: "/pipeline", destination: "/tracker", permanent: true }];
+  },
   async rewrites() {
     return [{ source: "/api/:path*", destination: `${apiUrl}/api/:path*` }];
   },

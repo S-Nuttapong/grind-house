@@ -117,9 +117,9 @@ export function CommandMenu() {
                 <ListIcon />
                 Board
               </CommandItem>
-              <CommandItem value="nav-pipeline" onSelect={() => go("/pipeline")}>
+              <CommandItem value="nav-tracker" onSelect={() => go("/tracker")}>
                 <KanbanSquareIcon />
-                Pipeline
+                Application tracker
               </CommandItem>
               <CommandItem value="nav-brag-docs" onSelect={() => go("/brag-docs")}>
                 <AwardIcon />
@@ -137,7 +137,7 @@ export function CommandMenu() {
                 <CalendarClockIcon />
                 Schedules
               </CommandItem>
-              <CommandItem value="nav-saved" onSelect={() => go("/pipeline#saved")}>
+              <CommandItem value="nav-saved" onSelect={() => go("/tracker#saved")}>
                 <BookmarkIcon />
                 Saved jobs
               </CommandItem>
