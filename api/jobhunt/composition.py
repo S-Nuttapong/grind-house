@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from jobhunt.core.claude import ClaudeLLM
 from jobhunt.core.llm import StructuredLLM
 from jobhunt.facts.base import DetailParser
-from jobhunt.facts.default import DefaultParser
 from jobhunt.facts.llm_parser import LLMParser
 from jobhunt.fit.base import FitScorer
 from jobhunt.fit.claude import ClaudeFitScorer
@@ -79,7 +78,7 @@ COMPOSITION = Composition(
         JoobleSource(),
         MyCareersFutureSource(),
     ],
-    parser=DefaultParser(),
+    parser=LLMParser(ClaudeLLM()),
     scorer=ClaudeFitScorer(),
     writer=ClaudeSdkWriter(),
     store=PgStore(),

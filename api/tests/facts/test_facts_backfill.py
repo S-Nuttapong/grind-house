@@ -8,6 +8,7 @@ from jobhunt.composition import COMPOSITION
 from jobhunt.core.claude import CallMeta, ClaudeRefusal
 from jobhunt.facts import backfill as backfill_mod
 from jobhunt.facts.base import JobDetail, LocationFact, ParseHints, Place, PostingInput, TextFact
+from jobhunt.facts.default import DefaultParser
 from jobhunt.facts.llm_parser import LLMParser
 from jobhunt.scrape import repo
 
@@ -84,7 +85,7 @@ def _posting(conn, job_id: int, source_job_id: str) -> int:
 
 
 def test_backfill_refuses_unless_claude_parser(conn, monkeypatch) -> None:
-    monkeypatch.setattr(backfill_mod, "COMPOSITION", COMPOSITION)
+    monkeypatch.setattr(backfill_mod, "COMPOSITION", replace(COMPOSITION, parser=DefaultParser()))
     monkeypatch.delenv("JOBHUNT_ALLOW_OFFSITE", raising=False)
     with pytest.raises(ValueError, match="LLMParser"):
         backfill_mod.run_backfill(conn, limit=1)
