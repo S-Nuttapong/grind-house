@@ -139,7 +139,11 @@ export function JobDetail({ job, source }: { job: Job; source: string }) {
           </div>
         )}
         <div className="mt-3">
-          <GenerateResume jobId={job.id} enabled={job.score !== null || job.top_brags.length > 0} />
+          <GenerateResume
+            key={job.id}
+            jobId={job.id}
+            enabled={job.score !== null || job.top_brags.length > 0}
+          />
         </div>
       </section>
 

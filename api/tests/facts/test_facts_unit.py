@@ -4,9 +4,11 @@ from decimal import Decimal
 
 import pytest
 from jobhunt.facts.api_fields import from_payload
-from jobhunt.facts.base import ParseHints
+from jobhunt.facts.base import ParseHints, PostingInput
 from jobhunt.facts.decide import ModeScore, choose_field
 from jobhunt.facts.default import DefaultParser
+from jobhunt.facts.experience import experience_from_text
+from jobhunt.facts.pay import pay_from_label
 from jobhunt.facts.places import resolve_places
 
 _PARSER = DefaultParser()
@@ -168,9 +170,13 @@ def test_ashby_secondary_location() -> None:
     assert "DE" in {place.country for place in detail.locations.value}
 
 
-def test_seek_salary_is_not_an_api_fact() -> None:
+def test_seek_salary_label_is_an_api_fact() -> None:
     detail = from_payload("seek", {"salary": "RM 4,000 – RM 6,000 per month", "country": "MY"})
-    assert detail.pay is None
+    assert detail.pay is not None
+    assert detail.pay.parser_id == "api:seek"
+    assert detail.pay.value.currency == "MYR"
+    assert detail.pay.value.minimum == Decimal("4000")
+    assert detail.pay.value.maximum == Decimal("6000")
     assert detail.locations is not None
     assert detail.locations.value[0].country == "MY"
 
@@ -209,3 +215,99 @@ def test_choose_source_only_below_90() -> None:
     choice = choose_field([ModeScore("default", 0.8, 0.9, 0.01)])
     assert choice.mode == "api"
     assert choice.flagged is False
+
+
+@pytest.mark.parametrize(
+    ("label", "country", "low", "high", "currency", "interval"),
+    [
+        ("฿40,000 per month", "TH", "40000", None, "THB", "monthly"),
+        ("฿55,000 – ฿80,000 per month", "TH", "55000", "80000", "THB", "monthly"),
+        ("₱100,000 – ₱140,000 per month", "PH", "100000", "140000", "PHP", "monthly"),
+        ("SGD 7500 - 10500 per month", "SG", "7500", "10500", "SGD", "monthly"),
+        ("40-60k THB", "TH", "40000", "60000", "THB", "monthly"),
+        ("$150-160K plus benefits", "AU", "150000", "160000", "AUD", "yearly"),
+        ("$130,000+super", "AU", "130000", None, "AUD", "yearly"),
+        ("From 150000 to 165000 NZD per year", "NZ", "150000", "165000", "NZD", "yearly"),
+        ("Up to $170,000 + Super", "AU", None, "170000", "AUD", "yearly"),
+        ("Up to 150K plus generous bonus", "TH", None, "150000", "THB", "monthly"),
+        (
+            "Rp\xa011.000.000 – Rp\xa015.000.000 per month",
+            "ID",
+            "11000000",
+            "15000000",
+            "IDR",
+            "monthly",
+        ),
+        ("฿100,000 – ฿140,000 per month", "TH", "100000", "140000", "THB", "monthly"),
+    ],
+)
+def test_pay_from_label(
+    label: str,
+    country: str,
+    low: str | None,
+    high: str | None,
+    currency: str,
+    interval: str,
+) -> None:
+    pay = pay_from_label(label, country)
+    assert pay is not None
+    assert pay.minimum == (None if low is None else Decimal(low))
+    assert pay.maximum == (None if high is None else Decimal(high))
+    assert pay.currency == currency
+    assert pay.interval == interval
+
+
+@pytest.mark.parametrize(
+    "label",
+    ["Competitive", "World Class Benefits", "0", "AUD 170 - 180 per annum", "RM 1,500 per month"],
+)
+def test_pay_from_label_drops_non_pay_and_implausible_amounts(label: str) -> None:
+    assert pay_from_label(label, "MY") is None
+
+
+@pytest.mark.parametrize(
+    ("text", "low", "high"),
+    [
+        ("5\\-8 years of hands-on experience", 5, 8),
+        ("7\\+ years of frontend experience", 7, None),
+        ("Minimum 3 years of relevant experience", 3, None),
+        ("at least 5 years of software engineering experience", 5, None),
+        ("2 to 4 years of professional software development experience", 2, 4),
+        ("6–9 years of hands-on software design and development experience", 6, 9),
+        ("**Experience:** Minimum 6 years", 6, None),
+        ("5-8 Years Exp", 5, 8),
+        ("(4–6 Years Experience)", 4, 6),
+        ("7+ years of frontend experience, including at least 2 years in a lead role", 7, None),
+        ("More than 3 year’s experiences in software development", 3, None),
+    ],
+)
+def test_experience_from_text(text: str, low: int, high: int | None) -> None:
+    fact = experience_from_text(text)
+    assert fact is not None
+    assert fact.value.minimum == low
+    assert fact.value.maximum == high
+    assert fact.evidence in text
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "nearly 70 years of history",
+        "over 40 years of specialist insurance expertise",
+        "2 year renewable contract",
+        "Fixed-term (2 years)",
+        "erased after 2 years of inactivity",
+        "We need 5 years of experience",
+    ],
+)
+def test_experience_ignores_company_history_and_contract_length(text: str) -> None:
+    assert experience_from_text(text) is None
+
+
+def test_title_experience_is_a_fact() -> None:
+    detail = _PARSER.parse(
+        PostingInput(title="Engineer (4–6 Years Experience)", description_md="Build things.")
+    )
+    assert detail.experience is not None
+    assert detail.experience.value.minimum == 4
+    assert detail.experience.value.maximum == 6

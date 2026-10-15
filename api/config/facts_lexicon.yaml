@@ -43,3 +43,19 @@ workplace_cues:
   - work arrangement
   - location
   - office
+experience_cues:
+  - experience
+  - exp
+  - expertise
+  - background
+  - track record
+experience_reject:
+  - history
+  - contract
+  - term
+  - founded
+  - company
+  - we
+  - our
+  - inactivity
+  - warranty

@@ -35,6 +35,14 @@ def seeded(database_url: str) -> Iterator[dict[str, int]]:
             posted_at=today,
             description_md="Ships the board.\n\n<script>alert(1)</script>",
         )
+        conn.execute(
+            """
+            UPDATE jobs
+            SET experience_min_years = 6, experience_max_years = 8
+            WHERE id = %s
+            """,
+            (new_id,),
+        )
         old_id = repo.insert_job(
             conn,
             company_id=company_id,
@@ -82,6 +90,12 @@ def test_list_filters_and_shape(seeded: dict[str, int]) -> None:
     assert _titles(client, where="ZzApiville") == ["ZzApi Board Engineer"]
     assert _titles(client, posted_within="1") == ["ZzApi Board Engineer"]
     assert _titles(client, has_salary="1") == ["ZzApi Board Engineer"]
+    assert _titles(client, min_experience="0") == ["ZzApi Board Engineer", "ZzApi Old Role"]
+    assert _titles(client, min_experience="5") == ["ZzApi Board Engineer"]
+    assert _titles(client, min_experience="8") == []
+    listed = client.get("/api/jobs", params={"q": "ZzApi"}).json()["jobs"]
+    engineer = next(job for job in listed if job["id"] == seeded["new"])
+    assert engineer["experience_label"] == "6-8 yrs"
     assert _titles(client, country="SG,US") == ["ZzApi Board Engineer", "ZzApi Old Role"]
     assert _titles(client, country="SG") == ["ZzApi Board Engineer"]
     assert _titles(client, country="ZZ") == ["ZzApi Board Engineer", "ZzApi Old Role"]

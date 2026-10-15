@@ -641,11 +641,12 @@ The UI is a Next.js app in `app/` (`npm run dev`, bound to `127.0.0.1:3000`). Ne
 
 | API route | Purpose | UI page |
 |---|---|---|
-| `GET /api/jobs?q&where&remote&source&posted_within&has_salary&include_closed&fit&min_score&sort&page` | `{jobs, total, page, pages, page_size}`; `fit` is `bank` (default) or `resume`; `sort=newest` is the default (`oldest`, `fit_desc`, `fit_asc`; `sort=match` is the high-to-low fit alias). `q` filters matching jobs before the sort | Board list |
+| `GET /api/jobs?q&where&remote&source&posted_within&has_salary&include_closed&fit&min_score&min_experience&sort&page` | `{jobs, total, page, pages, page_size}`; `fit` is `bank` (default) or `resume`; `sort=newest` is the default (`oldest`, `fit_desc`, `fit_asc`; `sort=match` is the high-to-low fit alias). `q` filters matching jobs before the sort. `min_experience` is 0–15: 0 shows every job, and N shows jobs whose minimum stated years is at least N | Board list |
 | `GET /api/jobs/{id}` | Job with `description_md`, `postings`, `events`, `tailor_prompt`, `top_brags`, `gaps`, `coverage` | Board detail pane, mobile sheet |
-| `POST /api/jobs/{id}/events` | JSON `{status, reason?}`; status ∈ saved, skipped, applied; returns the job | Save / skip (with reason) / applied |
+| `POST /api/jobs/{id}/events` | JSON `{status, reason?}`; status ∈ saved, skipped, applied, removed; returns the job. `removed` drops the job from the pipeline and clears its `ui_action` label | Save / skip (with reason) / applied / remove |
+| `POST /api/jobs/events/bulk` | JSON `{job_ids, status, reason?}`; 1–300 ids; unknown ids are skipped; `{updated}` | Pipeline drag, bulk remove |
 | `GET /api/facets` | Source ids and remote types for filter controls | Board filters |
-| `GET /api/pipeline` | Jobs with a status, grouped saved / applied / skipped | Pipeline kanban |
+| `GET /api/pipeline` | Jobs with a status, grouped saved / applied / skipped. Each card includes `resume_status`, the latest resume run | Pipeline kanban |
 | `GET /api/runs` | Recent runs with counts and errors | Runs |
 | `GET/POST /api/brag-docs`, `GET/PUT/DELETE /api/brag-docs/{id}`, `GET /api/brag-docs/companies` | Brag docs, with tags, metrics, and attachments | Brag Docs |
 | `GET/POST /api/tags`, `GET/POST /api/metric-keys` | Create is idempotent on a case-insensitive name | Brag Docs form |
@@ -656,8 +657,11 @@ The UI is a Next.js app in `app/` (`npm run dev`, bound to `127.0.0.1:3000`). Ne
 | `GET /api/fit/runs`, `GET /api/fit/runs/{id}` | Run list, and one run with its latest progress | Schedules |
 | `GET /api/fit/runs/{id}/stream` | SSE: replay `fit_run_events`, then tail `LISTEN/NOTIFY`; `Last-Event-ID` resumes | Schedules |
 | `GET /api/fit/status` | Model id, scored counts per mode, stale flag, worker heartbeat | Board, Schedules |
-| `POST /api/jobs/{id}/resume` | Queues a resume run; 202 `{run_id}`; 409 when the job has no fit matches | Board detail, Generate resume |
+| `POST /api/jobs/{id}/resume` | Queues a resume run; 202 `{run_id}`; 409 when the job has no fit matches. A second click while that job is queued returns the same run | Board detail, Generate resume |
+| `POST /api/resume-runs/bulk` | Queues runs for jobs that have no resume yet. Skips a job that already has a finished or active run, or that is unscored. `{queued, skipped}` | Pipeline bulk Generate resume |
 | `GET /api/jobs/{id}/resume-runs` | Resume runs for one job, latest first | Board detail |
+| `GET /api/resume-queue` | Active runs in queue order (`ahead` is how many are in front) and the latest finished runs, with job title and company | Resume queue |
+| `GET /api/resume-runs/{id}` | One run. A queued run includes `ahead` | Board detail |
 | `GET /api/resume-runs/{id}/stream` | SSE of `resume_run_events`, then `LISTEN/NOTIFY` | Board detail |
 | `GET /api/resume-runs/{id}/pdf` | The generated PDF | Board detail download |
 | `GET /api/admin/usage?days=` | Token and cost totals, not linked from the header | `/admin/usage` |
@@ -670,6 +674,8 @@ Every job carries `score` (0–100) and `fit_tier` (strong / good / fair / low) 
 **Detail:** full JD (Markdown rendered, must-have `jd_quote`s highlighted), criteria table (label, JD quote, bank ids, evidence_ok), all source URLs, apply link, status history, "Copy tailor prompt".
 
 **Filters panel:** Match group (score against: brag docs or selected resume; minimum score: any, 40+, 60+, 80+), source, remote type, posted within, salary listed, include closed, text search, location, sort (newest by default, oldest, job fit high to low, job fit low to high). A text query limits the list to matching jobs, then the chosen sort reorders that list.
+
+**Pipeline page** (`/pipeline`): three columns (saved, applied, not interested). Drag a card onto another column to move it; dragging one card from a selection moves the whole selection. Each card has a checkbox, and each column has select-all. The selection toolbar queues **Generate resume** for jobs that have no finished resume, and **Remove from pipeline** (with undo). Removing appends a `removed` event, so the job leaves the pipeline and shows as unsaved on the board. Its history stays.
 
 **Brag Docs page** (`/brag-docs`): the feed groups brag docs by `quarter`, newest first. A sticky filter bar searches title, description, and metric values, filters by every selected tag, one company, and one metric key. "Log a brag doc" is a dialog: title, date (defaults to today, shows the derived quarter), company (creatable), role, impact (1–5, optional), tags (creatable multi-select), metric rows (creatable key plus a value), a growing markdown description, and URL attachments. Typing a new tag or metric key creates it and applies it immediately. Saving on Cmd+Enter.
 
@@ -730,7 +736,7 @@ Claude Desktop / Cowork config snippet for README (no secrets inline):
 **Morning digest prompt** (README, for a Cowork scheduled task, weekdays 08:00):
 > Use the jobhunt tools. Call `next_to_score` and assess each job per the returned prompt, then `save_assessment`, until nothing is left or 40 jobs are done. Then call `digest` and give me the top 10 new matches: score, band, company, role, location, one line on the strongest match and the biggest gap, and the job id.
 
-**Resume generation** ([ADR-0005](docs/adr/0005-resume-agent.md)): the job detail pane has **Generate resume**. It queues `resume_runs`. A worker wakes on `NOTIFY resume_runs` (30 second fallback), claims the row, and runs the Claude Agent SDK (`claude-haiku-5-5` by default) with the server skill `tailor-resume-server`. Input is the job description, the fit shortlist, and other brag docs ordered by `impact` (1–5) then similarity. The same fit model then checks that the resume scores at least as high as the shortlist and still covers those requirements. Up to two rewrites get the gaps as feedback. The PDF, `resume.json`, and lint report are stored on the run. Each attempt writes an `agent_usage` row (tokens and USD, no prompt text) shown on `/admin/usage`. A run stops retrying after `RESUME_MAX_COST_USD` (default 5). The worker reads only Postgres, the synced kit, and the environment, so hosting it later does not change the code. The app writes to the vault only through `jobhunt brag-docs migrate-vault --write` ([ADR-0002](docs/adr/0002-brag-docs.md)).
+**Resume generation** ([ADR-0005](docs/adr/0005-resume-agent.md)): the job detail pane has **Generate resume**. It queues `resume_runs`. The button stays enabled on other jobs while one run is in progress; a job that is already queued or running stays grey. `/resume-queue` lists the queue and recent finished runs. A worker wakes on `NOTIFY resume_runs` (30 second fallback), claims the row, and runs the Claude Agent SDK (`claude-haiku-5-5` by default) with the server skill `tailor-resume-server`. Input is the job description, the fit shortlist, and other brag docs ordered by `impact` (1–5) then similarity. The same fit model then checks that the resume scores at least as high as the shortlist and still covers those requirements. Up to two rewrites get the gaps as feedback. The PDF, `resume.json`, and lint report are stored on the run. Each attempt writes an `agent_usage` row (tokens and USD, no prompt text) shown on `/admin/usage`. A run stops retrying after `RESUME_MAX_COST_USD` (default 5). The worker reads only Postgres, the synced kit, and the environment, so hosting it later does not change the code. The app writes to the vault only through `jobhunt brag-docs migrate-vault --write` ([ADR-0002](docs/adr/0002-brag-docs.md)).
 
 ---
 

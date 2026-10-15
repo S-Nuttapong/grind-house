@@ -22,6 +22,28 @@ export function fetchPipeline(): Promise<Pipeline> {
   return request<Pipeline>("/api/pipeline");
 }
 
+export function postBulkEvents(
+  ids: number[],
+  status: string,
+  reason?: string,
+): Promise<{ updated: number[] }> {
+  return request<{ updated: number[] }>("/api/jobs/events/bulk", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ job_ids: ids, status, reason: reason ?? null }),
+  });
+}
+
+export function postBulkResumes(
+  ids: number[],
+): Promise<{ queued: { job_id: number; run_id: number }[]; skipped: { job_id: number; reason: string }[] }> {
+  return request("/api/resume-runs/bulk", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ job_ids: ids }),
+  });
+}
+
 export function postJobEvent(id: number, status: string, reason?: string): Promise<JobDetail> {
   return request<JobDetail>(`/api/jobs/${id}/events`, {
     method: "POST",

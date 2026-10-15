@@ -15,6 +15,27 @@ export type ResumeRun = {
   created_at: string;
   started_at: string | null;
   finished_at: string | null;
+  ahead?: number;
+};
+
+export type ResumeQueueItem = {
+  id: number;
+  job_id: number;
+  status: ResumeStatus;
+  title: string;
+  company: string;
+  ahead: number | null;
+  error: string | null;
+  resume_score: number | null;
+  baseline_score: number | null;
+  created_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+};
+
+export type ResumeQueue = {
+  active: ResumeQueueItem[];
+  recent: ResumeQueueItem[];
 };
 
 export type ResumeStreamEvent = {

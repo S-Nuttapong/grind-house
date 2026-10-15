@@ -64,6 +64,22 @@ def backfill(
         pool().putconn(conn)
 
 
+@facts_app.command("reparse")
+def reparse(
+    source: str | None = typer.Option(None, "--source", help="Limit to one source id."),
+    dry_run: bool = typer.Option(False, "--dry-run"),
+) -> None:
+    """Re-run the composed parser on open postings. Prints coverage before and after."""
+    from jobhunt.core.db import pool
+    from jobhunt.facts.reparse import run_reparse
+
+    conn = pool().getconn()
+    try:
+        typer.echo(run_reparse(conn, source=source, dry_run=dry_run))
+    finally:
+        pool().putconn(conn)
+
+
 @facts_app.command("eval")
 def evaluate(gold: Path = _GOLD) -> None:
     """Score COMPOSITION.parser on the gold file and apply the gates."""

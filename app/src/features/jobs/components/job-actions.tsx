@@ -17,18 +17,20 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import type { JobStatus } from "@/features/jobs/types";
+import type { MoveStatus } from "@/features/jobs/types";
+
 import { cn } from "@/lib/utils";
 
-const MESSAGES: Record<JobStatus, string> = {
+const MESSAGES: Record<MoveStatus, string> = {
   saved: "Saved to your pipeline",
   applied: "Marked as applied",
   skipped: "Hidden as not interested",
+  removed: "Removed from your pipeline",
 };
 
 export function useJobEvent(jobId: number) {
   const [isPending, startTransition] = useTransition();
-  function send(status: JobStatus, reason?: string) {
+  function send(status: MoveStatus, reason?: string) {
     startTransition(async () => {
       const result = await recordJobEvent(jobId, status, reason);
       if (result.ok) toast.success(MESSAGES[result.status]);

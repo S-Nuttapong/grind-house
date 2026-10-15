@@ -5,14 +5,14 @@ from decimal import Decimal
 from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel, field_serializer
+from pydantic import BaseModel, Field, field_serializer
 
 from jobhunt.core.db import tx
 from jobhunt.jobs import queries
 
 router = APIRouter(prefix="/api")
 
-Status = Literal["saved", "skipped", "applied"]
+Status = Literal["saved", "skipped", "applied", "removed"]
 
 
 class JobSummary(BaseModel):
@@ -29,6 +29,7 @@ class JobSummary(BaseModel):
     salary_max: Decimal | None
     salary_currency: str | None
     salary_label: str | None
+    experience_label: str | None = None
     posted_at: date | None
     first_seen_at: datetime
     closed_at: datetime | None
@@ -44,6 +45,7 @@ class JobSummary(BaseModel):
     stage: str
     snippet: str
     sources: list[str]
+    resume_status: str | None = None
 
     @field_serializer("salary_min", "salary_max")
     def _money(self, value: Decimal | None) -> str | None:
@@ -93,6 +95,12 @@ class EventIn(BaseModel):
     reason: str | None = None
 
 
+class BulkEventsIn(BaseModel):
+    job_ids: list[int] = Field(min_length=1, max_length=300)
+    status: Status
+    reason: str | None = None
+
+
 class Facets(BaseModel):
     sources: list[str]
     remote: list[str]
@@ -130,6 +138,14 @@ def get_job(job_id: int, fit: str = "bank") -> JobDetail:
     if job is None:
         raise HTTPException(status_code=404, detail="job not found")
     return _detail(job)
+
+
+@router.post("/jobs/events/bulk")
+def record_events(event: BulkEventsIn) -> dict[str, list[int]]:
+    reason = (event.reason or "").strip() or None
+    with tx() as conn:
+        updated = queries.record_events(conn, event.job_ids, event.status, reason)
+    return {"updated": updated}
 
 
 @router.post("/jobs/{job_id}/events", response_model=JobDetail)

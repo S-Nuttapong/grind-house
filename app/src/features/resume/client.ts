@@ -1,4 +1,4 @@
-import type { ResumeRun, ResumeStreamEvent } from "@/features/resume/types";
+import type { ResumeQueue, ResumeRun, ResumeStreamEvent } from "@/features/resume/types";
 
 async function readJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, { headers: { accept: "application/json" }, ...init });
@@ -15,6 +15,10 @@ export function fetchResumeRuns(jobId: number): Promise<ResumeRun[]> {
 
 export function fetchResumeRun(runId: number): Promise<ResumeRun> {
   return readJson<ResumeRun>(`/api/resume-runs/${runId}`);
+}
+
+export function fetchResumeQueue(): Promise<ResumeQueue> {
+  return readJson<ResumeQueue>("/api/resume-queue");
 }
 
 export function startResume(jobId: number): Promise<{ run_id: number }> {

@@ -67,6 +67,36 @@ function Choices({
   );
 }
 
+function ExperienceSlider() {
+  const { filters, navigate } = useBoard();
+  const committed = Number(filters.min_experience || "0");
+  const years = Number.isFinite(committed) ? committed : 0;
+  const [value, setValue] = useState(years);
+  const [seen, setSeen] = useState(years);
+  if (years !== seen) {
+    setSeen(years);
+    setValue(years);
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm">{value === 0 ? "Any" : `${value}+ years`}</p>
+      <Slider
+        min={0}
+        max={15}
+        step={1}
+        value={[value]}
+        aria-label="Minimum years of experience"
+        onValueChange={(next) => setValue(next[0] ?? 0)}
+        onValueCommit={(next) => {
+          const years = next[0] ?? 0;
+          navigate({ min_experience: years === 0 ? "" : String(years) });
+        }}
+      />
+    </div>
+  );
+}
+
 function ScoreSlider() {
   const { filters, navigate } = useBoard();
   const committed = Number(filters.min_score || "0");
@@ -134,6 +164,7 @@ export function FilterSidebar({ facets }: { facets: Facets }) {
                 role: "",
                 industry: "",
                 level: "",
+                min_experience: "",
                 posted_within: "",
                 has_salary: "",
                 include_closed: "",
@@ -210,6 +241,10 @@ export function FilterSidebar({ facets }: { facets: Facets }) {
           selected={readList(filters, "level")}
           onToggle={(value) => toggle("level", value)}
         />
+      </Section>
+      <Separator />
+      <Section title="Experience">
+        <ExperienceSlider />
       </Section>
       <Separator />
       <Section title="Workplace">

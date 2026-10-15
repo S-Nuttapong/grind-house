@@ -2,6 +2,8 @@
 
 export type JobStatus = "saved" | "skipped" | "applied";
 
+export type MoveStatus = JobStatus | "removed";
+
 export type JobSummary = {
   id: number;
   title: string;
@@ -16,6 +18,7 @@ export type JobSummary = {
   salary_max: string | null;
   salary_currency: string | null;
   salary_label: string | null;
+  experience_label: string | null;
   posted_at: string | null;
   first_seen_at: string;
   closed_at: string | null;
@@ -31,6 +34,7 @@ export type JobSummary = {
   stage: string;
   snippet: string;
   sources: string[];
+  resume_status: string | null;
 };
 
 export type JobDetail = JobSummary & {

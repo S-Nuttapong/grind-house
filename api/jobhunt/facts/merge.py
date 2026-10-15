@@ -5,7 +5,15 @@ from typing import Any
 from psycopg import Connection
 from psycopg.types.json import Json
 
-from jobhunt.facts.base import LEVELS, FieldName, JobDetail, LocationFact, PayFact, TextFact
+from jobhunt.facts.base import (
+    LEVELS,
+    ExperienceFact,
+    FieldName,
+    JobDetail,
+    LocationFact,
+    PayFact,
+    TextFact,
+)
 from jobhunt.scrape.normalize.salary import normalize_salary
 
 _JOB_TYPES = {"fulltime", "parttime", "contract", "internship", "temporary"}
@@ -30,7 +38,7 @@ def merge_facts(conn: Connection[Any], job_id: int) -> None:
         """
         SELECT country, city, remote, employment_type, salary_min, salary_max,
                salary_currency, salary_interval, posted_at, locations, countries,
-               role, level
+               role, level, experience_min_years, experience_max_years
         FROM jobs WHERE id = %s
         """,
         (job_id,),
@@ -81,6 +89,13 @@ def merge_facts(conn: Connection[Any], job_id: int) -> None:
     if level in (None, "unknown") and level_fact is not None and level_fact.value in LEVELS:
         level = level_fact.value
         origins["level"] = level_fact.parser_id
+    experience = _best_experience(details)
+    experience_min = current[13]
+    experience_max = current[14]
+    if experience_min is None and experience_max is None and experience is not None:
+        experience_min = experience.value.minimum
+        experience_max = experience.value.maximum
+        origins["experience"] = experience.parser_id
     if primary is not None and (current[0] is None or current[1] is None):
         origins["locations"] = locations.parser_id if locations is not None else ""
     stored_locations = current[9]
@@ -115,6 +130,8 @@ def merge_facts(conn: Connection[Any], job_id: int) -> None:
           role = CASE WHEN role IS NULL THEN COALESCE(%s, role) ELSE role END,
           level = CASE WHEN level IS NULL OR level = 'unknown'
             THEN COALESCE(%s, level) ELSE level END,
+          experience_min_years = COALESCE(experience_min_years, %s),
+          experience_max_years = COALESCE(experience_max_years, %s),
           fact_origins = fact_origins || %s::jsonb
         WHERE id = %s
         """,
@@ -133,6 +150,8 @@ def merge_facts(conn: Connection[Any], job_id: int) -> None:
             countries,
             role if origins.get("role") else None,
             level if origins.get("level") else None,
+            experience_min if origins.get("experience") else None,
+            experience_max if origins.get("experience") else None,
             Json(origins),
             job_id,
         ),
@@ -156,6 +175,11 @@ def _best_text(details: list[JobDetail], field: FieldName) -> TextFact | None:
         fact = getattr(detail, field)
         if isinstance(fact, TextFact):
             facts.append(fact)
+    return _best(facts)
+
+
+def _best_experience(details: list[JobDetail]) -> ExperienceFact | None:
+    facts = [detail.experience for detail in details if detail.experience is not None]
     return _best(facts)
 
 

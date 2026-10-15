@@ -120,7 +120,7 @@ def test_parse_location(
         (1000, None, "USD", "monthly", Decimal("12000")),
         (1000, None, "USD", "weekly", Decimal("52000")),
         (400, None, "USD", "daily", Decimal("104000")),
-        (80000, None, "SGD", "yearly", None),
+        (80000, None, "SGD", "yearly", Decimal("62373")),
         (80000, None, None, "yearly", None),
         (None, None, "USD", "yearly", None),
         (10, None, "USD", "biweekly", None),

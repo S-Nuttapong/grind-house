@@ -7,8 +7,9 @@ from typing import Any
 import httpx
 
 from jobhunt.core.http import HttpClient, SourceBlocked
-from jobhunt.facts.base import JobDetail, Place
+from jobhunt.facts.base import JobDetail, PayFact, Place
 from jobhunt.facts.mapping import location_fact, text
+from jobhunt.facts.pay import pay_from_label
 from jobhunt.scrape.sources.base import (
     FetchBatch,
     FetchContext,
@@ -52,9 +53,9 @@ class SeekSource(SourceDefaults):
 
     def payload_facts(self, payload: dict[str, Any]) -> JobDetail:
         country = text(payload.get("country"))
-        if country is None or len(country) != 2:
-            return JobDetail()
-        return JobDetail(locations=location_fact([Place(country=country.upper())], "api:seek"))
+        code = country.upper() if country is not None and len(country) == 2 else None
+        locations = location_fact([Place(country=code)], "api:seek") if code else None
+        return JobDetail(locations=locations, pay=_salary_fact(payload.get("salary"), code))
 
     def augment_text(self, payload: dict[str, Any], text_value: str) -> str:
         label = payload.get("salary")
@@ -120,6 +121,15 @@ class SeekSource(SourceDefaults):
                 break
         resume = start_page + limit if stopped == "cap" else None
         yield FetchBatch(postings=collected, resume_page=resume)
+
+
+def _salary_fact(label: object, country: str | None) -> PayFact | None:
+    if not isinstance(label, str) or not label.strip():
+        return None
+    parsed = pay_from_label(label, country)
+    if parsed is None:
+        return None
+    return PayFact(value=parsed, confidence=1.0, evidence=label.strip(), parser_id="api:seek")
 
 
 def fetch_detail(http: HttpClient, host: str, job_id: str) -> str | None:

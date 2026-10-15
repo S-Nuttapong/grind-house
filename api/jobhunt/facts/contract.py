@@ -7,8 +7,10 @@ from decimal import Decimal
 import pycountry
 
 from jobhunt.core.log import get_logger
-from jobhunt.facts.base import LEVELS, JobDetail, LocationFact, PayFact, Place
+from jobhunt.facts.base import LEVELS, ExperienceFact, JobDetail, LocationFact, PayFact, Place
+from jobhunt.facts.pay import USD_YEAR_MAX, USD_YEAR_MIN
 from jobhunt.scrape.normalize.role import role_ids
+from jobhunt.scrape.normalize.salary import normalize_salary
 
 log = get_logger("facts")
 
@@ -68,6 +70,7 @@ def _checked(detail: JobDetail, text: str, moment: date) -> JobDetail:
         posted=_keep(detail.posted, "posted", _posted_ok(detail, moment), text),
         role=_keep(detail.role, "role", _text_ok(detail.role, role_ids()), text),
         level=_keep(detail.level, "level", _text_ok(detail.level, set(LEVELS)), text),
+        experience=_keep(detail.experience, "experience", _experience_ok(detail.experience), text),
     )
 
 
@@ -117,12 +120,40 @@ def _pay_ok(fact: PayFact | None) -> str | None:
         return "pay_interval"
     if pay.currency is None or pycountry.currencies.get(alpha_3=pay.currency.upper()) is None:
         return "pay_currency"
-    low, high = _BANDS[interval]
     sides = [side for side in (pay.minimum, pay.maximum) if side is not None]
-    if not sides or any(side <= 0 or side < low or side > high for side in sides):
+    if not sides or any(side <= 0 for side in sides):
         return "pay_band"
     if pay.minimum is not None and pay.maximum is not None and pay.minimum > pay.maximum:
         return "pay_order"
+    if _outside_band(sides, pay.currency, interval):
+        return "pay_band"
+    return None
+
+
+def _outside_band(sides: list[Decimal], currency: str, interval: str) -> bool:
+    """True when a side falls outside the USD-per-year band, or the local band if no rate."""
+    converted: list[Decimal] = []
+    for side in sides:
+        _low, _high, _code, _interval, usd = normalize_salary(side, None, currency, interval)
+        if usd is None:
+            low, high = _BANDS[interval]
+            return any(amount < low or amount > high for amount in sides)
+        converted.append(usd)
+    return any(usd < USD_YEAR_MIN or usd > USD_YEAR_MAX for usd in converted)
+
+
+def _experience_ok(fact: ExperienceFact | None) -> str | None:
+    if fact is None:
+        return None
+    low = fact.value.minimum
+    high = fact.value.maximum
+    if low is None and high is None:
+        return "experience_bounds"
+    for side in (low, high):
+        if side is not None and (side < 0 or side > 20):
+            return "experience_bounds"
+    if low is not None and high is not None and high < low:
+        return "experience_order"
     return None
 
 

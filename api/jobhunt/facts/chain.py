@@ -77,4 +77,6 @@ def _take(detail: JobDetail, field: FieldName) -> JobDetail | None:
         return JobDetail(role=detail.role)
     if field == "level" and detail.level is not None:
         return JobDetail(level=detail.level)
+    if field == "experience" and detail.experience is not None:
+        return JobDetail(experience=detail.experience)
     return None

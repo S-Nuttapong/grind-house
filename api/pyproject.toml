@@ -91,6 +91,7 @@ torch = [
 target-version = "py312"
 line-length = 100
 src = ["jobhunt", "tests"]
+extend-exclude = ["evals/cache"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]

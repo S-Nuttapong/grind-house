@@ -6,7 +6,9 @@ from typing import Literal, Protocol
 
 from pydantic import BaseModel, Field
 
-FieldName = Literal["pay", "job_type", "workplace", "locations", "posted", "role", "level"]
+FieldName = Literal[
+    "pay", "job_type", "workplace", "locations", "posted", "role", "level", "experience"
+]
 FIELDS: tuple[FieldName, ...] = (
     "pay",
     "job_type",
@@ -15,6 +17,7 @@ FIELDS: tuple[FieldName, ...] = (
     "posted",
     "role",
     "level",
+    "experience",
 )
 LEVELS: tuple[str, ...] = (
     "intern",
@@ -76,6 +79,21 @@ class DateFact(BaseModel):
     parser_id: str
 
 
+class Experience(BaseModel):
+    """Whole years the posting asks for. A missing side is an open end."""
+
+    minimum: int | None = None
+    maximum: int | None = None
+
+
+class ExperienceFact(BaseModel):
+    value: Experience
+    confidence: float = Field(ge=0, le=1)
+    evidence: str
+    span: tuple[int, int] | None = None
+    parser_id: str
+
+
 class JobDetail(BaseModel):
     """Parsed job fields. A missing field is None, including level (stored as unknown)."""
 
@@ -86,6 +104,7 @@ class JobDetail(BaseModel):
     posted: DateFact | None = None
     role: TextFact | None = None
     level: TextFact | None = None
+    experience: ExperienceFact | None = None
 
     def missing(self, wanted: set[FieldName]) -> set[FieldName]:
         gaps: set[FieldName] = set()
@@ -136,7 +155,7 @@ def as_input(posting: PostingInput | str) -> PostingInput:
 
 def _get(
     detail: JobDetail, field: FieldName
-) -> PayFact | TextFact | LocationFact | DateFact | None:
+) -> PayFact | TextFact | LocationFact | DateFact | ExperienceFact | None:
     if field == "pay":
         return detail.pay
     if field == "job_type":
@@ -149,7 +168,9 @@ def _get(
         return detail.posted
     if field == "role":
         return detail.role
-    return detail.level
+    if field == "level":
+        return detail.level
+    return detail.experience
 
 
 def wants(hints: ParseHints | None, field: FieldName) -> bool:
@@ -168,4 +189,5 @@ def prefer(primary: JobDetail, fallback: JobDetail) -> JobDetail:
         posted=primary.posted or fallback.posted,
         role=primary.role or fallback.role,
         level=primary.level or fallback.level,
+        experience=primary.experience or fallback.experience,
     )

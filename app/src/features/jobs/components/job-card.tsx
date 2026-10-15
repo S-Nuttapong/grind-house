@@ -73,6 +73,7 @@ export function JobCard({ job, selected }: { job: JobSummary; selected: boolean 
                 {job.salary_label}
               </Badge>
             )}
+            {job.experience_label && <Badge variant="secondary">{job.experience_label}</Badge>}
             {job.remote && job.remote !== "unknown" && <Badge variant="secondary">{job.remote_label}</Badge>}
             {job.employment_type && <Badge variant="outline">{job.employment_type}</Badge>}
             {job.fit_tier && job.score !== null && (

@@ -18,6 +18,7 @@ from jobhunt.facts.base import (
     prefer,
     wants,
 )
+from jobhunt.facts.experience import experience_from_text
 from jobhunt.facts.lexicon import cues, phrases
 from jobhunt.facts.mapping import map_job_type
 from jobhunt.facts.pay import pay_from_text
@@ -52,6 +53,12 @@ class DefaultParser:
         detail = prefer(item.source_facts, _from_fields(item, chosen))
         if item.description_md.strip():
             detail = prefer(detail, _describe(item.description_md, chosen))
+        if wants(chosen, "experience"):
+            found = experience_from_text(
+                "\n".join(part for part in (item.title, item.description_md) if part)
+            )
+            if found is not None:
+                detail = prefer(detail, JobDetail(experience=found))
         return detail
 
 

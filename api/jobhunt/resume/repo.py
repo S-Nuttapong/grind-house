@@ -58,7 +58,7 @@ def claim(conn: Connection[Any]) -> dict[str, Any] | None:
                 SELECT id FROM resume_runs
                 WHERE status = 'queued'
                    OR (status = 'running' AND locked_until < now())
-                ORDER BY created_at
+                ORDER BY created_at, id
                 FOR UPDATE SKIP LOCKED
                 LIMIT 1
             )
@@ -198,6 +198,84 @@ def save_artifact(
         """,
         (run_id, pdf, Jsonb(resume_json), lint_report),
     )
+
+
+def latest_status(conn: Connection[Any], job_id: int) -> str | None:
+    """Status of the newest run for a job, if one exists."""
+    row = conn.execute(
+        """
+        SELECT status FROM resume_runs
+        WHERE job_id = %s
+        ORDER BY created_at DESC, id DESC
+        LIMIT 1
+        """,
+        (job_id,),
+    ).fetchone()
+    return None if row is None else str(row[0])
+
+
+def queued_ahead(conn: Connection[Any], run_id: int) -> int | None:
+    """How many active runs were created before this queued run. None when it is not queued."""
+    row = conn.execute(
+        """
+        SELECT CASE WHEN run.status = 'queued' THEN (
+            SELECT count(*) FROM resume_runs other
+            WHERE other.status IN ('queued', 'running')
+              AND (other.created_at, other.id) < (run.created_at, run.id)
+        ) END
+        FROM resume_runs run
+        WHERE run.id = %s
+        """,
+        (run_id,),
+    ).fetchone()
+    if row is None or row[0] is None:
+        return None
+    return int(row[0])
+
+
+def queue_snapshot(
+    conn: Connection[Any], recent_limit: int = 20
+) -> dict[str, list[dict[str, Any]]]:
+    """Active runs in queue order, then the latest finished runs."""
+    return {
+        "active": _queue_rows(conn, ("queued", "running"), recent=False, limit=None),
+        "recent": _queue_rows(
+            conn, ("ok", "below_baseline", "failed"), recent=True, limit=recent_limit
+        ),
+    }
+
+
+def _queue_rows(
+    conn: Connection[Any], statuses: tuple[str, ...], *, recent: bool, limit: int | None
+) -> list[dict[str, Any]]:
+    order = "r.finished_at DESC NULLS LAST, r.id DESC" if recent else "r.created_at, r.id"
+    ahead = (
+        "NULL::int AS ahead"
+        if recent
+        else "(row_number() OVER (ORDER BY r.created_at, r.id) - 1)::int AS ahead"
+    )
+    limited = "" if limit is None else "LIMIT %s"
+    values: list[Any] = [list(statuses)]
+    if limit is not None:
+        values.append(limit)
+    with conn.cursor(row_factory=_dict_row) as cursor:
+        cursor.execute(
+            f"""
+            SELECT r.id, r.job_id, r.status, r.error,
+                   r.baseline_score, r.resume_score,
+                   r.created_at, r.started_at, r.finished_at,
+                   j.title, c.name AS company,
+                   {ahead}
+            FROM resume_runs r
+            JOIN jobs j ON j.id = r.job_id
+            JOIN companies c ON c.id = j.company_id
+            WHERE r.status = ANY(%s)
+            ORDER BY {order}
+            {limited}
+            """,
+            values,
+        )
+        return list(cursor.fetchall())
 
 
 def get_run(conn: Connection[Any], run_id: int) -> dict[str, Any] | None:

@@ -48,12 +48,13 @@ _PREFIX = (
     ("€", "EUR"),
     ("£", "GBP"),
     ("฿", "THB"),
+    ("₱", "PHP"),
     ("rm", "MYR"),
     ("rp", "IDR"),
 )
 _NUM = r"\d{1,3}(?:[ ,.\u00a0]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)?"
 _AMOUNT = re.compile(
-    rf"(?P<pre>CA\$|US\$|NZ\$|HK\$|A\$|S\$|C\$|€|£|฿|RM|Rp|\$|(?:{'|'.join(_CODES)}))"
+    rf"(?P<pre>CA\$|US\$|NZ\$|HK\$|A\$|S\$|C\$|€|£|฿|₱|RM|Rp|\$|(?:{'|'.join(_CODES)}))"
     rf"\s*(?P<num>{_NUM})\s*(?P<k>[kK])?",
     re.IGNORECASE,
 )
@@ -63,8 +64,16 @@ _MONTH = re.compile(r"per\s*month|/month|monthly", re.IGNORECASE)
 _WEEK = re.compile(r"per\s*week|/week|weekly", re.IGNORECASE)
 _DAY = re.compile(r"per\s*day|/day|daily", re.IGNORECASE)
 _HOUR = re.compile(r"per\s*hour|/hour|/hr|hourly|an hour", re.IGNORECASE)
-_USD_YEAR_MIN = Decimal(5000)
-_USD_YEAR_MAX = Decimal(2_000_000)
+USD_YEAR_MIN = Decimal(5000)
+USD_YEAR_MAX = Decimal(2_000_000)
+_DOLLAR_COUNTRY = {"AU": "AUD", "NZ": "NZD", "SG": "SGD", "HK": "HKD"}
+_BARE = re.compile(rf"(?<!\w)(?P<num>{_NUM})(?P<k>[kK])?(?!\w)")
+_UP_TO = re.compile(r"\bup to\b", re.IGNORECASE)
+_RANGE_GAP = re.compile(
+    rf"^\s*(?:-|–|—|\bto\b)\s*"
+    rf"(?:CA\$|US\$|NZ\$|HK\$|A\$|S\$|C\$|€|£|฿|₱|RM|Rp|\$|(?:{'|'.join(_CODES)}))?\s*$",
+    re.IGNORECASE,
+)
 
 
 def pay_from_text(
@@ -271,17 +280,124 @@ def _territory_currency(country: str) -> str | None:
 
 
 def _plausible(pay: Pay) -> bool:
-    if pay.currency is None or pay.minimum is None or pay.interval is None:
+    amount = pay.minimum if pay.minimum is not None else pay.maximum
+    if pay.currency is None or amount is None or pay.interval is None:
         return False
-    if pay.maximum is not None and pay.maximum < pay.minimum:
+    if pay.minimum is not None and pay.maximum is not None and pay.maximum < pay.minimum:
         return False
     _low, _high, _code, _interval, usd = normalize_salary(
         pay.minimum, pay.maximum, pay.currency, pay.interval
     )
     if usd is not None:
-        return _USD_YEAR_MIN <= usd <= _USD_YEAR_MAX
+        return USD_YEAR_MIN <= usd <= USD_YEAR_MAX
     if pay.interval == "hourly":
-        return Decimal(5) <= pay.minimum <= Decimal(50000)
+        return Decimal(5) <= amount <= Decimal(50000)
     if pay.interval == "monthly":
-        return Decimal(100) <= pay.minimum <= Decimal(50_000_000)
-    return Decimal(1000) <= pay.minimum <= Decimal(500_000_000)
+        return Decimal(100) <= amount <= Decimal(50_000_000)
+    return Decimal(1000) <= amount <= Decimal(500_000_000)
+
+
+def pay_from_label(label: str, country: str | None) -> Pay | None:
+    """One compensation label, such as a SEEK salaryLabel. No salary cue required."""
+    text = " ".join(label.split())
+    if not text:
+        return None
+    currency = _label_currency(text, country)
+    found = _label_amounts(text)
+    if currency is None or not found:
+        return None
+    up_to = _UP_TO.search(text)
+    if up_to is not None:
+        after = [amount for amount, match in found if match.start() >= up_to.end()]
+        chosen = after or [found[0][0]]
+        return _labeled_pay(None, chosen[-1], currency, text)
+    gap = text[found[0][1].end() : found[1][1].start()] if len(found) >= 2 else ""
+    if len(found) >= 2 and _RANGE_GAP.match(gap):
+        low, high = found[0][0], found[1][0]
+        if high < low:
+            return None
+        return _labeled_pay(low, high, currency, text)
+    return _labeled_pay(found[0][0], None, currency, text)
+
+
+def _labeled_pay(low: Decimal | None, high: Decimal | None, currency: str, text: str) -> Pay | None:
+    anchor = low if low is not None else high
+    if anchor is None:
+        return None
+    stated = _explicit_interval(text)
+    if stated is not None:
+        pay = Pay(minimum=low, maximum=high, currency=currency, interval=stated)
+        return pay if _plausible(pay) else None
+    guessed = _interval(text, anchor)
+    pay = Pay(minimum=low, maximum=high, currency=currency, interval=guessed)
+    if _plausible(pay):
+        return pay
+    for interval in ("monthly", "yearly", "weekly", "daily", "hourly"):
+        if interval == guessed:
+            continue
+        trial = pay.model_copy(update={"interval": interval})
+        if _plausible(trial):
+            return trial
+    return None
+
+
+def _explicit_interval(sentence: str) -> str | None:
+    if _HOUR.search(sentence):
+        return "hourly"
+    if _DAY.search(sentence):
+        return "daily"
+    if _WEEK.search(sentence):
+        return "weekly"
+    if _MONTH.search(sentence):
+        return "monthly"
+    if _YEAR.search(sentence):
+        return "yearly"
+    return None
+
+
+def _label_currency(text: str, country: str | None) -> str | None:
+    match = _AMOUNT.search(text)
+    if match is not None:
+        prefix = match.group("pre") or ""
+        if prefix == "$" and country:
+            mapped = _DOLLAR_COUNTRY.get(country.upper())
+            if mapped is not None:
+                return mapped
+        code = _currency(match)
+        if code is not None:
+            return code
+    word = re.search(rf"\b(?:{'|'.join(_CODES)})\b", text, re.IGNORECASE)
+    if word is not None:
+        return word.group(0).upper()
+    scaled = re.search(r"\d\s*[kK]\b", text) is not None
+    looks_like_pay = scaled or _explicit_interval(text) is not None
+    if looks_like_pay and country:
+        return _territory_currency(country)
+    return None
+
+
+def _label_amounts(text: str) -> list[tuple[Decimal, re.Match[str]]]:
+    raw: list[tuple[Decimal, bool, re.Match[str]]] = []
+    for match in _BARE.finditer(text):
+        amount = _bare_amount(match)
+        if amount is None or amount <= 0:
+            continue
+        raw.append((amount, bool(match.group("k")), match))
+    found: list[tuple[Decimal, re.Match[str]]] = []
+    for index, (amount, had_k, match) in enumerate(raw):
+        later = next((value for value, later_k, _match in raw[index + 1 :] if later_k), None)
+        if not had_k and later is not None and amount < 1000 and amount * 1000 <= later:
+            amount *= 1000
+        found.append((amount, match))
+    return found
+
+
+def _bare_amount(match: re.Match[str]) -> Decimal | None:
+    number = match.group("num").replace(" ", "").replace("\u00a0", "")
+    parsed = Price.fromstring(number)
+    if parsed.amount is None:
+        return None
+    amount = parsed.amount
+    if match.group("k"):
+        amount *= 1000
+    return amount.quantize(Decimal("1"))

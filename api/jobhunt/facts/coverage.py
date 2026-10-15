@@ -17,7 +17,10 @@ SELECT p.source_id,
        count(DISTINCT j.id) FILTER (WHERE j.level = 'unknown') AS unknown_level,
        count(DISTINCT j.id) FILTER (
            WHERE j.country IS NULL OR j.locations = '[]'::jsonb
-       ) AS no_location
+       ) AS no_location,
+       count(DISTINCT j.id) FILTER (
+           WHERE j.experience_min_years IS NULL AND j.experience_max_years IS NULL
+       ) AS no_experience
 FROM jobs j
 JOIN postings p ON p.job_id = j.id
 WHERE j.closed_at IS NULL
@@ -41,6 +44,7 @@ def coverage_rows(conn: Connection[Any]) -> list[dict[str, int | str]]:
             "no_role": int(row[8]),
             "unknown_level": int(row[9]),
             "no_location": int(row[10]),
+            "no_experience": int(row[11]),
         }
         for row in rows
     ]
@@ -59,6 +63,7 @@ def coverage_table(conn: Connection[Any]) -> str:
         "no_role",
         "unknown_level",
         "no_location",
+        "no_experience",
     )
     lines = ["\t".join(header)]
     for row in coverage_rows(conn):

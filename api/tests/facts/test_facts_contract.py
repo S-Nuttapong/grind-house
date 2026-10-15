@@ -66,6 +66,35 @@ def test_posted_in_the_future_or_too_old_is_dropped() -> None:
     assert kept.posted is not None
 
 
+def test_large_local_monthly_pay_survives_the_usd_band() -> None:
+    rupiah = PayFact(
+        value=Pay(
+            minimum=Decimal("11000000"),
+            maximum=Decimal("15000000"),
+            currency="IDR",
+            interval="monthly",
+        ),
+        confidence=1,
+        evidence="11000000",
+        parser_id="api:seek",
+    )
+    baht = PayFact(
+        value=Pay(
+            minimum=Decimal("100000"),
+            maximum=Decimal("140000"),
+            currency="THB",
+            interval="monthly",
+        ),
+        confidence=1,
+        evidence="140000",
+        parser_id="api:seek",
+    )
+    kept_rupiah = check_facts(JobDetail(pay=rupiah), title="", description="", today=_TODAY)
+    kept_baht = check_facts(JobDetail(pay=baht), title="", description="", today=_TODAY)
+    assert kept_rupiah.pay is not None
+    assert kept_baht.pay is not None
+
+
 def test_unknown_role_and_country_are_dropped() -> None:
     detail = JobDetail(
         role=_text("astronaut", "astronaut"),

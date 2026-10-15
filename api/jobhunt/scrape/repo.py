@@ -1092,6 +1092,33 @@ def pending_details(conn: Connection[Any], source_id: str, limit: int) -> list[d
         return [dict(row) for row in cursor.fetchall()]
 
 
+def posting_for_parse(conn: Connection[Any], posting_id: int) -> dict[str, Any] | None:
+    """Posting, job, and latest payload, enough to run the facts parser again."""
+    with conn.cursor(row_factory=dict_row) as cursor:
+        cursor.execute(
+            """
+            SELECT p.id AS posting_id, p.job_id, p.source_id, p.source_job_id, p.source_url,
+                   c.name AS company_name, j.title, j.city, j.country, j.remote,
+                   j.employment_type, j.posted_at, rp.payload
+            FROM postings p
+            JOIN jobs j ON j.id = p.job_id
+            JOIN companies c ON c.id = j.company_id
+            LEFT JOIN LATERAL (
+                SELECT payload FROM raw_payloads
+                WHERE posting_id = p.id
+                ORDER BY fetched_at DESC
+                LIMIT 1
+            ) rp ON true
+            WHERE p.id = %s
+            """,
+            (posting_id,),
+        )
+        row = cursor.fetchone()
+    if row is None:
+        return None
+    return dict(row)
+
+
 def posting_host(conn: Connection[Any], posting_id: int) -> str | None:
     row = conn.execute(
         """

@@ -173,6 +173,37 @@ def _save(
         )
         if offsite:
             follow_apply(conn, int(row["company_id"]), offsite)
+        _reparse(conn, int(row["posting_id"]), description)
+
+
+def _reparse(conn: Any, posting_id: int, description: str | None) -> None:
+    """Facts were parsed from the teaser. The full description can fill pay and experience."""
+    loaded = repo.posting_for_parse(conn, posting_id)
+    if loaded is None:
+        return
+    from jobhunt.facts.apply import build_detail, record
+    from jobhunt.scrape.sources.base import RawPosting
+
+    payload = loaded["payload"] if isinstance(loaded["payload"], dict) else {}
+    city = loaded["city"] if isinstance(loaded["city"], str) else ""
+    country = str(loaded["country"] or "").strip()
+    place = ", ".join(part for part in (city, country) if part)
+    remote = loaded["remote"] if loaded["remote"] not in (None, "unknown") else None
+    employment = loaded["employment_type"]
+    posting = RawPosting(
+        source_id=str(loaded["source_id"]),
+        source_job_id=str(loaded["source_job_id"]),
+        source_url=str(loaded["source_url"]),
+        company_name=str(loaded["company_name"]),
+        title=str(loaded["title"] or ""),
+        location_raw=place or None,
+        remote_hint=str(remote) if remote else None,
+        employment_type_raw=employment if isinstance(employment, str) else None,
+        posted_at=loaded["posted_at"],
+        payload=payload,
+    )
+    detail, status = build_detail(posting, description)
+    record(conn, int(loaded["job_id"]), posting_id, detail, status)
 
 
 def _fail(posting_id: int) -> None:

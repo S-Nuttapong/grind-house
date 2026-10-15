@@ -1,5 +1,20 @@
-as_of: 2026-10-01
+as_of: 2026-10-14
+# Units of USD per 1 unit of currency. Frankfurter, USD base, except VND.
 to_usd:
   USD: 1.0
-  # SGD, THB, EUR, GBP, AUD, INR: add the rate when it is known.
-  # A currency missing from this table leaves usd_year_min null.
+  AUD: 0.700967
+  CAD: 0.703284
+  CHF: 1.199890
+  EUR: 1.119495
+  GBP: 1.326665
+  HKD: 0.127419
+  IDR: 0.000056
+  INR: 0.010509
+  JPY: 0.006311
+  MYR: 0.244948
+  NZD: 0.561419
+  PHP: 0.015904
+  SGD: 0.779666
+  THB: 0.029784
+  # Frankfurter has no VND quote. Rounded market rate, about 25,600 VND per USD.
+  VND: 0.000039

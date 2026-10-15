@@ -29,7 +29,7 @@ _SORT_ALIASES = {
 }
 _FIT_MODES = {"bank", "resume"}
 _POSTED_WITHIN = {1, 3, 7, 14, 30}
-_STATUSES = {"saved", "skipped", "applied"}
+_STATUSES = {"saved", "skipped", "applied", "removed"}
 _LABELS = {"saved": "maybe", "skipped": "skip", "applied": "apply"}
 _REMOTE_LABELS = {
     "remote": "Remote",
@@ -98,6 +98,7 @@ def parse_filters(params: dict[str, str]) -> dict[str, Any]:
         "level": _list(params.get("level"), set(_LEVELS)),
         "posted_within": posted_within,
         "has_salary": params.get("has_salary") == "1",
+        "min_experience": _min_experience(params.get("min_experience")),
         "include_closed": params.get("include_closed") == "1",
         "jk": int(jk_raw) if jk_raw and jk_raw.isdigit() else None,
         "fit": params.get("fit") if params.get("fit") in _FIT_MODES else "bank",
@@ -128,6 +129,7 @@ def list_jobs(conn: Connection[Any], filters: dict[str, Any]) -> tuple[list[dict
             f"""
             SELECT j.id, j.title, c.name AS company, j.city, j.country, j.remote,
                    j.employment_type, j.salary_min, j.salary_max, j.salary_currency,
+                   j.experience_min_years, j.experience_max_years,
                    j.posted_at, j.first_seen_at, j.closed_at, j.apply_url,
                    s.status, {_SCORE_COLUMNS},
                    left(
@@ -158,6 +160,7 @@ def get_job(conn: Connection[Any], job_id: int, fit_mode: str = "bank") -> dict[
             f"""
             SELECT j.id, j.title, c.name AS company, j.city, j.country, j.remote,
                    j.employment_type, j.salary_min, j.salary_max, j.salary_currency,
+                   j.experience_min_years, j.experience_max_years,
                    j.posted_at, j.first_seen_at, j.closed_at, j.apply_url, j.description_md,
                    s.status, {_SCORE_COLUMNS},
                    (
@@ -212,13 +215,20 @@ def list_pipeline(conn: Connection[Any]) -> dict[str, list[dict[str, Any]]]:
             f"""
             SELECT j.id, j.title, c.name AS company, j.city, j.country, j.remote,
                    j.employment_type, j.salary_min, j.salary_max, j.salary_currency,
+                   j.experience_min_years, j.experience_max_years,
                    j.posted_at, j.first_seen_at, j.closed_at, j.apply_url,
                    s.status, s.at AS status_at, {_SCORE_COLUMNS},
                    '' AS snippet,
                    (
                      SELECT string_agg(DISTINCT p.source_id, ', ' ORDER BY p.source_id)
                      FROM postings p WHERE p.job_id = j.id
-                   ) AS sources
+                   ) AS sources,
+                   (
+                     SELECT rr.status FROM resume_runs rr
+                     WHERE rr.job_id = j.id
+                     ORDER BY rr.created_at DESC, rr.id DESC
+                     LIMIT 1
+                   ) AS resume_status
             FROM job_status s
             JOIN jobs j ON j.id = s.job_id
             JOIN companies c ON c.id = j.company_id
@@ -275,6 +285,21 @@ def list_facets(conn: Connection[Any]) -> dict[str, list[str]]:
     }
 
 
+def record_events(
+    conn: Connection[Any], job_ids: list[int], status: str, reason: str | None
+) -> list[int]:
+    """Record one status for each job that exists. Unknown ids are skipped."""
+    rows = conn.execute("SELECT id FROM jobs WHERE id = ANY(%s)", (job_ids,)).fetchall()
+    found = {int(row[0]) for row in rows}
+    updated: list[int] = []
+    for job_id in job_ids:
+        if job_id not in found or job_id in updated:
+            continue
+        record_event(conn, job_id, status, reason)
+        updated.append(job_id)
+    return updated
+
+
 def record_event(conn: Connection[Any], job_id: int, status: str, reason: str | None) -> None:
     if status not in _STATUSES:
         raise ValueError(f"unsupported status {status}")
@@ -285,6 +310,12 @@ def record_event(conn: Connection[Any], job_id: int, status: str, reason: str | 
         """,
         (job_id, status, reason or None),
     )
+    if status == "removed":
+        conn.execute(
+            "DELETE FROM labels WHERE job_id = %s AND origin = 'ui_action'",
+            (job_id,),
+        )
+        return
     label = _LABELS[status]
     conn.execute(
         """
@@ -320,6 +351,9 @@ def _where(filters: dict[str, Any]) -> tuple[str, tuple[Any, ...]]:
         values.append(filters["posted_within"])
     if filters["has_salary"]:
         clauses.append("(j.salary_min IS NOT NULL OR j.salary_max IS NOT NULL)")
+    if filters.get("min_experience"):
+        clauses.append("j.experience_min_years >= %s")
+        values.append(filters["min_experience"])
     for column, key in (
         ("j.remote", "remote"),
         ("j.role", "role"),
@@ -366,6 +400,14 @@ def _iso_countries() -> set[str]:
     return {str(country.alpha_2) for country in pycountry.countries}
 
 
+def _min_experience(raw: str | None) -> int:
+    if raw and raw.isdigit():
+        value = int(raw)
+        if 0 <= value <= 15:
+            return value
+    return 0
+
+
 def _min_score(raw: str | None) -> int | None:
     if raw and raw.isdigit():
         value = int(raw)
@@ -376,6 +418,7 @@ def _min_score(raw: str | None) -> int | None:
 
 def _present(row: dict[str, Any]) -> dict[str, Any]:
     row["salary_label"] = _salary(row)
+    row["experience_label"] = _experience_label(row)
     row["place"] = ", ".join(str(part) for part in (row.get("city"), row.get("country")) if part)
     days = _age_days(row.get("posted_at"), row.get("first_seen_at"))
     row["age_days"] = days
@@ -431,6 +474,22 @@ def _salary(row: dict[str, Any]) -> str | None:
     else:
         return None
     return f"{amount} {currency}".strip()
+
+
+def _experience_label(row: dict[str, Any]) -> str | None:
+    low = row.get("experience_min_years")
+    high = row.get("experience_max_years")
+    minimum = low if isinstance(low, int) else None
+    maximum = high if isinstance(high, int) else None
+    if minimum is None and maximum is None:
+        return None
+    if minimum is not None and maximum is not None and minimum != maximum:
+        return f"{minimum}-{maximum} yrs"
+    if minimum is not None:
+        return f"{minimum}+ yrs" if maximum is None else f"{minimum} yrs"
+    if maximum is None:
+        return None
+    return f"up to {maximum} yrs"
 
 
 def _age_days(posted: object, first_seen: object) -> int | None:

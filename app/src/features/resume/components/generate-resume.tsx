@@ -1,6 +1,7 @@
 "use client";
 
 import { FileDownIcon, Loader2Icon } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -54,7 +55,14 @@ export function GenerateResume({ jobId, enabled }: { jobId: number; enabled: boo
       </Button>
       {running && (
         <p className="text-sm text-muted-foreground" data-testid="resume-progress">
-          {latest?.stage === "generating" ? `Writing attempt ${latest.attempt ?? 1}…` : "Queued…"}
+          {run?.status === "running" || latest?.stage === "generating"
+            ? `Writing attempt ${latest?.attempt ?? 1}…`
+            : run?.ahead
+              ? `Queued, ${run.ahead} ahead…`
+              : "Queued…"}{" "}
+          <Link href="/resume-queue" className="text-primary hover:underline">
+            View queue
+          </Link>
         </p>
       )}
       {run && !starting && run.status !== "queued" && run.status !== "running" && (

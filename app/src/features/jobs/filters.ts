@@ -8,6 +8,7 @@ export const FILTER_KEYS = [
   "role",
   "industry",
   "level",
+  "min_experience",
   "posted_within",
   "has_salary",
   "include_closed",

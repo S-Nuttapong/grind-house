@@ -139,6 +139,8 @@ CREATE TABLE jobs (                                     -- one row per real job 
   salary_currency  char(3),
   salary_interval  text CHECK (salary_interval IN ('yearly','monthly','weekly','daily','hourly')),
   salary_usd_year_min numeric(12,0),                    -- normalized by the app for filtering
+  experience_min_years smallint CHECK (experience_min_years BETWEEN 0 AND 20),
+  experience_max_years smallint CHECK (experience_max_years BETWEEN 0 AND 20),
   posted_at        date,
   first_seen_at    timestamptz NOT NULL DEFAULT now(),
   last_seen_at     timestamptz NOT NULL DEFAULT now(),
@@ -153,7 +155,12 @@ CREATE TABLE jobs (                                     -- one row per real job 
                      setweight(to_tsvector('english', coalesce(title,'')), 'A') ||
                      setweight(to_tsvector('english', coalesce(description_md,'')), 'B')
                    ) STORED,
-  CHECK (salary_max IS NULL OR salary_min IS NULL OR salary_max >= salary_min)
+  CHECK (salary_max IS NULL OR salary_min IS NULL OR salary_max >= salary_min),
+  CONSTRAINT jobs_experience_order CHECK (
+    experience_max_years IS NULL
+    OR experience_min_years IS NULL
+    OR experience_max_years >= experience_min_years
+  )
 );
 CREATE INDEX jobs_open       ON jobs (posted_at DESC) WHERE closed_at IS NULL;
 CREATE INDEX jobs_place      ON jobs (country, remote) WHERE closed_at IS NULL;
@@ -162,6 +169,8 @@ CREATE INDEX jobs_company    ON jobs (company_id);
 CREATE INDEX jobs_search     ON jobs USING gin (search);
 CREATE INDEX jobs_title_trgm ON jobs USING gin (title_norm gin_trgm_ops);
 CREATE INDEX jobs_role       ON jobs (role) WHERE closed_at IS NULL AND role IS NOT NULL;
+CREATE INDEX jobs_experience_min ON jobs (experience_min_years)
+  WHERE closed_at IS NULL AND experience_min_years IS NOT NULL;
 CREATE INDEX jobs_industry   ON jobs (industry) WHERE closed_at IS NULL AND industry IS NOT NULL;
 CREATE INDEX jobs_countries  ON jobs USING gin (countries);
 
@@ -275,7 +284,7 @@ CREATE TABLE rule_hits (
 CREATE TABLE job_events (                               -- append-only status history
   id       bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   job_id   bigint NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
-  status   text NOT NULL CHECK (status IN ('saved','skipped','applied','screening','interviewing','offer','rejected','withdrawn')),
+  status   text NOT NULL CHECK (status IN ('saved','skipped','applied','screening','interviewing','offer','rejected','withdrawn','removed')),
   reason   text,                                        -- skip reason feeds calibration
   note     text,
   origin   text NOT NULL DEFAULT 'ui' CHECK (origin IN ('ui','claude','gmail')),
@@ -284,8 +293,11 @@ CREATE TABLE job_events (                               -- append-only status hi
 CREATE INDEX job_events_job ON job_events (job_id, at DESC);
 
 CREATE VIEW job_status AS
-  SELECT DISTINCT ON (job_id) job_id, status, at
-  FROM job_events ORDER BY job_id, at DESC;
+  SELECT job_id, status, at FROM (
+    SELECT DISTINCT ON (job_id) job_id, status, at
+    FROM job_events ORDER BY job_id, at DESC
+  ) latest
+  WHERE status <> 'removed';
 
 CREATE TABLE labels (                                   -- calibration ground truth
   job_id      bigint PRIMARY KEY REFERENCES jobs(id) ON DELETE CASCADE,

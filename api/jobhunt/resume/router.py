@@ -5,11 +5,12 @@ import re
 from collections.abc import AsyncIterator
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, NoReturn
 
 import psycopg
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response, StreamingResponse
+from pydantic import BaseModel, Field
 
 from jobhunt import composition
 from jobhunt.composition import require_on_machine
@@ -22,31 +23,40 @@ router = APIRouter(prefix="/api")
 _FILENAME = re.compile(r"[^A-Za-z0-9]+")
 
 
+class BulkResumeIn(BaseModel):
+    job_ids: list[int] = Field(min_length=1, max_length=300)
+
+
 @router.post("/jobs/{job_id}/resume", status_code=202)
 def enqueue_resume(job_id: int) -> dict[str, int]:
+    _ensure_writer()
     with tx() as conn:
-        job = queries.get_job(conn, job_id, "bank")
-        if job is None:
-            raise HTTPException(status_code=404, detail="no such job")
-        if not job.get("description_md"):
-            raise HTTPException(status_code=409, detail="job has no description")
-        # Older scores have no shortlist rows. The worker fills those in before it writes.
-        if not job.get("top_brags") and (not job.get("fit_model_id") or not job.get("fit_source")):
-            raise HTTPException(status_code=409, detail="score this job before generating a resume")
-        try:
-            require_on_machine(composition.COMPOSITION.writer, "resume writer")
-        except ValueError as exc:
-            raise HTTPException(status_code=503, detail=str(exc)) from exc
-        agent = composition.COMPOSITION.writer
-        run_id, _created = repo.enqueue(
-            conn,
-            job_id=job_id,
-            agent_id=agent.agent_id,
-            model=_model_name(),
-            fit_model_id=str(job["fit_model_id"]),
-            fit_source_hash=str(job["fit_source"]),
-        )
+        run_id, reason = _queue_one(conn, job_id, skip_finished=False)
+    if run_id is None:
+        _reject(reason or "could not queue")
     return {"run_id": run_id}
+
+
+@router.post("/resume-runs/bulk")
+def enqueue_resumes(body: BulkResumeIn) -> dict[str, list[dict[str, Any]]]:
+    _ensure_writer()
+    queued: list[dict[str, int]] = []
+    skipped: list[dict[str, Any]] = []
+    with tx() as conn:
+        for job_id in dict.fromkeys(body.job_ids):
+            run_id, reason = _queue_one(conn, job_id, skip_finished=True)
+            if run_id is None:
+                skipped.append({"job_id": job_id, "reason": reason or "could not queue"})
+            else:
+                queued.append({"job_id": job_id, "run_id": run_id})
+    return {"queued": queued, "skipped": skipped}
+
+
+@router.get("/resume-queue")
+def resume_queue() -> dict[str, list[dict[str, Any]]]:
+    with tx() as conn:
+        snapshot = repo.queue_snapshot(conn)
+    return {name: [_public(row) for row in rows] for name, rows in snapshot.items()}
 
 
 @router.get("/jobs/{job_id}/resume-runs")
@@ -63,7 +73,11 @@ def get_resume_run(run_id: int) -> dict[str, Any]:
         run = repo.get_run(conn, run_id)
         if run is None:
             raise HTTPException(status_code=404, detail="no such run")
-        return _public(run)
+        public = _public(run)
+        ahead = repo.queued_ahead(conn, run_id)
+        if ahead is not None:
+            public["ahead"] = ahead
+        return public
 
 
 @router.get("/resume-runs/{run_id}/stream")
@@ -128,6 +142,45 @@ def admin_usage(days: int = 30) -> dict[str, Any]:
     with tx() as conn:
         summary = repo.usage_summary(conn, days=window)
     return _money(summary)
+
+
+def _ensure_writer() -> None:
+    try:
+        require_on_machine(composition.COMPOSITION.writer, "resume writer")
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+def _queue_one(conn: Any, job_id: int, *, skip_finished: bool) -> tuple[int | None, str | None]:
+    """Queue one job. Returns (run id, None) or (None, reason)."""
+    job = queries.get_job(conn, job_id, "bank")
+    if job is None:
+        return None, "no such job"
+    if not job.get("description_md"):
+        return None, "job has no description"
+    # Older scores have no shortlist rows. The worker fills those in before it writes.
+    if not job.get("top_brags") and (not job.get("fit_model_id") or not job.get("fit_source")):
+        return None, "score this job before generating a resume"
+    latest = repo.latest_status(conn, job_id)
+    if skip_finished and latest in {"queued", "running"}:
+        return None, "in queue"
+    if skip_finished and latest in {"ok", "below_baseline"}:
+        return None, "already generated"
+    agent = composition.COMPOSITION.writer
+    run_id, _created = repo.enqueue(
+        conn,
+        job_id=job_id,
+        agent_id=agent.agent_id,
+        model=_model_name(),
+        fit_model_id=str(job["fit_model_id"]),
+        fit_source_hash=str(job["fit_source"]),
+    )
+    return run_id, None
+
+
+def _reject(reason: str) -> NoReturn:
+    status = 404 if reason == "no such job" else 409
+    raise HTTPException(status_code=status, detail=reason)
 
 
 def _model_name() -> str:
