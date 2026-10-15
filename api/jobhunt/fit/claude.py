@@ -163,9 +163,10 @@ class ClaudeFitScorer(FitScorer):
         )
         errors: list[str] = []
         parsed: FitFields | MatchFields | None = None
+        meta = None
         for _attempt in range(max_retries + 1):
             try:
-                parsed, _meta = structured_call(
+                parsed, meta = structured_call(
                     model=self.model,
                     system=system_prompt(docs, version=self.prompt_version, rubric=self.rubric),
                     user=_user(aspects, errors),
@@ -173,12 +174,15 @@ class ClaudeFitScorer(FitScorer):
                     max_tokens=_MAX_TOKENS,
                 )
             except ClaudeError as exc:
+                _record_fit(meta, success=False, error=str(exc))
                 raise FitUnavailable(str(exc)) from exc
             errors = fit_field_errors(parsed, docs, aspects)
             if not errors:
                 break
         if parsed is None or errors:
+            _record_fit(meta, success=False, error="; ".join(errors))
             raise FitUnavailable("; ".join(errors))
+        _record_fit(meta, success=True, error=None)
         if self.scores_from_evidence:
             result = evidence_result(parsed, docs, aspects)
         else:
@@ -365,6 +369,14 @@ def _matrix(
 
 def _credit(similarity: float, tau0: float, tau1: float) -> float:
     return max(0.0, min(1.0, (similarity - tau0) / (tau1 - tau0)))
+
+
+def _record_fit(meta: object, *, success: bool, error: str | None) -> None:
+    if meta is None:
+        return
+    from jobhunt.core.usage import from_meta
+
+    from_meta("fit", meta, job_id=None, success=success, error=error)
 
 
 def _blank(aspects: list[str]) -> FitResult:

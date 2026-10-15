@@ -23,6 +23,7 @@ export async function UsageTable() {
           <thead className="border-b bg-muted/40 text-left text-xs text-muted-foreground">
             <tr>
               <th className="px-4 py-3 font-medium">Day</th>
+              <th className="px-4 py-3 font-medium">Purpose</th>
               <th className="px-4 py-3 font-medium">Model</th>
               <th className="px-4 py-3 font-medium">Attempts</th>
               <th className="px-4 py-3 font-medium">Cost</th>
@@ -31,14 +32,15 @@ export async function UsageTable() {
           <tbody>
             {usage.by_day.length === 0 ? (
               <tr>
-                <td className="px-4 py-6 text-muted-foreground" colSpan={4}>
+                <td className="px-4 py-6 text-muted-foreground" colSpan={5}>
                   No usage yet.
                 </td>
               </tr>
             ) : (
               usage.by_day.map((row) => (
-                <tr key={`${row.day}-${row.model}`} className="border-b last:border-0">
+                <tr key={`${row.day}-${row.purpose}-${row.model}`} className="border-b last:border-0">
                   <td className="px-4 py-3">{row.day}</td>
+                  <td className="px-4 py-3">{row.purpose}</td>
                   <td className="px-4 py-3">{row.model}</td>
                   <td className="px-4 py-3">{row.runs}</td>
                   <td className="px-4 py-3">{MONEY.format(Number(row.cost_usd))}</td>

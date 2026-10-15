@@ -506,7 +506,7 @@ CREATE TABLE resume_artifacts (
 CREATE TABLE agent_usage (
   id                  bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   run_kind            text NOT NULL,
-  run_id              bigint NOT NULL,
+  run_id              bigint,
   attempt             integer NOT NULL,
   agent_id            text NOT NULL,
   model               text NOT NULL,
@@ -518,6 +518,10 @@ CREATE TABLE agent_usage (
   duration_ms         integer NOT NULL DEFAULT 0,
   cost_usd            numeric(12, 6) NOT NULL,
   cost_source         text NOT NULL CHECK (cost_source IN ('sdk','computed')),
+  purpose             text NOT NULL DEFAULT 'resume' CHECK (purpose IN ('fit','facts','resume')),
+  job_id              bigint REFERENCES jobs(id) ON DELETE SET NULL,
+  success             boolean NOT NULL DEFAULT true,
+  error               text,
   created_at          timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX agent_usage_created ON agent_usage (created_at);

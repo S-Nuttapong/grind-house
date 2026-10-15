@@ -122,12 +122,14 @@ def record_usage(conn: Connection[Any], run_id: int, attempt: int, usage: dict[s
         INSERT INTO agent_usage (
             run_kind, run_id, attempt, agent_id, model,
             input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
-            num_turns, duration_ms, cost_usd, cost_source
+            num_turns, duration_ms, cost_usd, cost_source,
+            purpose, job_id, success, error
         )
         VALUES (
             'resume', %(run_id)s, %(attempt)s, %(agent_id)s, %(model)s,
             %(input_tokens)s, %(output_tokens)s, %(cache_read_tokens)s, %(cache_write_tokens)s,
-            %(num_turns)s, %(duration_ms)s, %(cost_usd)s, %(cost_source)s
+            %(num_turns)s, %(duration_ms)s, %(cost_usd)s, %(cost_source)s,
+            'resume', NULL, true, NULL
         )
         """,
         {"run_id": run_id, "attempt": attempt, **usage},
@@ -342,13 +344,13 @@ def usage_summary(conn: Connection[Any], *, days: int) -> dict[str, Any]:
     with conn.cursor(row_factory=_dict_row) as cursor:
         cursor.execute(
             """
-            SELECT created_at::date AS day, model,
+            SELECT created_at::date AS day, purpose, model,
                    count(*) AS runs, sum(cost_usd) AS cost_usd,
                    sum(input_tokens) AS input_tokens, sum(output_tokens) AS output_tokens
             FROM agent_usage
             WHERE created_at >= now() - make_interval(days => %s)
-            GROUP BY 1, 2
-            ORDER BY 1 DESC, 2
+            GROUP BY 1, 2, 3
+            ORDER BY 1 DESC, 2, 3
             """,
             (days,),
         )
@@ -356,8 +358,8 @@ def usage_summary(conn: Connection[Any], *, days: int) -> dict[str, Any]:
         cursor.execute(
             """
             SELECT u.id, u.run_id, u.attempt, u.model, u.input_tokens, u.output_tokens,
-                   u.num_turns, u.duration_ms, u.cost_usd, u.created_at,
-                   r.job_id, r.status
+                   u.num_turns, u.duration_ms, u.cost_usd, u.created_at, u.purpose, u.success,
+                   coalesce(u.job_id, r.job_id) AS job_id, r.status
             FROM agent_usage u
             LEFT JOIN resume_runs r ON r.id = u.run_id AND u.run_kind = 'resume'
             ORDER BY u.id DESC

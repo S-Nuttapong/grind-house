@@ -24,11 +24,23 @@ class LLMParser:
     def parse(self, posting: PostingInput | str, hints: ParseHints | None = None) -> JobDetail:
         del hints
         item = as_input(posting)
-        parsed, meta = self.llm.complete(
-            system=self.spec.system,
-            user=self.spec.render_user(item),
-            output=self.spec.output,
-            max_tokens=self.spec.max_tokens,
-        )
+        try:
+            parsed, meta = self.llm.complete(
+                system=self.spec.system,
+                user=self.spec.render_user(item),
+                output=self.spec.output,
+                max_tokens=self.spec.max_tokens,
+            )
+        except Exception as exc:
+            self._record(None, success=False, error=str(exc))
+            raise
         self.calls.append(meta)
+        self._record(meta, success=True, error=None)
         return prefer(item.source_facts, detail_from_parsed(parsed, self.parser_id))
+
+    def _record(self, meta: CallMeta | None, *, success: bool, error: str | None) -> None:
+        if meta is None:
+            return
+        from jobhunt.core.usage import from_meta
+
+        from_meta("facts", meta, job_id=None, success=success, error=error)

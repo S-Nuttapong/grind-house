@@ -64,6 +64,7 @@ export type UsageAttempt = {
 
 export type UsageDay = {
   day: string;
+  purpose: string;
   model: string;
   runs: number;
   cost_usd: string;
