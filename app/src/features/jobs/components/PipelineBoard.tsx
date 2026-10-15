@@ -7,18 +7,20 @@ import {
   PointerSensor,
   pointerWithin,
   rectIntersection,
-  useDraggable,
   useDroppable,
   useSensor,
   useSensors,
+  type Collision,
   type CollisionDetection,
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { BookmarkIcon, CheckCircle2Icon, ThumbsDownIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition, type ReactNode } from "react";
+import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { toast } from "sonner";
 
 import { CompanyLogo } from "@/components/CompanyLogo";
@@ -26,7 +28,7 @@ import { ScoreRing } from "@/components/ScoreRing";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { moveJobs, queueResumes, restoreJobs } from "@/features/jobs/actions";
+import { arrangePipeline, moveJobs, queueResumes, restoreJobs } from "@/features/jobs/actions";
 import { MoveMenu } from "@/features/jobs/components/MoveMenu";
 import type { JobStatus, JobSummary, Pipeline } from "@/features/jobs/types";
 import { cn } from "@/lib/utils";
@@ -45,9 +47,11 @@ const RESUME_LABEL: Record<string, string> = {
   failed: "Failed",
 };
 
-const columnUnderPointer: CollisionDetection = (args) => {
+const preferCard: CollisionDetection = (args) => {
   const hits = pointerWithin(args);
-  return hits.length > 0 ? hits : rectIntersection(args);
+  const pool = (hits.length > 0 ? hits : rectIntersection(args)).filter((hit: Collision) => hit.id !== args.active.id);
+  const cards = pool.filter((hit) => !isColumn(hit.id));
+  return cards.length > 0 ? cards : pool;
 };
 
 function isColumn(value: unknown): value is JobStatus {
@@ -64,6 +68,8 @@ export function PipelineBoard({ initial }: { initial: Pipeline }) {
   const [seen, setSeen] = useState(initial);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [activeId, setActiveId] = useState<number | null>(null);
+  const columnsRef = useRef(columns);
+  const dragStart = useRef(columns);
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const sensors = useSensors(
@@ -85,6 +91,10 @@ export function PipelineBoard({ initial }: { initial: Pipeline }) {
     const live = new Set(Object.values(initial).flat().map((job) => job.id));
     setSelected((current) => new Set([...current].filter((id) => live.has(id))));
   }
+
+  useEffect(() => {
+    columnsRef.current = columns;
+  }, [columns]);
 
   const jobs = Object.values(columns).flat();
   const selectedJobs = jobs.filter((job) => selected.has(job.id));
@@ -114,17 +124,9 @@ export function PipelineBoard({ initial }: { initial: Pipeline }) {
     });
   }
 
-  function move(ids: number[], target: JobStatus) {
-    if (ids.length === 0 || ids.every((id) => columns[target].some((job) => job.id === id))) return;
-    const previous = columns;
-    setColumns(relocate(columns, ids, target));
-    startTransition(async () => {
-      const result = await moveJobs(ids, target);
-      if (!result.ok) {
-        setColumns(previous);
-        toast.error(result.error);
-      }
-    });
+  function commitColumns(next: Pipeline) {
+    columnsRef.current = next;
+    setColumns(next);
   }
 
   function generate() {
@@ -176,20 +178,48 @@ export function PipelineBoard({ initial }: { initial: Pipeline }) {
 
   function onDragEnd(event: DragEndEvent) {
     setActiveId(null);
-    const target = event.over?.id;
-    if (!isColumn(target)) return;
-    const id = Number(event.active.id);
-    const ids = selected.has(id) ? [...selected] : [id];
-    move(ids, target);
+    const overId = event.over?.id;
+    const previous = dragStart.current;
+    if (overId == null) {
+      commitColumns(previous);
+      return;
+    }
+    const active = Number(event.active.id);
+    const moving = selected.has(active) ? orderedSelection(previous, selected) : [active];
+    const to = isColumn(overId) ? overId : findColumn(previous, Number(overId));
+    if (!to) {
+      commitColumns(previous);
+      return;
+    }
+    const next = placeCards(previous, moving, to, isColumn(overId) ? overId : Number(overId));
+    commitColumns(next);
+    if (sameOrder(previous, next)) return;
+    startTransition(async () => {
+      const result = await arrangePipeline({
+        saved: next.saved.map((job) => job.id),
+        applied: next.applied.map((job) => job.id),
+        skipped: next.skipped.map((job) => job.id),
+      });
+      if (!result.ok) {
+        commitColumns(previous);
+        toast.error(result.error);
+      }
+    });
   }
 
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={columnUnderPointer}
-      onDragStart={(event: DragStartEvent) => setActiveId(Number(event.active.id))}
+      collisionDetection={preferCard}
+      onDragStart={(event: DragStartEvent) => {
+        dragStart.current = columnsRef.current;
+        setActiveId(Number(event.active.id));
+      }}
       onDragEnd={onDragEnd}
-      onDragCancel={() => setActiveId(null)}
+      onDragCancel={() => {
+        commitColumns(dragStart.current);
+        setActiveId(null);
+      }}
     >
       {selected.size > 0 && (
         <div className="sticky top-16 z-30 mb-4 flex flex-wrap items-center gap-2 rounded-xl border bg-card px-4 py-2 shadow-sm">
@@ -220,11 +250,11 @@ export function PipelineBoard({ initial }: { initial: Pipeline }) {
       <DragOverlay>
         {activeJob &&
           (dragCount > 1 ? (
-            <div className="rounded-xl border bg-card px-4 py-3 text-sm font-medium shadow-lg">{dragCount} jobs</div>
-          ) : (
-            <div className="max-w-xs rounded-xl border bg-card px-4 py-3 text-sm font-medium shadow-lg">
-              {activeJob.title}
+            <div className="flex h-full w-full items-center rounded-xl border bg-card px-4 text-sm font-medium shadow-lg">
+              {dragCount} jobs
             </div>
+          ) : (
+            <CardBody job={activeJob} />
           ))}
       </DragOverlay>
     </DndContext>
@@ -277,11 +307,13 @@ function Column({
       {jobs.length === 0 ? (
         <p className="m-auto px-4 text-center text-sm text-muted-foreground">{column.hint}. Nothing here yet.</p>
       ) : (
-        <ol className="space-y-2">
-          {jobs.map((job) => (
-            <PipelineCard key={job.id} job={job} selected={selected.has(job.id)} onToggle={onToggle} />
-          ))}
-        </ol>
+        <SortableContext items={jobs.map((job) => job.id)} strategy={verticalListSortingStrategy}>
+          <ol className="space-y-2">
+            {jobs.map((job) => (
+              <PipelineCard key={job.id} job={job} selected={selected.has(job.id)} onToggle={onToggle} />
+            ))}
+          </ol>
+        </SortableContext>
       )}
     </section>
   );
@@ -296,28 +328,46 @@ function PipelineCard({
   selected: boolean;
   onToggle: (id: number) => void;
 }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: job.id });
-  const label = job.resume_status ? RESUME_LABEL[job.resume_status] : null;
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: job.id });
   return (
     <li
       ref={setNodeRef}
       suppressHydrationWarning
-      className={cn(
-        "relative flex gap-3 rounded-xl border bg-card p-3 pl-8 shadow-xs",
-        selected && "ring-2 ring-primary",
-        isDragging && "opacity-40",
-      )}
+      style={{ transform: CSS.Translate.toString(transform), transition }}
+      className={cn("w-full", isDragging && "opacity-0")}
       {...listeners}
       {...attributes}
+    >
+      <CardBody job={job} selected={selected} onToggle={onToggle} />
+    </li>
+  );
+}
+
+function CardBody({
+  job,
+  selected = false,
+  onToggle,
+}: {
+  job: JobSummary;
+  selected?: boolean;
+  onToggle?: (id: number) => void;
+}) {
+  const label = job.resume_status ? RESUME_LABEL[job.resume_status] : null;
+  return (
+    <div
+      className={cn(
+        "relative flex h-full w-full gap-3 rounded-xl border bg-card p-3 pl-8 shadow-xs",
+        selected && "ring-2 ring-primary",
+      )}
     >
       <div className="absolute top-2.5 left-2 z-20" onPointerDown={(event) => event.stopPropagation()}>
         <Checkbox
           checked={selected}
-          onCheckedChange={() => onToggle(job.id)}
+          onCheckedChange={() => onToggle?.(job.id)}
           aria-label={`Select ${job.title}`}
         />
       </div>
-      <CompanyLogo name={job.company} className="size-9 text-xs" />
+      <CompanyLogo name={job.company} className="size-9 shrink-0 text-xs" />
       <div className="min-w-0 flex-1">
         <Link
           href={`/?jk=${job.id}`}
@@ -338,34 +388,76 @@ function PipelineCard({
           </Badge>
         )}
       </div>
-      <div
-        className="flex flex-col items-end gap-1"
-        onPointerDown={(event) => event.stopPropagation()}
-      >
+      <div className="flex shrink-0 flex-col items-end gap-1" onPointerDown={(event) => event.stopPropagation()}>
         <MoveMenu jobId={job.id} current={job.status ?? ""} />
         <div className="relative z-10">
           <ScoreRing score={job.score} band={job.fit_tier} stage={job.stage} />
         </div>
       </div>
-    </li>
+    </div>
   );
 }
 
-function relocate(columns: Pipeline, ids: number[], target: JobStatus): Pipeline {
-  const moving = new Map<number, JobSummary>();
+function placeCards(
+  columns: Pipeline,
+  movingIds: number[],
+  to: JobStatus,
+  overId: JobStatus | number,
+): Pipeline {
+  const from = findColumn(columns, movingIds[0] ?? -1);
+  if (from === to && !isColumn(overId) && movingIds.length === 1) {
+    const items = columns[to];
+    const oldIndex = items.findIndex((job) => job.id === movingIds[0]);
+    const newIndex = items.findIndex((job) => job.id === overId);
+    if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return columns;
+    const copy = items.slice();
+    const [item] = copy.splice(oldIndex, 1);
+    if (item) copy.splice(newIndex, 0, item);
+    return { ...columns, [to]: copy };
+  }
+  const moving = new Set(movingIds);
+  const picked: JobSummary[] = [];
   const next = emptyColumns();
   for (const status of Object.keys(next) as JobStatus[]) {
     for (const job of columns[status]) {
-      if (ids.includes(job.id)) moving.set(job.id, { ...job, status: target });
+      if (moving.has(job.id)) picked.push({ ...job, status: to });
       else next[status].push(job);
     }
   }
-  const ordered = ids.flatMap((id) => {
-    const job = moving.get(id);
-    return job ? [job] : [];
-  });
-  next[target] = [...ordered, ...next[target]];
+  const dest = next[to];
+  let index = dest.length;
+  if (!isColumn(overId)) {
+    const at = dest.findIndex((job) => job.id === overId);
+    if (at >= 0) index = at;
+  }
+  next[to] = [...dest.slice(0, index), ...picked, ...dest.slice(index)];
   return next;
+}
+
+function findColumn(columns: Pipeline, id: number): JobStatus | null {
+  for (const status of Object.keys(columns) as JobStatus[]) {
+    if (columns[status].some((job) => job.id === id)) return status;
+  }
+  return null;
+}
+
+function orderedSelection(columns: Pipeline, selected: Set<number>): number[] {
+  const ids: number[] = [];
+  for (const status of Object.keys(columns) as JobStatus[]) {
+    for (const job of columns[status]) {
+      if (selected.has(job.id)) ids.push(job.id);
+    }
+  }
+  return ids;
+}
+
+function sameOrder(left: Pipeline, right: Pipeline): boolean {
+  const statuses = Object.keys(left) as JobStatus[];
+  return statuses.every((status) => {
+    const a = left[status];
+    const b = right[status];
+    return a.length === b.length && a.every((job, index) => job.id === b[index]?.id);
+  });
 }
 
 function without(columns: Pipeline, ids: number[]): Pipeline {

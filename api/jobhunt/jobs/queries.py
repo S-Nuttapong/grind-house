@@ -240,9 +240,10 @@ def list_pipeline(conn: Connection[Any]) -> dict[str, list[dict[str, Any]]]:
             JOIN jobs j ON j.id = s.job_id
             JOIN companies c ON c.id = j.company_id
             {_PAY_JOIN}
+            LEFT JOIN pipeline_ranks pr ON pr.job_id = j.id
             {_SCORE_JOINS}
             WHERE s.status = ANY(%s)
-            ORDER BY s.at DESC
+            ORDER BY pr.rank ASC NULLS FIRST, s.at DESC
             LIMIT 300
             """,
             ("bank", _fit_model_id(), list(PIPELINE_STATUSES)),
@@ -293,6 +294,48 @@ def list_facets(conn: Connection[Any]) -> dict[str, list[str]]:
     }
 
 
+def arrange_pipeline(conn: Connection[Any], columns: dict[str, list[int]]) -> None:
+    """Put each column in the given order, and move a job when its column changed."""
+    ordered: list[int] = []
+    for status in PIPELINE_STATUSES:
+        for job_id in columns.get(status, []):
+            if job_id not in ordered:
+                ordered.append(job_id)
+    if not ordered:
+        return
+    found = {
+        int(row[0])
+        for row in conn.execute("SELECT id FROM jobs WHERE id = ANY(%s)", (ordered,)).fetchall()
+    }
+    current = {
+        int(row[0]): str(row[1])
+        for row in conn.execute(
+            "SELECT job_id, status FROM job_status WHERE job_id = ANY(%s)",
+            (ordered,),
+        ).fetchall()
+    }
+    for status in PIPELINE_STATUSES:
+        ranked: list[int] = []
+        for job_id in columns.get(status, []):
+            if job_id not in found or job_id in ranked:
+                continue
+            ranked.append(job_id)
+            if current.get(job_id) != status:
+                record_event(conn, job_id, status, None)
+        _set_ranks(conn, ranked)
+
+
+def _set_ranks(conn: Connection[Any], job_ids: list[int]) -> None:
+    for index, job_id in enumerate(job_ids):
+        conn.execute(
+            """
+            INSERT INTO pipeline_ranks (job_id, rank) VALUES (%s, %s)
+            ON CONFLICT (job_id) DO UPDATE SET rank = EXCLUDED.rank
+            """,
+            (job_id, index),
+        )
+
+
 def record_events(
     conn: Connection[Any], job_ids: list[int], status: str, reason: str | None
 ) -> list[int]:
@@ -318,6 +361,7 @@ def record_event(conn: Connection[Any], job_id: int, status: str, reason: str | 
         """,
         (job_id, status, reason or None),
     )
+    conn.execute("DELETE FROM pipeline_ranks WHERE job_id = %s", (job_id,))
     if status == "removed":
         conn.execute(
             "DELETE FROM labels WHERE job_id = %s AND origin = 'ui_action'",
@@ -473,7 +517,9 @@ def _salary(row: dict[str, Any]) -> str | None:
     if low is None and high is None:
         return None
     currency = row.get("salary_currency") or ""
-    if low is not None and high is not None:
+    if low is not None and high is not None and _as_int(low) == _as_int(high):
+        amount = f"{_as_int(low):,}"
+    elif low is not None and high is not None:
         amount = f"{_as_int(low):,}–{_as_int(high):,}"
     elif low is not None:
         amount = f"{_as_int(low):,}+"

@@ -22,6 +22,18 @@ export function fetchPipeline(): Promise<Pipeline> {
   return request<Pipeline>("/api/pipeline");
 }
 
+export function postPipelineOrder(columns: {
+  saved: number[];
+  applied: number[];
+  skipped: number[];
+}): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>("/api/pipeline/order", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(columns),
+  });
+}
+
 export function postBulkEvents(
   ids: number[],
   status: string,

@@ -101,6 +101,12 @@ class BulkEventsIn(BaseModel):
     reason: str | None = None
 
 
+class PipelineOrderIn(BaseModel):
+    saved: list[int] = Field(default_factory=list, max_length=300)
+    applied: list[int] = Field(default_factory=list, max_length=300)
+    skipped: list[int] = Field(default_factory=list, max_length=300)
+
+
 class Facets(BaseModel):
     sources: list[str]
     remote: list[str]
@@ -165,6 +171,16 @@ def record_event(job_id: int, event: EventIn) -> JobDetail:
 def facets() -> Facets:
     with tx() as conn:
         return Facets(**queries.list_facets(conn))
+
+
+@router.post("/pipeline/order")
+def pipeline_order(body: PipelineOrderIn) -> dict[str, bool]:
+    columns = {"saved": body.saved, "applied": body.applied, "skipped": body.skipped}
+    if sum(len(ids) for ids in columns.values()) > 300:
+        raise HTTPException(status_code=422, detail="too many jobs")
+    with tx() as conn:
+        queries.arrange_pipeline(conn, columns)
+    return {"ok": True}
 
 
 @router.get("/pipeline", response_model=Pipeline)

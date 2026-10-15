@@ -356,6 +356,11 @@ CREATE VIEW job_status AS
   ) latest
   WHERE status <> 'removed';
 
+CREATE TABLE pipeline_ranks (                       -- manual order inside a column
+  job_id  bigint PRIMARY KEY REFERENCES jobs(id) ON DELETE CASCADE,
+  rank    integer NOT NULL
+);
+
 CREATE TABLE labels (                                   -- calibration ground truth
   job_id      bigint PRIMARY KEY REFERENCES jobs(id) ON DELETE CASCADE,
   label       text NOT NULL CHECK (label IN ('apply','maybe','skip')),
@@ -538,7 +543,7 @@ CREATE TABLE resume_runs (
   status              text NOT NULL DEFAULT 'queued'
                       CHECK (status IN ('queued','running','ok','below_baseline','failed')),
   locked_until        timestamptz,
-  attempts            integer NOT NULL DEFAULT 0,
+  attempts            integer NOT NULL DEFAULT 0
   baseline_score      real,
   baseline_coverage   real,
   resume_score        real,
