@@ -14,7 +14,7 @@ from jobhunt.facts.base import (
     PayFact,
     TextFact,
 )
-from jobhunt.scrape.normalize.salary import normalize_salary
+from jobhunt.scrape.normalize.salary import normalize_salary, save_base_pay
 
 _JOB_TYPES = {"fulltime", "parttime", "contract", "internship", "temporary"}
 _WORKPLACES = {"onsite", "hybrid", "remote"}
@@ -38,7 +38,8 @@ def merge_facts(conn: Connection[Any], job_id: int) -> None:
         """
         SELECT country, city, remote, employment_type, salary_min, salary_max,
                salary_currency, salary_interval, posted_at, locations, countries,
-               role, level, experience_min_years, experience_max_years
+               role, level, experience_min_years, experience_max_years,
+               experience_min_months, experience_max_months
         FROM jobs WHERE id = %s
         """,
         (job_id,),
@@ -92,9 +93,21 @@ def merge_facts(conn: Connection[Any], job_id: int) -> None:
     experience = _best_experience(details)
     experience_min = current[13]
     experience_max = current[14]
-    if experience_min is None and experience_max is None and experience is not None:
-        experience_min = experience.value.minimum
-        experience_max = experience.value.maximum
+    months_min = current[15]
+    months_max = current[16]
+    experience_months_min = None
+    experience_months_max = None
+    years_empty = experience_min is None and experience_max is None
+    months_empty = months_min is None and months_max is None
+    if experience is not None and (years_empty or months_empty):
+        if years_empty:
+            experience_min = experience.value.minimum
+            experience_max = experience.value.maximum
+        if months_empty:
+            experience_months_min = _months(experience.value.minimum)
+            experience_months_max = _months(experience.value.maximum)
+            if experience_months_min is None:
+                experience_months_max = None
         origins["experience"] = experience.parser_id
     if primary is not None and (current[0] is None or current[1] is None):
         origins["locations"] = locations.parser_id if locations is not None else ""
@@ -132,6 +145,8 @@ def merge_facts(conn: Connection[Any], job_id: int) -> None:
             THEN COALESCE(%s, level) ELSE level END,
           experience_min_years = COALESCE(experience_min_years, %s),
           experience_max_years = COALESCE(experience_max_years, %s),
+          experience_min_months = COALESCE(experience_min_months, %s),
+          experience_max_months = COALESCE(experience_max_months, %s),
           fact_origins = fact_origins || %s::jsonb
         WHERE id = %s
         """,
@@ -152,10 +167,32 @@ def merge_facts(conn: Connection[Any], job_id: int) -> None:
             level if origins.get("level") else None,
             experience_min if origins.get("experience") else None,
             experience_max if origins.get("experience") else None,
+            experience_months_min,
+            experience_months_max,
             Json(origins),
             job_id,
         ),
     )
+    if origins.get("pay") and pay is not None:
+        save_base_pay(
+            conn,
+            job_id=job_id,
+            minimum=salary_min,
+            maximum=salary_max,
+            currency=salary_currency,
+            unit=salary_interval,
+            evidence=pay.evidence,
+            parser_id=pay.parser_id,
+        )
+
+
+def _months(years: int | None) -> int | None:
+    if years is None:
+        return None
+    months = years * 12
+    if not 0 <= months <= 600:
+        return None
+    return months
 
 
 def _load(payload: object) -> JobDetail:

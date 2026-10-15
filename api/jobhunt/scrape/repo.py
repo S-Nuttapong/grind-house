@@ -8,6 +8,8 @@ from psycopg import Connection
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
+from jobhunt.scrape.normalize.salary import save_base_pay
+
 
 def insert_company(
     conn: Connection[Any],
@@ -194,7 +196,17 @@ def insert_job(
     ).fetchone()
     if row is None:
         raise RuntimeError("insert_job returned no id")
-    return int(row[0])
+    job_id = int(row[0])
+    _save_board_pay(
+        conn,
+        job_id,
+        salary_min=salary_min,
+        salary_max=salary_max,
+        salary_currency=salary_currency,
+        salary_interval=salary_interval,
+        replace_api=True,
+    )
+    return job_id
 
 
 def get_job(conn: Connection[Any], job_id: int) -> tuple[Any, ...] | None:
@@ -370,6 +382,15 @@ def update_job_content(
             job_id,
         ),
     )
+    _save_board_pay(
+        conn,
+        job_id,
+        salary_min=salary_min,
+        salary_max=salary_max,
+        salary_currency=salary_currency,
+        salary_interval=salary_interval,
+        replace_api=True,
+    )
 
 
 def fill_job_gaps(
@@ -419,6 +440,38 @@ def fill_job_gaps(
             industry,
             job_id,
         ),
+    )
+    _save_board_pay(
+        conn,
+        job_id,
+        salary_min=salary_min,
+        salary_max=salary_max,
+        salary_currency=salary_currency,
+        salary_interval=salary_interval,
+        replace_api=False,
+    )
+
+
+def _save_board_pay(
+    conn: Connection[Any],
+    job_id: int,
+    *,
+    salary_min: Decimal | None,
+    salary_max: Decimal | None,
+    salary_currency: str | None,
+    salary_interval: str | None,
+    replace_api: bool,
+) -> None:
+    save_base_pay(
+        conn,
+        job_id=job_id,
+        minimum=salary_min,
+        maximum=salary_max,
+        currency=salary_currency,
+        unit=salary_interval,
+        evidence=None,
+        parser_id="api:board",
+        replace_api=replace_api,
     )
 
 

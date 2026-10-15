@@ -13,6 +13,10 @@ from jobhunt.jobs.geo import countries_for, region_ids
 from jobhunt.scrape.normalize.role import industry_ids, role_ids
 
 PAGE_SIZE = 40
+_PAY_JOIN = "LEFT JOIN job_base_pay bp ON bp.job_id = j.id"
+_PAY_COLUMNS = (
+    "bp.min_amount AS salary_min, bp.max_amount AS salary_max, bp.currency AS salary_currency"
+)
 # Same date the card shows as age. The query is a filter, never a sort key.
 _RECENCY = "coalesce(j.posted_at, j.first_seen_at::date)"
 _NEWEST = f"{_RECENCY} DESC, j.id DESC"
@@ -118,6 +122,7 @@ def list_jobs(conn: Connection[Any], filters: dict[str, Any]) -> tuple[list[dict
             f"""
             SELECT count(*) AS n FROM jobs j
             JOIN companies c ON c.id = j.company_id
+            {_PAY_JOIN}
             {_SCORE_JOINS}
             {where}
             """,
@@ -128,7 +133,7 @@ def list_jobs(conn: Connection[Any], filters: dict[str, Any]) -> tuple[list[dict
         cursor.execute(
             f"""
             SELECT j.id, j.title, c.name AS company, j.city, j.country, j.remote,
-                   j.employment_type, j.salary_min, j.salary_max, j.salary_currency,
+                   j.employment_type, {_PAY_COLUMNS},
                    j.experience_min_years, j.experience_max_years,
                    j.posted_at, j.first_seen_at, j.closed_at, j.apply_url,
                    s.status, {_SCORE_COLUMNS},
@@ -142,6 +147,7 @@ def list_jobs(conn: Connection[Any], filters: dict[str, Any]) -> tuple[list[dict
                    ) AS sources
             FROM jobs j
             JOIN companies c ON c.id = j.company_id
+            {_PAY_JOIN}
             LEFT JOIN job_status s ON s.job_id = j.id
             {_SCORE_JOINS}
             {where}
@@ -159,7 +165,7 @@ def get_job(conn: Connection[Any], job_id: int, fit_mode: str = "bank") -> dict[
         cursor.execute(
             f"""
             SELECT j.id, j.title, c.name AS company, j.city, j.country, j.remote,
-                   j.employment_type, j.salary_min, j.salary_max, j.salary_currency,
+                   j.employment_type, {_PAY_COLUMNS},
                    j.experience_min_years, j.experience_max_years,
                    j.posted_at, j.first_seen_at, j.closed_at, j.apply_url, j.description_md,
                    s.status, {_SCORE_COLUMNS},
@@ -169,6 +175,7 @@ def get_job(conn: Connection[Any], job_id: int, fit_mode: str = "bank") -> dict[
                    ) AS sources
             FROM jobs j
             JOIN companies c ON c.id = j.company_id
+            {_PAY_JOIN}
             LEFT JOIN job_status s ON s.job_id = j.id
             {_SCORE_JOINS}
             WHERE j.id = %s
@@ -214,7 +221,7 @@ def list_pipeline(conn: Connection[Any]) -> dict[str, list[dict[str, Any]]]:
         cursor.execute(
             f"""
             SELECT j.id, j.title, c.name AS company, j.city, j.country, j.remote,
-                   j.employment_type, j.salary_min, j.salary_max, j.salary_currency,
+                   j.employment_type, {_PAY_COLUMNS},
                    j.experience_min_years, j.experience_max_years,
                    j.posted_at, j.first_seen_at, j.closed_at, j.apply_url,
                    s.status, s.at AS status_at, {_SCORE_COLUMNS},
@@ -232,6 +239,7 @@ def list_pipeline(conn: Connection[Any]) -> dict[str, list[dict[str, Any]]]:
             FROM job_status s
             JOIN jobs j ON j.id = s.job_id
             JOIN companies c ON c.id = j.company_id
+            {_PAY_JOIN}
             {_SCORE_JOINS}
             WHERE s.status = ANY(%s)
             ORDER BY s.at DESC
@@ -350,7 +358,7 @@ def _where(filters: dict[str, Any]) -> tuple[str, tuple[Any, ...]]:
         clauses.append("coalesce(j.posted_at, j.first_seen_at::date) >= current_date - %s::int")
         values.append(filters["posted_within"])
     if filters["has_salary"]:
-        clauses.append("(j.salary_min IS NOT NULL OR j.salary_max IS NOT NULL)")
+        clauses.append("bp.job_id IS NOT NULL")
     if filters.get("min_experience"):
         clauses.append("j.experience_min_years >= %s")
         values.append(filters["min_experience"])

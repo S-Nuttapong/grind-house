@@ -11,7 +11,9 @@ SELECT p.source_id,
        count(DISTINCT j.id) FILTER (WHERE j.city IS NULL) AS no_city,
        count(DISTINCT j.id) FILTER (WHERE j.remote = 'unknown') AS unknown_workplace,
        count(DISTINCT j.id) FILTER (WHERE j.employment_type IS NULL) AS no_type,
-       count(DISTINCT j.id) FILTER (WHERE j.salary_min IS NULL AND j.salary_max IS NULL) AS no_pay,
+       count(DISTINCT j.id) FILTER (WHERE NOT EXISTS (
+           SELECT 1 FROM job_compensation c WHERE c.job_id = j.id AND c.type = 'base'
+       )) AS no_pay,
        count(DISTINCT j.id) FILTER (WHERE j.posted_at IS NULL) AS no_posted,
        count(DISTINCT j.id) FILTER (WHERE j.role IS NULL) AS no_role,
        count(DISTINCT j.id) FILTER (WHERE j.level = 'unknown') AS unknown_level,
@@ -19,7 +21,7 @@ SELECT p.source_id,
            WHERE j.country IS NULL OR j.locations = '[]'::jsonb
        ) AS no_location,
        count(DISTINCT j.id) FILTER (
-           WHERE j.experience_min_years IS NULL AND j.experience_max_years IS NULL
+           WHERE j.experience_min_months IS NULL AND j.experience_max_months IS NULL
        ) AS no_experience
 FROM jobs j
 JOIN postings p ON p.job_id = j.id

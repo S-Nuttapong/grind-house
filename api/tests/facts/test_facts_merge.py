@@ -75,6 +75,20 @@ def test_merge_fills_nulls_and_keeps_source_values(conn) -> None:
     assert row[3] == Decimal("100000")
     assert row[4]["workplace"] == "api:greenhouse"
     assert row[4]["locations"] == "default"
+    pay = conn.execute(
+        """
+        SELECT min_amount, max_amount, unit, parser_id
+        FROM job_compensation WHERE job_id = %s AND type = 'base'
+        """,
+        (job_id,),
+    ).fetchone()
+    assert pay == (Decimal("100000"), Decimal("120000"), "yearly", "api:greenhouse")
+    merge_facts(conn, job_id)
+    count = conn.execute(
+        "SELECT count(*) FROM job_compensation WHERE job_id = %s AND type = 'base'",
+        (job_id,),
+    ).fetchone()
+    assert count == (1,)
 
 
 def test_merge_fills_experience_when_the_job_has_none(conn) -> None:
@@ -120,6 +134,11 @@ def test_merge_fills_experience_when_the_job_has_none(conn) -> None:
     assert row[0] == 5
     assert row[1] == 8
     assert row[2]["experience"] == "default"
+    months = conn.execute(
+        "SELECT experience_min_months, experience_max_months FROM jobs WHERE id = %s",
+        (job_id,),
+    ).fetchone()
+    assert months == (60, 96)
 
 
 def test_chain_order_prefers_api_over_default(conn) -> None:

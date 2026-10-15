@@ -131,9 +131,10 @@ def gold_draft(
         rows = conn.execute(
             """
             SELECT j.id, j.title, j.description_md, j.role, j.level, j.country, j.city,
-                   j.remote, j.employment_type, j.salary_min, j.salary_max,
-                   j.salary_currency, j.salary_interval, p.source_id, rp.payload
+                   j.remote, j.employment_type, bp.min_amount, bp.max_amount,
+                   bp.currency, bp.unit, p.source_id, rp.payload
             FROM jobs j
+            LEFT JOIN job_base_pay bp ON bp.job_id = j.id
             JOIN postings p ON p.job_id = j.id
             JOIN LATERAL (
                 SELECT payload FROM raw_payloads r
