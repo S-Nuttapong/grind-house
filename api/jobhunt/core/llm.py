@@ -17,6 +17,10 @@ class CallMeta:
     cost_usd: Decimal
 
 
+class LLMRateLimited(Exception):
+    """429 or a plan limit. Callers stop. They do not retry."""
+
+
 class LLMError(Exception):
     """The model did not return a usable structured result."""
 

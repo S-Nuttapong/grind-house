@@ -37,6 +37,10 @@ class FitUnavailable(Exception):
     """This batch cannot be scored together. Callers score one job at a time."""
 
 
+class FitRateLimited(FitUnavailable):
+    """Claude returned 429 or a plan limit. Stop the run. Do not retry."""
+
+
 class FitScorer(ABC):
     """Scores job descriptions against brag docs. Scores are 0 to 100."""
 

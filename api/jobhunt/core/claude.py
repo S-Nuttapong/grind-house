@@ -92,19 +92,7 @@ def structured_call[T: BaseModel](
     calls: list[CallMeta] = []
     while True:
         try:
-            message = api.messages.parse(
-                model=model,
-                max_tokens=tokens,
-                system=[
-                    {
-                        "type": "text",
-                        "text": system,
-                        "cache_control": {"type": "ephemeral"},
-                    }
-                ],
-                messages=[{"role": "user", "content": user}],
-                output_format=output,
-            )
+            message = _parse(api, model, tokens, system, user, output)
         except ValidationError:
             if schema_retried:
                 raise ClaudeInvalid("reply did not match the schema", calls) from None
@@ -130,10 +118,37 @@ def structured_call[T: BaseModel](
         return parsed, meta
 
 
+def _parse(api: _Messages, model: str, tokens: int, system: str, user: str, output: type[BaseModel]) -> Any:
+    try:
+        return api.messages.parse(
+            model=model,
+            max_tokens=tokens,
+            system=[
+                {
+                    "type": "text",
+                    "text": system,
+                    "cache_control": {"type": "ephemeral"},
+                }
+            ],
+            messages=[{"role": "user", "content": user}],
+            output_format=output,
+        )
+    except Exception as exc:
+        status = getattr(exc, "status_code", None)
+        text = str(exc).lower()
+        limited = status == 429 or "rate limit" in text or "rate_limit" in text or "usage limit" in text
+        if limited:
+            from jobhunt.core.llm import LLMRateLimited
+
+            raise LLMRateLimited(str(exc)) from exc
+        raise
+
+
 def _client() -> _Messages:
     import anthropic
 
-    return cast(_Messages, anthropic.Anthropic(max_retries=3))
+    # 429 is not retried here. The fit run stops and is marked partial.
+    return cast(_Messages, anthropic.Anthropic(max_retries=0))
 
 
 def _meta(message: Any, model: str) -> CallMeta:

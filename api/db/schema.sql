@@ -430,7 +430,7 @@ CREATE TABLE fit_runs (
   trigger          text NOT NULL CHECK (trigger IN ('schedule','manual','scrape')),
   model_id         text NOT NULL,
   status           text NOT NULL DEFAULT 'queued'
-                   CHECK (status IN ('queued','running','ok','failed')),
+                   CHECK (status IN ('queued','running','ok','failed','partial')),
   scored           int NOT NULL DEFAULT 0,
   skipped          int NOT NULL DEFAULT 0,
   error            text,

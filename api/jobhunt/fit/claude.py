@@ -13,7 +13,8 @@ from pydantic import BaseModel, ConfigDict
 
 from jobhunt.core.claude import ClaudeError, structured_call
 from jobhunt.fit.aspects import split_aspects
-from jobhunt.fit.base import BragDoc, FitResult, FitScorer, FitUnavailable
+from jobhunt.core.llm import LLMRateLimited
+from jobhunt.fit.base import BragDoc, FitRateLimited, FitResult, FitScorer, FitUnavailable
 from jobhunt.fit.contract import check_fit
 from jobhunt.fit.keywords import stack_terms_in
 from jobhunt.fit.select import select_docs
@@ -173,6 +174,9 @@ class ClaudeFitScorer(FitScorer):
                     output=output,
                     max_tokens=_MAX_TOKENS,
                 )
+            except LLMRateLimited as exc:
+                _record_fit(meta, success=False, error=str(exc))
+                raise FitRateLimited(str(exc)) from exc
             except ClaudeError as exc:
                 _record_fit(meta, success=False, error=str(exc))
                 raise FitUnavailable(str(exc)) from exc

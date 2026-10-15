@@ -16,7 +16,8 @@ def pool() -> ConnectionPool:
     if _pool is None:
         url = load_settings().database_url.get_secret_value()
         # A tick holds the global lock plus one lock and one transaction per worker.
-        _pool = ConnectionPool(conninfo=url, min_size=1, max_size=16, open=True)
+        # A full pool fails in 5 seconds instead of holding the request for the default 30.
+        _pool = ConnectionPool(conninfo=url, min_size=1, max_size=16, timeout=5, open=True)
     return _pool
 
 

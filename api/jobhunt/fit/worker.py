@@ -13,7 +13,7 @@ from psycopg import Connection
 
 from jobhunt.core.db import advisory_lock, pool, tx
 from jobhunt.fit import repo as fit_repo
-from jobhunt.fit.base import FitScorer
+from jobhunt.fit.base import FitRateLimited, FitScorer
 from jobhunt.fit.runner import _pending, score_batch
 from jobhunt.fit.schedule import next_runs
 from jobhunt.fit.sources import SourceError, resolve
@@ -102,7 +102,22 @@ def _execute(
         if should_stop():
             fit_repo.requeue_run(conn, run_id)
             return
-        score_batch(conn, model, docs, source_hash, batch)
+        try:
+            score_batch(conn, model, docs, source_hash, batch)
+        except FitRateLimited as exc:
+            fit_repo.finish_fit_run(
+                conn,
+                run_id,
+                status="partial",
+                scored=scored,
+                skipped=skipped,
+                error=str(exc)[:500],
+            )
+            event_id = fit_repo.add_run_event(
+                conn, run_id, "status", {"status": "partial", "error": str(exc)[:500]}
+            )
+            fit_repo.notify_run(conn, run_id, event_id)
+            return
         scored += len(batch)
         event_id = fit_repo.add_run_event(
             conn,

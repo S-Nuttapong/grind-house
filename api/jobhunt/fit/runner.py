@@ -8,7 +8,7 @@ from psycopg.rows import dict_row
 from jobhunt.core.log import get_logger
 from jobhunt.fit import repo as fit_repo
 from jobhunt.fit.aspects import split_aspects
-from jobhunt.fit.base import BragDoc, FitResult, FitScorer, FitUnavailable
+from jobhunt.fit.base import BragDoc, FitRateLimited, FitResult, FitScorer, FitUnavailable
 from jobhunt.fit.contract import check_fit
 from jobhunt.fit.keywords import compare
 from jobhunt.fit.sources import job_hash, joined_text, resolve
@@ -91,6 +91,8 @@ def _score_all(
 ) -> list[FitResult | None]:
     try:
         return list(model.fit_many(docs, descriptions))
+    except FitRateLimited:
+        raise
     except FitUnavailable:
         log.warning("fit batch unavailable; scoring one job at a time")
         found: list[FitResult | None] = []
